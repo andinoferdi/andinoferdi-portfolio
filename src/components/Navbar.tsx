@@ -1,100 +1,86 @@
-'use client';
-
-import React, { useState } from 'react';
+"use client";
 import {
   Navbar,
   NavBody,
   NavItems,
   MobileNav,
-  MobileNavHeader,
-  MobileNavMenu,
-  MobileNavToggle,
+  NavbarLogo,
   NavbarButton,
-} from '@/components/ui/resizable-navbar';
-import { PortfolioLogo } from '@/components/ui/PortfolioLogo';
+  MobileNavHeader,
+  MobileNavToggle,
+  MobileNavMenu,
+} from "@/components/ui/resizable-navbar";
+import { useState } from "react";
 
-const navItems = [
-  { name: 'Home', link: '/' },
-  { name: 'About', link: '#about' },
-  { name: 'Projects', link: '#projects' },
-  { name: 'Experience', link: '#experience' },
-  { name: 'Contact', link: '#contact' },
-];
+export function MainNavbar() {
+  const navItems = [
+    {
+      name: "Features",
+      link: "#features",
+    },
+    {
+      name: "Pricing",
+      link: "#pricing",
+    },
+    {
+      name: "Contact",
+      link: "#contact",
+    },
+  ];
 
-export default function PortfolioNavbar() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <Navbar>
       {/* Desktop Navigation */}
       <NavBody>
-        <div className="flex items-center">
-          <PortfolioLogo />
-        </div>
-
-        <NavItems 
-          items={navItems}
-          onItemClick={() => setIsOpen(false)}
-        />
-
-        <div className="flex items-center space-x-4">
-          <NavbarButton 
-            variant="secondary" 
-            href="#contact"
-          >
-            Contact
-          </NavbarButton>
-          <NavbarButton 
-            variant="dark" 
-            href="/resume.pdf"
-            target="_blank"
-          >
-            Resume
-          </NavbarButton>
+        <NavbarLogo />
+        <NavItems items={navItems} />
+        <div className="flex items-center gap-4">
+          <NavbarButton variant="secondary">Login</NavbarButton>
+          <NavbarButton variant="primary">Book a call</NavbarButton>
         </div>
       </NavBody>
 
       {/* Mobile Navigation */}
       <MobileNav>
         <MobileNavHeader>
-          <PortfolioLogo />
-          <MobileNavToggle 
-            isOpen={isOpen} 
-            onClick={() => setIsOpen(!isOpen)} 
+          <NavbarLogo />
+          <MobileNavToggle
+            isOpen={isMobileMenuOpen}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           />
         </MobileNavHeader>
 
-        <MobileNavMenu 
-          isOpen={isOpen}
+        <MobileNavMenu
+          isOpen={isMobileMenuOpen}
+          onClose={() => setIsMobileMenuOpen(false)}
         >
-          <div className="flex flex-col space-y-4 w-full">
-            {navItems.map((item, idx) => (
-              <a
-                key={`mobile-${idx}`}
-                href={item.link}
-                onClick={() => setIsOpen(false)}
-                className="block w-full px-4 py-3 text-base text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100 transition-colors rounded-md hover:bg-gray-50 dark:hover:bg-neutral-800"
-              >
-                {item.name}
-              </a>
-            ))}
-            <div className="flex flex-col space-y-3 pt-6 border-t border-gray-200 dark:border-neutral-700 w-full">
-              <NavbarButton 
-                variant="secondary" 
-                href="#contact"
-                onClick={() => setIsOpen(false)}
-              >
-                Contact
-              </NavbarButton>
-              <NavbarButton 
-                variant="dark" 
-                href="/resume.pdf"
-                target="_blank"
-                onClick={() => setIsOpen(false)}
-              >
-                Resume
-              </NavbarButton>
-            </div>
+          {navItems.map((item, idx) => (
+            <a
+              key={`mobile-link-${idx}`}
+              href={item.link}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="relative text-neutral-600 dark:text-neutral-300"
+            >
+              <span className="block">{item.name}</span>
+            </a>
+          ))}
+          <div className="flex w-full flex-col gap-4">
+            <NavbarButton
+              onClick={() => setIsMobileMenuOpen(false)}
+              variant="primary"
+              className="w-full"
+            >
+              Login
+            </NavbarButton>
+            <NavbarButton
+              onClick={() => setIsMobileMenuOpen(false)}
+              variant="primary"
+              className="w-full"
+            >
+              Book a call
+            </NavbarButton>
           </div>
         </MobileNavMenu>
       </MobileNav>

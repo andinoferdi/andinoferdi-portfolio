@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { motion } from "motion/react";
 
 type SpotlightProps = {
@@ -25,22 +25,6 @@ export const Spotlight = ({
   duration = 7,
   xOffset = 100,
 }: SpotlightProps = {}) => {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
-  const responsiveWidth = isMobile ? Math.min(width * 0.6, 320) : width;
-  const responsiveHeight = isMobile ? Math.min(height * 0.6, 800) : height;
-  const responsiveSmallWidth = isMobile ? Math.min(smallWidth * 0.5, 120) : smallWidth;
-
   return (
     <motion.div
       initial={{
@@ -64,14 +48,14 @@ export const Spotlight = ({
           repeatType: "reverse",
           ease: "easeInOut",
         }}
-        className="absolute top-0 left-0 w-screen h-screen z-[5] pointer-events-none"
+        className="absolute top-0 left-0 w-screen h-screen z-40 pointer-events-none"
       >
         <div
           style={{
             transform: `translateY(${translateY}px) rotate(-45deg)`,
             background: gradientFirst,
-            width: `${responsiveWidth}px`,
-            height: `${responsiveHeight}px`,
+            width: `${width}px`,
+            height: `${height}px`,
           }}
           className={`absolute top-0 left-0`}
         />
@@ -80,8 +64,8 @@ export const Spotlight = ({
           style={{
             transform: "rotate(-45deg) translate(5%, -50%)",
             background: gradientSecond,
-            width: `${responsiveSmallWidth}px`,
-            height: `${responsiveHeight}px`,
+            width: `${smallWidth}px`,
+            height: `${height}px`,
           }}
           className={`absolute top-0 left-0 origin-top-left`}
         />
@@ -90,8 +74,8 @@ export const Spotlight = ({
           style={{
             transform: "rotate(-45deg) translate(-180%, -70%)",
             background: gradientThird,
-            width: `${responsiveSmallWidth}px`,
-            height: `${responsiveHeight}px`,
+            width: `${smallWidth}px`,
+            height: `${height}px`,
           }}
           className={`absolute top-0 left-0 origin-top-left`}
         />
@@ -107,14 +91,14 @@ export const Spotlight = ({
           repeatType: "reverse",
           ease: "easeInOut",
         }}
-        className="absolute top-0 right-0 w-screen h-screen z-[5] pointer-events-none"
+        className="absolute top-0 right-0 w-screen h-screen z-40 pointer-events-none"
       >
         <div
           style={{
             transform: `translateY(${translateY}px) rotate(45deg)`,
             background: gradientFirst,
-            width: `${responsiveWidth}px`,
-            height: `${responsiveHeight}px`,
+            width: `${width}px`,
+            height: `${height}px`,
           }}
           className={`absolute top-0 right-0`}
         />
@@ -123,8 +107,8 @@ export const Spotlight = ({
           style={{
             transform: "rotate(45deg) translate(-5%, -50%)",
             background: gradientSecond,
-            width: `${responsiveSmallWidth}px`,
-            height: `${responsiveHeight}px`,
+            width: `${smallWidth}px`,
+            height: `${height}px`,
           }}
           className={`absolute top-0 right-0 origin-top-right`}
         />
@@ -133,8 +117,8 @@ export const Spotlight = ({
           style={{
             transform: "rotate(45deg) translate(180%, -70%)",
             background: gradientThird,
-            width: `${responsiveSmallWidth}px`,
-            height: `${responsiveHeight}px`,
+            width: `${smallWidth}px`,
+            height: `${height}px`,
           }}
           className={`absolute top-0 right-0 origin-top-right`}
         />
