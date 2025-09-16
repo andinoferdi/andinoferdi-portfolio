@@ -8,6 +8,7 @@ import {
   useSpring,
   MotionValue,
 } from "motion/react";
+import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
 
 
 
@@ -20,9 +21,9 @@ export const HeroParallax = ({
     thumbnail: string;
   }[];
 }) => {
-  const firstRow = products.slice(0, 5);
-  const secondRow = products.slice(5, 10);
-  const thirdRow = products.slice(10, 15);
+  const firstRow = products.slice(0, 3);
+  const secondRow = products.slice(3, 6);
+  const thirdRow = products.slice(6, 9);
   const ref = React.useRef(null);
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -52,7 +53,7 @@ export const HeroParallax = ({
     springConfig
   );
   const translateY = useSpring(
-    useTransform(scrollYProgress, [0, 0.2], [-800, 100]),
+    useTransform(scrollYProgress, [0, 0.2], [-1000, 1]),
     springConfig
   );
   return (
@@ -66,15 +67,15 @@ export const HeroParallax = ({
       <motion.div
         style={{
           opacity: useSpring(
-            useTransform(scrollYProgress, [0.1, 0.15], [0, 1]),
+            useTransform(scrollYProgress, [0.05, 0.12], [0, 1]),
             springConfig
           ),
           y: useSpring(
-            useTransform(scrollYProgress, [0.1, 0.15], [30, 0]),
+            useTransform(scrollYProgress, [0.05, 0.12], [20, 0]),
             springConfig
           ),
         }}
-        className="-mt-32"
+        className="-mt-16 md:-mt-25"
       >
         <ProjectsSection />
       </motion.div>
@@ -88,7 +89,7 @@ export const HeroParallax = ({
         }}
         className=""
       >
-        <motion.div className="flex flex-row-reverse space-x-reverse space-x-20 mb-20">
+        <motion.div className="flex flex-col md:flex-row justify-center space-y-6 md:space-y-0 md:space-x-8 mb-8 md:mb-12 px-4">
           {firstRow.map((product) => (
             <ProductCard
               product={product}
@@ -97,7 +98,7 @@ export const HeroParallax = ({
             />
           ))}
         </motion.div>
-        <motion.div className="flex flex-row mb-20 space-x-20">
+        <motion.div className="flex flex-col md:flex-row justify-center space-y-6 md:space-y-0 md:space-x-8 mb-8 md:mb-12 px-4">
           {secondRow.map((product) => (
             <ProductCard
               product={product}
@@ -106,7 +107,7 @@ export const HeroParallax = ({
             />
           ))}
         </motion.div>
-        <motion.div className="flex flex-row-reverse space-x-reverse space-x-20">
+        <motion.div className="flex flex-col md:flex-row justify-center space-y-6 md:space-y-0 md:space-x-8 px-4">
           {thirdRow.map((product) => (
             <ProductCard
               product={product}
@@ -137,11 +138,11 @@ export const Header = () => {
 
 export const ProjectsSection = () => {
   return (
-    <div className="max-w-7xl relative mx-auto py-20 px-4 w-full text-center">
-      <h2 className="text-3xl md:text-5xl font-bold dark:text-white mb-8">
+    <div className="max-w-7xl relative mx-auto py-12 md:py-20 px-4 w-full text-center">
+      <h2 className="text-2xl md:text-5xl font-bold dark:text-white mb-4 md:mb-8">
         Our Projects
       </h2>
-      <p className="max-w-2xl text-base md:text-lg mt-4 dark:text-neutral-300 mx-auto">
+      <p className="max-w-2xl text-sm md:text-lg mt-2 md:mt-4 dark:text-neutral-300 mx-auto px-4">
         Explore our portfolio of innovative projects and cutting-edge solutions.
       </p>
     </div>
@@ -164,28 +165,56 @@ export const ProductCard = ({
       style={{
         x: translate,
       }}
-      whileHover={{
-        y: -20,
-      }}
       key={product.title}
-      className="group/product h-96 w-[30rem] relative shrink-0"
+      className="h-96 w-full max-w-sm md:max-w-none md:w-[28rem] relative shrink-0 mx-auto"
     >
-      <a
-        href={product.link}
-        className="block group-hover/product:shadow-2xl "
-      >
-        <Image
-          src={product.thumbnail}
-          height={600}
-          width={600}
-          className="object-cover object-left-top absolute h-full w-full inset-0"
-          alt={product.title}
-        />
-      </a>
-      <div className="absolute inset-0 h-full w-full opacity-0 group-hover/product:opacity-80 bg-black pointer-events-none"></div>
-      <h2 className="absolute bottom-4 left-4 opacity-0 group-hover/product:opacity-100 text-white">
-        {product.title}
-      </h2>
+      <CardContainer className="inter-var h-full -mt-8 md:-mt-25">
+        <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-full h-full rounded-xl p-6 border">
+          <CardItem
+            translateZ="50"
+            className="text-xl font-bold text-neutral-600 dark:text-white mb-4"
+          >
+            {product.title}
+          </CardItem>
+          <CardItem
+            as="p"
+            translateZ="60"
+            className="text-neutral-500 text-sm max-w-sm mb-4 dark:text-neutral-300"
+          >
+            Explore this amazing project and discover innovative solutions
+          </CardItem>
+          <CardItem translateZ="100" className="w-full flex-1">
+            <a href={product.link} target="_blank" rel="noopener noreferrer">
+              <Image
+                src={product.thumbnail}
+                height={400}
+                width={400}
+                className="h-48 w-full object-cover rounded-xl group-hover/card:shadow-xl"
+                alt={product.title}
+              />
+            </a>
+          </CardItem>
+          <div className="flex justify-between items-center mt-4">
+            <CardItem
+              translateZ={20}
+              as="a"
+              href={product.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-xl text-xs font-normal dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              View Project →
+            </CardItem>
+            <CardItem
+              translateZ={20}
+              as="button"
+              className="px-4 py-2 rounded-xl bg-black dark:bg-white dark:text-black text-white text-xs font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+            >
+              Learn More
+            </CardItem>
+          </div>
+        </CardBody>
+      </CardContainer>
     </motion.div>
   );
 };
