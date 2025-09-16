@@ -134,12 +134,14 @@ export const Header = ({ scrollYProgress }: { scrollYProgress: MotionValue<numbe
       style={{ opacity: headerOpacity }}
       className="max-w-7xl relative mx-auto py-8 md:py-16 px-4 w-full left-0 top-0 text-center -translate-y-8 md:-translate-y-12 will-change-transform"
     >
-      <h1 className="text-2xl md:text-7xl font-bold dark:text-white">
-        Hi, my name is <br />
-        <ContainerTextFlipDemo />
+      <h1 className="text-2xl md:text-7xl font-bold dark:text-white mb-4 md:mb-8">
+        Hi, my name is
       </h1>
+      <div className="mt-2 md:mt-4">
+        <ContainerTextFlipDemo />
+      </div>
       {/* Animated Testimonials */}
-      <div className="mt-1 md:mt-1">
+      <div className="mt-8 md:mt-12">
         <AnimatedTestimonialsDemo />
       </div>
     </motion.div>

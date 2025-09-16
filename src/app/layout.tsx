@@ -45,9 +45,9 @@ export default function RootLayout({
           
           <div className="relative z-10">
             <MainNavbar />
-            <div className="pt-20">
-              {children}
-            </div>
+        <div className="pt-16">
+          {children}
+        </div>
           </div>
         </ThemeProvider>
       </body>
