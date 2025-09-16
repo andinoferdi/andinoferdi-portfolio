@@ -10,6 +10,7 @@ import {
   MobileNavToggle,
   MobileNavMenu,
 } from "@/components/ui/resizable-navbar";
+import { IconBrandGithub } from "@tabler/icons-react";
 import { useState } from "react";
 
 export function MainNavbar() {
@@ -37,7 +38,9 @@ export function MainNavbar() {
         <NavbarLogo />
         <NavItems items={navItems} />
         <div className="flex items-center gap-4">
-          <NavbarButton variant="secondary">Login</NavbarButton>
+          <NavbarButton variant="secondary" href="https://github.com/andinoferdi" className="border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500">
+            <IconBrandGithub size={20} />
+          </NavbarButton>
           <NavbarButton variant="primary">Book a call</NavbarButton>
         </div>
       </NavBody>
@@ -66,14 +69,16 @@ export function MainNavbar() {
               <span className="block">{item.name}</span>
             </a>
           ))}
-          <div className="flex w-full flex-col gap-4">
-            <NavbarButton
-              onClick={() => setIsMobileMenuOpen(false)}
-              variant="primary"
-              className="w-full"
-            >
-              Login
-            </NavbarButton>
+           <div className="flex w-full flex-col gap-4">
+             <NavbarButton
+               onClick={() => setIsMobileMenuOpen(false)}
+               variant="secondary"
+               className="w-full border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
+               href="https://github.com/andinoferdi"
+             >
+               <IconBrandGithub size={20} className="mr-2" />
+               GitHub
+             </NavbarButton>
             <NavbarButton
               onClick={() => setIsMobileMenuOpen(false)}
               variant="primary"

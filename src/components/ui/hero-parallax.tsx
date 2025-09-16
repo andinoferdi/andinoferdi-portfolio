@@ -66,15 +66,15 @@ export const HeroParallax = ({
       <motion.div
         style={{
           opacity: useSpring(
-            useTransform(scrollYProgress, [0.15, 0.25], [0, 1]),
+            useTransform(scrollYProgress, [0.1, 0.15], [0, 1]),
             springConfig
           ),
           y: useSpring(
-            useTransform(scrollYProgress, [0.15, 0.25], [50, 0]),
+            useTransform(scrollYProgress, [0.1, 0.15], [30, 0]),
             springConfig
           ),
         }}
-        className="mt-20"
+        className="-mt-32"
       >
         <ProjectsSection />
       </motion.div>
