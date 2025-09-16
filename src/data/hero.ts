@@ -112,8 +112,8 @@ export const heroTestimonials: Testimonial[] = [
 ];
 
 export const heroTextFlipWords = [
-  "Andino Ferdiansah",
-  "Full Stack Developer", 
-  "UI/UX Designer",
-  "Problem Solver"
+  "Andino",
+  "Ferdiansah", 
+  "Ferdi",
+  "Bahro"
 ];
