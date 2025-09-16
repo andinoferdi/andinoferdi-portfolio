@@ -87,9 +87,9 @@ export const HeroParallax = ({
           translateY,
           opacity,
         }}
-        className=""
+        className="flex flex-col items-center w-full"
       >
-        <motion.div className="flex flex-col md:flex-row justify-center space-y-6 md:space-y-0 md:space-x-8 mb-8 md:mb-12 px-4">
+        <motion.div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-8 mb-8 md:mb-12 px-4 w-full">
           {firstRow.map((product) => (
             <ProductCard
               product={product}
@@ -98,7 +98,7 @@ export const HeroParallax = ({
             />
           ))}
         </motion.div>
-        <motion.div className="flex flex-col md:flex-row justify-center space-y-6 md:space-y-0 md:space-x-8 mb-8 md:mb-12 px-4">
+        <motion.div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-8 mb-8 md:mb-12 px-4 w-full">
           {secondRow.map((product) => (
             <ProductCard
               product={product}
@@ -107,7 +107,7 @@ export const HeroParallax = ({
             />
           ))}
         </motion.div>
-        <motion.div className="flex flex-col md:flex-row justify-center space-y-6 md:space-y-0 md:space-x-8 px-4">
+        <motion.div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-8 px-4 w-full">
           {thirdRow.map((product) => (
             <ProductCard
               product={product}
@@ -140,7 +140,7 @@ export const ProjectsSection = () => {
   return (
     <div className="max-w-7xl relative mx-auto py-12 md:py-20 px-4 w-full text-center">
       <h2 className="text-2xl md:text-5xl font-bold dark:text-white mb-4 md:mb-8">
-        Our Projects
+        My Projects
       </h2>
       <p className="max-w-2xl text-sm md:text-lg mt-2 md:mt-4 dark:text-neutral-300 mx-auto px-4">
         Explore our portfolio of innovative projects and cutting-edge solutions.
@@ -166,7 +166,7 @@ export const ProductCard = ({
         x: translate,
       }}
       key={product.title}
-      className="h-96 w-full max-w-sm md:max-w-none md:w-[28rem] relative shrink-0 mx-auto"
+      className="h-96 w-full max-w-sm md:w-[28rem] relative shrink-0"
     >
       <CardContainer className="inter-var h-full -mt-8 md:-mt-25">
         <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-full h-full rounded-xl p-6 border">
