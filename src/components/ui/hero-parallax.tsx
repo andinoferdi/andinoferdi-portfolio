@@ -45,7 +45,7 @@ export const HeroParallax = ({
     springConfig
   );
   const opacity = useSpring(
-    useTransform(scrollYProgress, [0, 0.2], [0.2, 1]),
+    useTransform(scrollYProgress, [0, 0.2], [0.05, 1]),
     springConfig
   );
   const rotateZ = useSpring(
@@ -61,7 +61,7 @@ export const HeroParallax = ({
       ref={ref}
       className="h-[500vh] py-40 overflow-hidden antialiased relative flex flex-col self-auto [perspective:1000px] [transform-style:preserve-3d]"
     >
-      <Header />
+      <Header scrollYProgress={scrollYProgress} />
       
       {/* Projects Section - appears when parallax reaches final position */}
       <motion.div
@@ -121,9 +121,17 @@ export const HeroParallax = ({
   );
 };
 
-export const Header = () => {
+export const Header = ({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) => {
+  const headerOpacity = useSpring(
+    useTransform(scrollYProgress, [0, 0.2], [0.95, 1]),
+    { stiffness: 300, damping: 30, bounce: 100 }
+  );
+
   return (
-    <div className="max-w-7xl relative mx-auto py-20 md:py-40 px-4 w-full left-0 top-0 text-center -translate-y-20 md:-translate-y-[130px] will-change-transform">
+    <motion.div 
+      style={{ opacity: headerOpacity }}
+      className="max-w-7xl relative mx-auto py-20 md:py-40 px-4 w-full left-0 top-0 text-center -translate-y-20 md:-translate-y-[130px] will-change-transform"
+    >
       <h1 className="text-2xl md:text-7xl font-bold dark:text-white">
         The Ultimate <br /> development studio
       </h1>
@@ -132,7 +140,7 @@ export const Header = () => {
         We are a team of passionate developers and designers that love to build
         amazing products.
       </p>
-    </div>
+    </motion.div>
   );
 };
 
