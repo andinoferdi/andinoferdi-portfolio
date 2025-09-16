@@ -79,18 +79,18 @@ export function MainNavbar() {
              <NavbarButton
                onClick={() => setIsMobileMenuOpen(false)}
                variant="secondary"
-               className="w-full border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
+               className="w-full border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center gap-2"
                href="https://github.com/andinoferdi"
              >
-               <IconBrandGithub size={20} className="mr-2" />
-               GitHub
+               <IconBrandGithub size={20} />
+               <span>GitHub</span>
              </NavbarButton>
             <NavbarButton
               onClick={() => setIsMobileMenuOpen(false)}
               variant="primary"
-              className="w-full"
+              className="w-full flex items-center justify-center"
             >
-              Book a call
+              <span>Book a call</span>
             </NavbarButton>
           </div>
         </MobileNavMenu>
