@@ -55,13 +55,13 @@ export const HeroParallax = ({
     springConfig
   );
   const translateY = useSpring(
-    useTransform(scrollYProgress, [0, 0.2], [-700, 1]),
+    useTransform(scrollYProgress, [0, 0.2], [-520, 1]),
     springConfig
   );
   return (
     <div
       ref={ref}
-      className="h-[500vh] py-40 overflow-hidden antialiased relative flex flex-col self-auto [perspective:1000px] [transform-style:preserve-3d]"
+      className="h-[500vh] py-20 overflow-hidden antialiased relative flex flex-col self-auto [perspective:1000px] [transform-style:preserve-3d]"
     >
       <Header scrollYProgress={scrollYProgress} />
       
@@ -77,7 +77,7 @@ export const HeroParallax = ({
             springConfig
           ),
         }}
-        className="-mt-16 md:-mt-25"
+        className="-mt-8 md:-mt-12"
       >
         <ProjectsSection />
       </motion.div>
@@ -132,7 +132,7 @@ export const Header = ({ scrollYProgress }: { scrollYProgress: MotionValue<numbe
   return (
     <motion.div
       style={{ opacity: headerOpacity }}
-      className="max-w-7xl relative mx-auto py-20 md:py-40 px-4 w-full left-0 top-0 text-center -translate-y-20 md:-translate-y-[130px] will-change-transform"
+      className="max-w-7xl relative mx-auto py-8 md:py-16 px-4 w-full left-0 top-0 text-center -translate-y-8 md:-translate-y-12 will-change-transform"
     >
       <h1 className="text-2xl md:text-7xl font-bold dark:text-white">
         Hi, my name is <br />
@@ -178,7 +178,7 @@ export const ProductCard = ({
       key={product.title}
       className="h-96 w-full max-w-sm md:w-[28rem] relative shrink-0"
     >
-      <CardContainer className="inter-var h-full -mt-8 md:-mt-25">
+      <CardContainer className="inter-var h-full -mt-4 md:-mt-8">
         <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-full h-full rounded-xl p-6 border">
           <CardItem
             translateZ="50"
