@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 
 export const PortfolioLogo = () => {
   return (
@@ -6,10 +7,16 @@ export const PortfolioLogo = () => {
       href="/"
       className="relative z-20 mr-4 flex items-center space-x-2 px-2 py-1 text-sm font-normal text-black dark:text-white"
     >
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black dark:bg-white">
-        <span className="text-sm font-bold text-white dark:text-black">P</span>
+      <div className="flex h-12 w-12 items-center justify-center">
+        <Image
+          src="/images/Logo.png"
+          alt="Portfolio Logo"
+          width={48}
+          height={48}
+          className="rounded-full object-contain"
+          priority
+        />
       </div>
-      <span className="font-medium text-black dark:text-white">Portfolio</span>
     </Link>
   );
 };

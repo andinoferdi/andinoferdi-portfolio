@@ -3,7 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import PortfolioNavbar from "@/components/Navbar";
-import { Spotlight } from "@/components/ui/spotlight-new";
+import { Spotlight } from "@/components/ui/spotlight-main-background";
 
 const poppins = Poppins({
   variable: "--font-poppins",

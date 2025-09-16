@@ -9,4 +9,4 @@ export * from './resizable-navbar';
 export { PortfolioLogo } from './PortfolioLogo';
 
 // Background components
-export { Spotlight } from './spotlight-new';
+export { Spotlight } from './spotlight-main-background';
