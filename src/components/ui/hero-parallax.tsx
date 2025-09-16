@@ -10,6 +10,7 @@ import {
 } from "motion/react";
 import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
 import { AnimatedTestimonials } from "@/components/ui/animated-testimonials";
+import { ContainerTextFlip } from "@/components/ui/container-text-flip";
 
 
 
@@ -134,7 +135,8 @@ export const Header = ({ scrollYProgress }: { scrollYProgress: MotionValue<numbe
       className="max-w-7xl relative mx-auto py-20 md:py-40 px-4 w-full left-0 top-0 text-center -translate-y-20 md:-translate-y-[130px] will-change-transform"
     >
       <h1 className="text-2xl md:text-7xl font-bold dark:text-white">
-        Hi, my name is <br /> Andino Ferdiansah
+        Hi, my name is <br />
+        <ContainerTextFlipDemo />
       </h1>
       {/* Animated Testimonials */}
       <div className="mt-1 md:mt-1">
@@ -266,4 +268,12 @@ export function AnimatedTestimonialsDemo() {
     },
   ];
   return <AnimatedTestimonials testimonials={testimonials} />;
+};
+
+export function ContainerTextFlipDemo() {
+  return (
+    <ContainerTextFlip
+      words={["Andino", "Ferdiansah", "Ferdi", "Bahro"]}
+    />
+  );
 };
