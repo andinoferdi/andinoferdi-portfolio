@@ -12,8 +12,8 @@ import {
 import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
 import { AnimatedTestimonials } from "@/components/ui/animated-testimonials";
 import { ContainerTextFlip } from "@/components/ui/container-text-flip";
-import { heroTestimonials, heroTextFlipWords } from "./data";
-import { HeroParallaxProps, ProductItem } from "./types";
+import { heroTestimonials, heroTextFlipWords } from "@/data/hero";
+import { HeroParallaxProps, ProductItem } from "@/types/hero";
 
 /**
  * Main Hero Section with Parallax Effect
