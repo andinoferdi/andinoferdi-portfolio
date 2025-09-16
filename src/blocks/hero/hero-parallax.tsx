@@ -9,8 +9,8 @@ import {
   MotionValue,
 } from "motion/react";
 import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
-import { AnimatedTestimonials } from "@/components/ui/animated-testimonials";
-import { ContainerTextFlip } from "@/components/ui/container-text-flip";
+import { AnimatedTestimonials } from "@/blocks/hero/animated-testimonials";
+import { ContainerTextFlip } from "@/blocks/hero/container-text-flip";
 
 
 
