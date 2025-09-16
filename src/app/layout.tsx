@@ -13,10 +13,10 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Portfolio | Your Name",
+  title: "Portfolio | Andino Ferdi",
   description: "A modern portfolio showcasing my work and skills",
   keywords: ["portfolio", "developer", "designer", "web development"],
-  authors: [{ name: "Your Name" }],
+  authors: [{ name: "Andino Ferdiansah" }],
   icons: {
     icon: '/images/Logo.png',
     shortcut: '/images/Logo.png',
