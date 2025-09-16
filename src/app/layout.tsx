@@ -17,7 +17,16 @@ export const metadata: Metadata = {
   description: "A modern portfolio showcasing my work and skills",
   keywords: ["portfolio", "developer", "designer", "web development"],
   authors: [{ name: "Your Name" }],
-  viewport: "width=device-width, initial-scale=1",
+  icons: {
+    icon: '/images/Logo.png',
+    shortcut: '/images/Logo.png',
+    apple: '/images/Logo.png',
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

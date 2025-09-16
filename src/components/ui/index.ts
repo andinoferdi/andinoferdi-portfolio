@@ -10,3 +10,8 @@ export { PortfolioLogo } from './PortfolioLogo';
 
 // Background components
 export { Spotlight } from './spotlight-main-background';
+
+// Hero components  
+export { HeroParallax, Header, ProductCard } from './hero-parallax';
+export { HeroParallaxDemo } from './HeroParallaxDemo';
+export { ResponsiveHeroWrapper } from './responsive-hero-wrapper';
