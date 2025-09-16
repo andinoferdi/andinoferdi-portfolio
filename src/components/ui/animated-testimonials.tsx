@@ -11,6 +11,7 @@ type Testimonial = {
   designation: string;
   src: string;
 };
+
 export const AnimatedTestimonials = ({
   testimonials,
   autoplay = false,
@@ -44,6 +45,7 @@ export const AnimatedTestimonials = ({
     const rotations = [-10, -5, 0, 5, 10, -8, 3, -3, 7, -7];
     return rotations[index % rotations.length];
   };
+
   return (
     <div className="mx-auto max-w-sm px-4 py-20 font-sans antialiased md:max-w-4xl md:px-8 lg:px-12">
       <div className="relative grid grid-cols-1 gap-20 md:grid-cols-2">
@@ -165,3 +167,6 @@ export const AnimatedTestimonials = ({
     </div>
   );
 };
+
+// Export type for external use
+export type { Testimonial };

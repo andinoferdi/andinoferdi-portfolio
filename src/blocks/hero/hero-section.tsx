@@ -1,4 +1,5 @@
 "use client";
+
 import React from "react";
 import Image from "next/image";
 import {
@@ -9,20 +10,16 @@ import {
   MotionValue,
 } from "motion/react";
 import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
-import { AnimatedTestimonials } from "@/blocks/hero/animated-testimonials";
-import { ContainerTextFlip } from "@/blocks/hero/container-text-flip";
+import { AnimatedTestimonials } from "@/components/ui/animated-testimonials";
+import { ContainerTextFlip } from "@/components/ui/container-text-flip";
+import { heroTestimonials, heroTextFlipWords } from "./data";
+import { HeroParallaxProps, ProductItem } from "./types";
 
-
-
-export const HeroParallax = ({
-  products,
-}: {
-  products: {
-    title: string;
-    link: string;
-    thumbnail: string;
-  }[];
-}) => {
+/**
+ * Main Hero Section with Parallax Effect
+ * Contains header, animated text, testimonials, and 3D project cards
+ */
+export const HeroSection = ({ products }: HeroParallaxProps) => {
   const firstRow = products.slice(0, 3);
   const secondRow = products.slice(3, 6);
   const thirdRow = products.slice(6, 9);
@@ -58,14 +55,15 @@ export const HeroParallax = ({
     useTransform(scrollYProgress, [0, 0.2], [-520, 1]),
     springConfig
   );
+
   return (
     <div
       ref={ref}
       className="h-[500vh] py-20 overflow-hidden antialiased relative flex flex-col self-auto [perspective:1000px] [transform-style:preserve-3d]"
     >
-      <Header scrollYProgress={scrollYProgress} />
+      <HeroHeader scrollYProgress={scrollYProgress} />
       
-      {/* Projects Section - appears when parallax reaches final position */}
+      {/* Projects Section */}
       <motion.div
         style={{
           opacity: useSpring(
@@ -82,6 +80,7 @@ export const HeroParallax = ({
         <ProjectsSection />
       </motion.div>
       
+      {/* 3D Project Cards with Parallax */}
       <motion.div
         style={{
           rotateX,
@@ -91,39 +90,18 @@ export const HeroParallax = ({
         }}
         className="flex flex-col items-center w-full"
       >
-        <motion.div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-8 mb-8 md:mb-12 px-4 w-full">
-          {firstRow.map((product) => (
-            <ProductCard
-              product={product}
-              translate={translateX}
-              key={product.title}
-            />
-          ))}
-        </motion.div>
-        <motion.div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-8 mb-8 md:mb-12 px-4 w-full">
-          {secondRow.map((product) => (
-            <ProductCard
-              product={product}
-              translate={translateXReverse}
-              key={product.title}
-            />
-          ))}
-        </motion.div>
-        <motion.div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-8 px-4 w-full">
-          {thirdRow.map((product) => (
-            <ProductCard
-              product={product}
-              translate={translateX}
-              key={product.title}
-            />
-          ))}
-        </motion.div>
+        <ProductRow products={firstRow} translate={translateX} />
+        <ProductRow products={secondRow} translate={translateXReverse} />
+        <ProductRow products={thirdRow} translate={translateX} />
       </motion.div>
     </div>
   );
 };
 
-export const Header = ({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) => {
+/**
+ * Hero Header with Animated Text and Testimonials
+ */
+export const HeroHeader = ({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) => {
   const headerOpacity = useSpring(
     useTransform(scrollYProgress, [0, 0.2], [0.95, 1]),
     { stiffness: 300, damping: 30, bounce: 100 }
@@ -137,17 +115,19 @@ export const Header = ({ scrollYProgress }: { scrollYProgress: MotionValue<numbe
       <h1 className="text-2xl md:text-7xl font-bold dark:text-white mb-4 md:mb-8">
         Hi, my name is
       </h1>
-      <div className="mt-2 md:mt-4">
-        <ContainerTextFlipDemo />
+      <div className="mt-4 md:mt-6">
+        <ContainerTextFlip words={heroTextFlipWords} />
       </div>
-      {/* Animated Testimonials */}
       <div className="mt-8 md:mt-12">
-        <AnimatedTestimonialsDemo />
+        <HeroTestimonials />
       </div>
     </motion.div>
   );
 };
 
+/**
+ * Projects Section Header
+ */
 export const ProjectsSection = () => {
   return (
     <div className="max-w-7xl relative mx-auto py-12 md:py-20 px-4 w-full text-center">
@@ -161,15 +141,37 @@ export const ProjectsSection = () => {
   );
 };
 
+/**
+ * Product Row - Renders a row of 3D product cards
+ */
+const ProductRow = ({
+  products,
+  translate,
+}: {
+  products: ProductItem[];
+  translate: MotionValue<number>;
+}) => {
+  return (
+    <motion.div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-8 mb-8 md:mb-12 px-4 w-full">
+      {products.map((product) => (
+        <ProductCard
+          product={product}
+          translate={translate}
+          key={product.title}
+        />
+      ))}
+    </motion.div>
+  );
+};
+
+/**
+ * 3D Product Card Component
+ */
 export const ProductCard = ({
   product,
   translate,
 }: {
-  product: {
-    title: string;
-    link: string;
-    thumbnail: string;
-  };
+  product: ProductItem;
   translate: MotionValue<number>;
 }) => {
   return (
@@ -231,51 +233,9 @@ export const ProductCard = ({
   );
 };
 
-export function AnimatedTestimonialsDemo() {
-  const testimonials = [
-    {
-      quote:
-        "The attention to detail and innovative features have completely transformed our workflow. This is exactly what we've been looking for.",
-      name: "Sarah Chen",
-      designation: "Product Manager at TechFlow",
-      src: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=3560&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    },
-    {
-      quote:
-        "Implementation was seamless and the results exceeded our expectations. The platform's flexibility is remarkable.",
-      name: "Michael Rodriguez",
-      designation: "CTO at InnovateSphere",
-      src: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=3540&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    },
-    {
-      quote:
-        "This solution has significantly improved our team's productivity. The intuitive interface makes complex tasks simple.",
-      name: "Emily Watson",
-      designation: "Operations Director at CloudScale",
-      src: "https://images.unsplash.com/photo-1623582854588-d60de57fa33f?q=80&w=3540&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    },
-    {
-      quote:
-        "Outstanding support and robust features. It's rare to find a product that delivers on all its promises.",
-      name: "James Kim",
-      designation: "Engineering Lead at DataPro",
-      src: "https://images.unsplash.com/photo-1636041293178-808a6762ab39?q=80&w=3464&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    },
-    {
-      quote:
-        "The scalability and performance have been game-changing for our organization. Highly recommend to any growing business.",
-      name: "Lisa Thompson",
-      designation: "VP of Technology at FutureNet",
-      src: "https://images.unsplash.com/photo-1624561172888-ac93c696e10c?q=80&w=2592&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
-    },
-  ];
-  return <AnimatedTestimonials testimonials={testimonials} />;
-};
-
-export function ContainerTextFlipDemo() {
-  return (
-    <ContainerTextFlip
-      words={["Andino", "Ferdiansah", "Ferdi", "Bahro"]}
-    />
-  );
+/**
+ * Hero Testimonials Component
+ */
+export const HeroTestimonials = () => {
+  return <AnimatedTestimonials testimonials={heroTestimonials} />;
 };
