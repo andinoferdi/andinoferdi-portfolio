@@ -25,29 +25,8 @@ export const HeroSection = () => {
     offset: ["start start", "end start"],
   });
 
-  const springConfig = { stiffness: 300, damping: 30, bounce: 100 };
 
-  const translateX = useSpring(
-    useTransform(scrollYProgress, [0, 1], [0, 0]),
-    springConfig
-  );
-  const rotateX = useSpring(
-    useTransform(scrollYProgress, [0, 0.2], [15, 0]),
-    springConfig
-  );
-  const opacity = useSpring(
-    useTransform(scrollYProgress, [0, 0.2], [0.05, 1]),
-    springConfig
-  );
-  const rotateZ = useSpring(
-    useTransform(scrollYProgress, [0, 0.2], [20, 0]),
-    springConfig
-  );
-  const translateY = useSpring(
-    useTransform(scrollYProgress, [0, 0.2], [-500, 1]),
-    springConfig
-  );
-
+ 
   return (
     <div
       ref={ref}
@@ -55,32 +34,15 @@ export const HeroSection = () => {
     >
       <HeroHeader scrollYProgress={scrollYProgress} />
       
-      <motion.div
-        style={{
-          opacity: useSpring(
-            useTransform(scrollYProgress, [0.05, 0.12], [0, 1]),
-            springConfig
-          ),
-          y: useSpring(
-            useTransform(scrollYProgress, [0.05, 0.12], [20, 0]),
-            springConfig
-          ),
-        }}
-        className="-mt-8 md:-mt-12"
-      >
+      <div className="-mt-8 md:-mt-12">
         <ProjectsSection />
-      </motion.div>
+      </div>
       
       <motion.div
-        style={{
-          rotateX,
-          rotateZ,
-          translateY,
-          opacity,
-        }}
+       
         className="flex flex-col items-center w-full"
       >
-        <ProductRow products={featuredProjects} translate={translateX} />
+        <ProductRow products={featuredProjects} />
       </motion.div>
     </div>
   );
@@ -127,19 +89,16 @@ export const ProjectsSection = () => {
   );
 };
 
-const ProductRow = ({ products, translate }: { products: ProjectItem[]; translate: MotionValue<number> }) => {
+const ProductRow = ({ products }: { products: ProjectItem[] }) => {
   return (
-    <motion.div 
-      style={{ x: translate }}
-      className="flex flex-col items-center w-full"
-    >
+    <div className="flex flex-col items-center w-full">
       <div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-8 px-4 w-full">
         {products.map((product) => (
           <ProductCard product={product} key={product.title} />
         ))}
       </div>
       <ViewMoreButton />
-    </motion.div>
+    </div>
   );
 };
 
