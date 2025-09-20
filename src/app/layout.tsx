@@ -13,7 +13,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Portfolio | Andino Ferdi",
+  title: "Andino Ferdiansah | Developer",
   description: "A modern portfolio showcasing my work and skills",
   keywords: ["portfolio", "developer", "designer", "web development"],
   authors: [{ name: "Andino Ferdiansah" }],
