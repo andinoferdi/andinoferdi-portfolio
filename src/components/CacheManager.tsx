@@ -112,9 +112,7 @@ export const CacheManager = () => {
     }
   };
 
-  if (process.env.NODE_ENV !== 'development') {
-    return null; // Only show in development
-  }
+  // Cache Manager is now always visible for debugging purposes
 
   return (
     <div className="relative">
