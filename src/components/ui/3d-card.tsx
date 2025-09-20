@@ -31,6 +31,10 @@ export const CardContainer = ({
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!containerRef.current) return;
+    
+    // Disable 3D transform on mobile devices
+    if (window.innerWidth < 768) return;
+    
     const { left, top, width, height } =
       containerRef.current.getBoundingClientRect();
     const x = (e.clientX - left - width / 2) / 25;
@@ -126,6 +130,13 @@ export const CardItem = ({
 
   const handleAnimations = useCallback(() => {
     if (!ref.current) return;
+    
+    // Disable 3D transforms on mobile devices
+    if (window.innerWidth < 768) {
+      ref.current.style.transform = 'none';
+      return;
+    }
+    
     if (isMouseEntered) {
       ref.current.style.transform = `translateX(${translateX}px) translateY(${translateY}px) translateZ(${translateZ}px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) rotateZ(${rotateZ}deg)`;
     } else {

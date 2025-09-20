@@ -24,6 +24,7 @@ export const ProductCard = ({
   cardContainerClassName = "",
 }: ProductCardProps) => {
   const { prefetchOnHover } = usePrefetchOnHover();
+  const [imageError, setImageError] = React.useState(false);
   
   const otherProjectImages = getAllProjects()
     .filter(p => p.title !== product.title)
@@ -34,6 +35,10 @@ export const ProductCard = ({
 
   const handleMouseEnter = () => {
     prefetchOnHover(product.link);
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
   };
 
   const cardContent = (
@@ -64,14 +69,27 @@ export const ProductCard = ({
             target="_blank" 
             rel="noopener noreferrer"
             aria-label={`View ${product.title} project thumbnail`}
+            className="block"
           >
-            <Image
-              src={product.thumbnail}
-              height={400}
-              width={400}
-              className="h-48 w-full object-cover rounded-xl group-hover/card:shadow-xl"
-              alt={`${product.title} project screenshot`}
-            />
+            {!imageError ? (
+              <Image
+                src={product.thumbnail}
+                height={400}
+                width={400}
+                className="h-48 w-full object-cover rounded-xl group-hover/card:shadow-xl"
+                alt={`${product.title} project screenshot`}
+                priority={false}
+                loading="lazy"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                onError={handleImageError}
+              />
+            ) : (
+              <div className="h-48 w-full bg-gray-200 dark:bg-gray-700 rounded-xl flex items-center justify-center">
+                <span className="text-gray-500 dark:text-gray-400 text-sm">
+                  Image not available
+                </span>
+              </div>
+            )}
           </a>
         </CardItem>
         <div className="flex justify-center items-center mt-8">
