@@ -126,12 +126,13 @@ export const NavItems = ({ items, className, onItemClick }: NavItemsProps) => {
       )}
     >
       {items.map((item, idx) => (
-        <a
+        <Link
           onMouseEnter={() => setHovered(idx)}
           onClick={onItemClick}
           className="relative px-4 py-2 text-neutral-600 dark:text-neutral-300"
           key={`link-${idx}`}
           href={item.link}
+          aria-label={`Navigate to ${item.name} page`}
         >
           {hovered === idx && (
             <motion.div
@@ -140,7 +141,7 @@ export const NavItems = ({ items, className, onItemClick }: NavItemsProps) => {
             />
           )}
           <span className="relative z-20">{item.name}</span>
-        </a>
+        </Link>
       ))}
     </motion.div>
   );
@@ -223,10 +224,19 @@ export const MobileNavToggle = ({
   isOpen: boolean;
   onClick: () => void;
 }) => {
-  return isOpen ? (
-    <IconX className="text-black dark:text-white" onClick={onClick} />
-  ) : (
-    <IconMenu2 className="text-black dark:text-white" onClick={onClick} />
+  return (
+    <button
+      onClick={onClick}
+      aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
+      aria-expanded={isOpen}
+      className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+    >
+      {isOpen ? (
+        <IconX className="text-black dark:text-white" size={24} />
+      ) : (
+        <IconMenu2 className="text-black dark:text-white" size={24} />
+      )}
+    </button>
   );
 };
 
@@ -250,6 +260,7 @@ export const NavbarButton = ({
   children,
   className,
   variant = "primary",
+  ariaLabel,
   ...props
 }: {
   href?: string;
@@ -257,6 +268,7 @@ export const NavbarButton = ({
   children: React.ReactNode;
   className?: string;
   variant?: "primary" | "secondary" | "dark" | "gradient";
+  ariaLabel?: string;
 } & (
   | React.ComponentPropsWithoutRef<"a">
   | React.ComponentPropsWithoutRef<"button">
@@ -277,6 +289,7 @@ export const NavbarButton = ({
     <Tag
       href={href || undefined}
       className={cn(baseStyles, variantStyles[variant], className)}
+      aria-label={ariaLabel}
       {...props}
     >
       {children}

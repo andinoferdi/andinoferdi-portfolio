@@ -41,13 +41,18 @@ export const ProductCard = ({
           <TechIcons technologies={product.technologies} />
         </CardItem>
         <CardItem translateZ="100" className="w-full flex-1">
-          <a href={product.link} target="_blank" rel="noopener noreferrer">
+          <a 
+            href={product.link} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            aria-label={`View ${product.title} project thumbnail`}
+          >
             <Image
               src={product.thumbnail}
               height={400}
               width={400}
               className="h-48 w-full object-cover rounded-xl group-hover/card:shadow-xl"
-              alt={product.title}
+              alt={`${product.title} project screenshot`}
             />
           </a>
         </CardItem>
@@ -58,10 +63,11 @@ export const ProductCard = ({
             href={product.link}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label={`View ${product.title} project`}
             className="px-6 py-2 rounded-xl bg-black dark:bg-white dark:text-black text-white text-sm font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors flex items-center gap-2"
           >
             <span>View Project</span>
-            <IconExternalLink size={16} />
+            <IconExternalLink size={16} aria-hidden="true" />
           </CardItem>
         </div>
       </CardBody>

@@ -43,16 +43,18 @@ export function MainNavbar() {
           <NavbarButton
             variant="secondary"
             href="https://github.com/andinoferdi"
+            ariaLabel="Visit my GitHub profile"
             className="border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
           >
-            <IconBrandGithub size={20} />
+            <IconBrandGithub size={20} aria-hidden="true" />
           </NavbarButton>
           <NavbarButton
             variant="secondary"
             href="https://wa.me/6281359528944"
+            ariaLabel="Contact me on WhatsApp"
             className="border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500"
           >
-            <IconBrandWhatsapp size={20} />
+            <IconBrandWhatsapp size={20} aria-hidden="true" />
           </NavbarButton>
         </div>
       </NavBody>
@@ -88,19 +90,21 @@ export function MainNavbar() {
             <NavbarButton
               onClick={() => setIsMobileMenuOpen(false)}
               variant="secondary"
+              ariaLabel="Visit my GitHub profile"
               className="w-full border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center gap-2"
               href="https://github.com/andinoferdi"
             >
-              <IconBrandGithub size={20} />
+              <IconBrandGithub size={20} aria-hidden="true" />
               <span>GitHub</span>
             </NavbarButton>
             <NavbarButton
               onClick={() => setIsMobileMenuOpen(false)}
               variant="primary"
+              ariaLabel="Contact me on WhatsApp"
               href="https://wa.me/6281359528944"
               className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white"
             >
-              <IconBrandWhatsapp size={20} />
+              <IconBrandWhatsapp size={20} aria-hidden="true" />
               <span>WhatsApp</span>
             </NavbarButton>
           </div>
