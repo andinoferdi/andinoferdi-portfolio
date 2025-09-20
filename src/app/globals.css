@@ -24,23 +24,28 @@
     padding: 0;
   }
 
-  /* Hide scrollbar but keep scroll functionality */
-  html {
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* Internet Explorer 10+ */
-  }
-
-  html::-webkit-scrollbar {
-    display: none; /* WebKit */
-  }
-
+  /* Custom scrollbar styling - only on body to avoid duplication */
   body {
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* Internet Explorer 10+ */
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent; /* Firefox */
+    -ms-overflow-style: auto; /* Internet Explorer 10+ */
   }
 
   body::-webkit-scrollbar {
-    display: none; /* WebKit */
+    width: 8px; /* WebKit */
+  }
+
+  body::-webkit-scrollbar-track {
+    background: transparent; /* WebKit */
+  }
+
+  body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3); /* WebKit */
+    border-radius: 4px; /* WebKit */
+  }
+
+  body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5); /* WebKit */
   }
 }
 

@@ -38,11 +38,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${poppins.variable} antialiased bg-black/[0.96] relative overflow-x-hidden bg-grid-white/[0.02]`}>
         <ThemeProvider>
-          {/* Background Spotlight */}
           <div className="fixed inset-0 z-0">
             <Spotlight />
           </div>
-          
           <div className="relative z-10">
             <MainNavbar />
         <div className="pt-16">

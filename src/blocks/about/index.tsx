@@ -9,12 +9,10 @@ import { Title } from "@/components/title/Title";
 export function AboutContent() {
   return (
     <div className="relative min-h-screen overflow-hidden">
-      {/* Background Spotlight */}
       <div className="fixed inset-0 z-0">
         <Spotlight />
       </div>
       
-      {/* Content */}
       <div className="relative z-10">
         <Section className="pt-20">
           <Container>

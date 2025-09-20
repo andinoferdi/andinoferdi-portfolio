@@ -5,15 +5,10 @@ import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 export interface ContainerTextFlipProps {
-  /** Array of words to cycle through in the animation */
   words?: string[];
-  /** Time in milliseconds between word transitions */
   interval?: number;
-  /** Additional CSS classes to apply to the container */
   className?: string;
-  /** Additional CSS classes to apply to the text */
   textClassName?: string;
-  /** Duration of the transition animation in milliseconds */
   animationDuration?: number;
 }
 
@@ -32,7 +27,6 @@ export function ContainerTextFlip({
 
   const updateWidthForWord = useCallback(() => {
     if (textRef.current) {
-      // Add some padding to the text width (30px on each side)
       const textWidth = textRef.current.scrollWidth + 30;
       setWidth(textWidth);
       if (!isInitialized) {
@@ -42,10 +36,9 @@ export function ContainerTextFlip({
   }, [isInitialized]);
 
   useEffect(() => {
-    // Update width whenever the word changes
     const timer = setTimeout(() => {
       updateWidthForWord();
-    }, 50); // Small delay to ensure DOM is updated
+    }, 50); 
     
     return () => clearTimeout(timer);
   }, [currentWordIndex, updateWidthForWord]);
@@ -53,7 +46,6 @@ export function ContainerTextFlip({
   useEffect(() => {
     const intervalId = setInterval(() => {
       setCurrentWordIndex((prevIndex) => (prevIndex + 1) % words.length);
-      // Width will be updated in the effect that depends on currentWordIndex
     }, interval);
 
     return () => clearInterval(intervalId);
