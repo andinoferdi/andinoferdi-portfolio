@@ -4,12 +4,7 @@ import { IconArrowLeft, IconArrowRight } from "@tabler/icons-react";
 import { motion, AnimatePresence } from "motion/react";
 import Image from "next/image";
 import { useEffect, useState, useCallback } from "react";
-
-type Testimonial = {
-  quote: string;
-  name: string;
-  src: string;
-};
+import { Testimonial } from "@/types/hero";
 
 export const AnimatedTestimonials = ({
   testimonials,
@@ -46,7 +41,7 @@ export const AnimatedTestimonials = ({
   };
 
   return (
-    <div className="mx-auto max-w-sm px-4 py-20 font-sans antialiased md:max-w-4xl md:px-8 lg:px-12">
+    <div className="mx-auto max-w-sm px-4 py-20 antialiased md:max-w-4xl md:px-8 lg:px-12">
       <div className="relative grid grid-cols-1 gap-20 md:grid-cols-2">
         <div>
           <div className="relative h-80 w-full">
@@ -84,7 +79,7 @@ export const AnimatedTestimonials = ({
                 >
                   <Image
                     src={testimonial.src}
-                    alt={testimonial.name}
+                    alt={testimonial.role}
                     width={500}
                     height={500}
                     draggable={false}
@@ -116,7 +111,7 @@ export const AnimatedTestimonials = ({
             }}
           >
             <h3 className="text-2xl font-bold text-black dark:text-white">
-              {testimonials[active].name}
+              {testimonials[active].role}
             </h3>
             <motion.p className="mt-8 text-lg text-gray-500 dark:text-neutral-300">
               {testimonials[active].quote.split(" ").map((word, index) => (

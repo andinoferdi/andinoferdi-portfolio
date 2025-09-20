@@ -5,6 +5,7 @@ import Image from "next/image";
 import { motion, MotionValue } from "motion/react";
 import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
 import { TechIcons } from "@/components/ui/tech-icons";
+import { IconExternalLink } from "@tabler/icons-react";
 import { ProjectItem } from "@/types/projects";
 
 interface ProductCardProps {
@@ -34,7 +35,7 @@ export const ProductCard = ({
           translateZ="60"
           className="text-neutral-500 text-sm max-w-sm mb-4 dark:text-neutral-300"
         >
-          Explore this amazing project and discover innovative solutions
+          {product.description}
         </CardItem>
         <CardItem translateZ="70" className="mb-4">
           <TechIcons technologies={product.technologies} />
@@ -50,16 +51,17 @@ export const ProductCard = ({
             />
           </a>
         </CardItem>
-        <div className="flex justify-center items-center mt-4">
+        <div className="flex justify-center items-center mt-8">
           <CardItem
             translateZ={20}
             as="a"
             href={product.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-6 py-2 rounded-xl bg-black dark:bg-white dark:text-black text-white text-sm font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+            className="px-6 py-2 rounded-xl bg-black dark:bg-white dark:text-black text-white text-sm font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors flex items-center gap-2"
           >
-            View Project →
+            <span>View Project</span>
+            <IconExternalLink size={16} />
           </CardItem>
         </div>
       </CardBody>

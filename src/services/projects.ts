@@ -29,8 +29,10 @@ export const validateProject = (project: ProjectItem): boolean => {
     project.link &&
     project.thumbnail &&
     project.technologies &&
+    project.description &&
     project.title.trim().length > 0 &&
     project.link.startsWith('http') &&
-    project.technologies.length > 0
+    project.technologies.length > 0 &&
+    project.description.trim().length > 0
   );
 };

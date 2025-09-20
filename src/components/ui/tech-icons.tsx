@@ -63,10 +63,14 @@ export const TechIcons = ({ technologies, className = "" }: TechIconsProps) => {
         return (
           <div
             key={tech}
-            className={`flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 ${colorClass}`}
-            title={tech.charAt(0).toUpperCase() + tech.slice(1)}
+            className={`relative group flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 ${colorClass}`}
           >
             <IconComponent size={16} />
+            
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black dark:bg-white text-white dark:text-black text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+              {tech.charAt(0).toUpperCase() + tech.slice(1)}
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-black dark:border-t-white"></div>
+            </div>
           </div>
         );
       })}

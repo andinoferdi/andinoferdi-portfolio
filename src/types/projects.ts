@@ -3,4 +3,5 @@ export interface ProjectItem {
   link: string;
   thumbnail: string;
   technologies: string[];
+  description: string;
 }
