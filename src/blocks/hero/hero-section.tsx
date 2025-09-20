@@ -83,7 +83,7 @@ export const ProjectsSection = () => {
         My Projects
       </h2>
       <p className="max-w-2xl text-sm md:text-lg mt-2 md:mt-4 dark:text-neutral-300 mx-auto px-4">
-        Explore our portfolio of innovative projects and cutting-edge solutions.
+        Explore my portfolio of innovative projects and cutting-edge solutions.
       </p>
     </div>
   );
@@ -121,7 +121,7 @@ export const DownloadCVButton = () => {
 
   return (
     <HoverBorderGradient
-      containerClassName="rounded-full"
+      containerClassName="rounded-full cursor-pointer"
       as="button"
       className="dark:bg-black bg-white text-black dark:text-white flex items-center space-x-2 px-6 py-3"
       onClick={handleDownloadCV}
@@ -173,7 +173,7 @@ const ViewMoreButton = () => {
     <div className="mt-8 md:mt-12 flex justify-center">
       <Link href="/projects">
         <HoverBorderGradient
-          containerClassName="rounded-full"
+          containerClassName="rounded-full cursor-pointer"
           as="button"
           className="dark:bg-black bg-white text-black dark:text-white flex items-center space-x-2 px-6 py-3"
         >
