@@ -81,7 +81,6 @@ export const HeroSection = () => {
         className="flex flex-col items-center w-full"
       >
         <ProductRow products={featuredProjects} translate={translateX} />
-        <ViewMoreButton />
       </motion.div>
     </div>
   );
@@ -128,23 +127,18 @@ export const ProjectsSection = () => {
   );
 };
 
-const ProductRow = ({
-  products,
-  translate,
-}: {
-  products: ProjectItem[];
-  translate: MotionValue<number>;
-}) => {
+const ProductRow = ({ products, translate }: { products: ProjectItem[]; translate: MotionValue<number> }) => {
   return (
-    <motion.div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-8 mb-8 md:mb-12 px-4 w-full">
-      {products.map((product) => (
-        <ProductCard
-          product={product}
-          translate={translate}
-          key={product.title}
-          cardContainerClassName="-mt-4 md:-mt-8"
-        />
-      ))}
+    <motion.div 
+      style={{ x: translate }}
+      className="flex flex-col items-center w-full"
+    >
+      <div className="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-8 px-4 w-full">
+        {products.map((product) => (
+          <ProductCard product={product} key={product.title} />
+        ))}
+      </div>
+      <ViewMoreButton />
     </motion.div>
   );
 };
