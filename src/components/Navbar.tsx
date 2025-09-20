@@ -40,7 +40,11 @@ export function MainNavbar() {
     <Navbar>
       <NavBody>
         <NavbarLogo />
-        <CustomNavItems items={navItems} pathname={pathname} prefetchOnHover={prefetchOnHover} />
+        <CustomNavItems
+          items={navItems}
+          pathname={pathname}
+          prefetchOnHover={prefetchOnHover}
+        />
         <div className="flex items-center gap-4">
           <NavbarButton
             variant="secondary"
@@ -101,10 +105,10 @@ export function MainNavbar() {
             </NavbarButton>
             <NavbarButton
               onClick={() => setIsMobileMenuOpen(false)}
-              variant="primary"
+              variant="secondary"
               ariaLabel="Contact me on WhatsApp"
               href="https://wa.me/6281359528944"
-              className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+              className="w-full border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center gap-2"
             >
               <IconBrandWhatsapp size={20} aria-hidden="true" />
               <span>WhatsApp</span>
