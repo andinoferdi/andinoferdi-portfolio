@@ -53,11 +53,9 @@ export const validateTestimonial = (testimonial: Testimonial): boolean => {
   return !!(
     testimonial.quote &&
     testimonial.name &&
-    testimonial.designation &&
     testimonial.src &&
     testimonial.quote.trim().length > 0 &&
     testimonial.name.trim().length > 0 &&
-    testimonial.designation.trim().length > 0 &&
     testimonial.src.startsWith('http')
   );
 };

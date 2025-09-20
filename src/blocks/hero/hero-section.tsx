@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   motion,
   useScroll,
@@ -22,8 +23,6 @@ import { HeroParallaxProps, ProductItem } from "@/types/hero";
  */
 export const HeroSection = ({ products }: HeroParallaxProps) => {
   const firstRow = products.slice(0, 3);
-  const secondRow = products.slice(3, 6);
-  const thirdRow = products.slice(6, 9);
   const ref = React.useRef(null);
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -33,10 +32,6 @@ export const HeroSection = ({ products }: HeroParallaxProps) => {
   const springConfig = { stiffness: 300, damping: 30, bounce: 100 };
 
   const translateX = useSpring(
-    useTransform(scrollYProgress, [0, 1], [0, 0]),
-    springConfig
-  );
-  const translateXReverse = useSpring(
     useTransform(scrollYProgress, [0, 1], [0, 0]),
     springConfig
   );
@@ -53,7 +48,7 @@ export const HeroSection = ({ products }: HeroParallaxProps) => {
     springConfig
   );
   const translateY = useSpring(
-    useTransform(scrollYProgress, [0, 0.2], [-520, 1]),
+    useTransform(scrollYProgress, [0, 0.2], [-700, 1]),
     springConfig
   );
 
@@ -92,8 +87,7 @@ export const HeroSection = ({ products }: HeroParallaxProps) => {
         className="flex flex-col items-center w-full"
       >
         <ProductRow products={firstRow} translate={translateX} />
-        <ProductRow products={secondRow} translate={translateXReverse} />
-        <ProductRow products={thirdRow} translate={translateX} />
+        <ViewMoreButton />
       </motion.div>
     </div>
   );
@@ -301,6 +295,57 @@ const DownloadIcon = () => {
       />
       <path
         d="M12 15V3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
+/**
+ * View More Button Component
+ */
+const ViewMoreButton = () => {
+  return (
+    <div className="mt-8 md:mt-12 flex justify-center">
+      <Link href="/projects">
+        <HoverBorderGradient
+          containerClassName="rounded-full"
+          as="button"
+          className="dark:bg-black bg-white text-black dark:text-white flex items-center space-x-2 px-6 py-3"
+        >
+          <span>View More Projects</span>
+          <ArrowRightIcon />
+        </HoverBorderGradient>
+      </Link>
+    </div>
+  );
+};
+
+/**
+ * Arrow Right Icon Component
+ */
+const ArrowRightIcon = () => {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="h-5 w-5 text-black dark:text-white"
+    >
+      <path
+        d="M5 12H19"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 5L19 12L12 19"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
