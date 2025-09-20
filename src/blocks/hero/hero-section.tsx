@@ -22,7 +22,7 @@ export const HeroSection = () => {
   const ref = React.useRef(null);
   const { scrollYProgress } = useScroll({
     target: ref,
-    offset: ["start start", "end end"],
+    offset: ["start start", "end start"],
   });
 
   const springConfig = { stiffness: 300, damping: 30, bounce: 100 };
@@ -51,7 +51,7 @@ export const HeroSection = () => {
   return (
     <div
       ref={ref}
-      className="h-[500vh] py-20 overflow-hidden antialiased relative flex flex-col self-auto [perspective:1000px] [transform-style:preserve-3d]"
+      className="min-h-screen py-20 pb-[10vh] overflow-hidden antialiased relative flex flex-col self-auto [perspective:1000px] [transform-style:preserve-3d]"
     >
       <HeroHeader scrollYProgress={scrollYProgress} />
       
