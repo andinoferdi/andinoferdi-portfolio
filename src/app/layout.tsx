@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { MainNavbar } from "@/components/Navbar";
 import { Spotlight } from "@/components/ui/spotlight-new";
 import { ServiceWorkerProvider } from "@/components/providers/ServiceWorkerProvider";
+import "@/lib/cache-utils";
 
 const poppins = Poppins({
   variable: "--font-poppins",

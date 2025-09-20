@@ -1,6 +1,9 @@
 const STATIC_CACHE = 'portfolio-static-v1';
 const DYNAMIC_CACHE = 'portfolio-dynamic-v1';
 
+// Development mode - disable caching
+const isDevelopment = false; // Set to true during development
+
 const STATIC_ASSETS = [
   '/',
   '/projects',
@@ -44,6 +47,12 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
 
   if (request.method !== 'GET') return;
+
+  // Skip caching in development mode
+  if (isDevelopment) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   if (url.pathname.startsWith('/images/')) {
     event.respondWith(cacheFirstStrategy(request, STATIC_CACHE));

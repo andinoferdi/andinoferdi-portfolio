@@ -9,15 +9,18 @@ import {
   MobileNavToggle,
   MobileNavMenu,
 } from "@/components/ui/resizable-navbar";
-import { IconBrandGithub, IconBrandWhatsapp } from "@tabler/icons-react";
+import { IconBrandGithub, IconBrandWhatsapp, IconDatabase } from "@tabler/icons-react";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { usePrefetchOnHover } from "@/hooks/use-prefetch";
+import { CacheManager } from "@/components/CacheManager";
+import { useCacheStatus } from "@/hooks/use-cache-status";
 
 export function MainNavbar() {
   const pathname = usePathname();
   const { prefetchOnHover } = usePrefetchOnHover();
+  const { totalSize, isLoading, formatBytes } = useCacheStatus();
   
   const navItems = [
     {
@@ -35,6 +38,7 @@ export function MainNavbar() {
   ];
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCacheManagerOpen, setIsCacheManagerOpen] = useState(false);
 
   return (
     <Navbar>
@@ -62,6 +66,18 @@ export function MainNavbar() {
           >
             <IconBrandWhatsapp size={20} aria-hidden="true" />
           </NavbarButton>
+          <NavbarButton
+            onClick={() => setIsCacheManagerOpen(!isCacheManagerOpen)}
+            variant="secondary"
+            ariaLabel="Cache Manager"
+            className="border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center gap-2"
+          >
+            <IconDatabase size={20} aria-hidden="true" />
+            <span className="hidden sm:inline">
+              {isLoading ? '...' : formatBytes(totalSize)}
+            </span>
+          </NavbarButton>
+          <CacheManager isOpen={isCacheManagerOpen} setIsOpen={setIsCacheManagerOpen} />
         </div>
       </NavBody>
 
@@ -113,6 +129,19 @@ export function MainNavbar() {
               <IconBrandWhatsapp size={20} aria-hidden="true" />
               <span>WhatsApp</span>
             </NavbarButton>
+            <NavbarButton
+              onClick={() => {
+                setIsCacheManagerOpen(!isCacheManagerOpen);
+                setIsMobileMenuOpen(false);
+              }}
+              variant="secondary"
+              ariaLabel="Cache Manager"
+              className="w-full border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center gap-2"
+            >
+              <IconDatabase size={20} aria-hidden="true" />
+              <span>Cache Manager</span>
+            </NavbarButton>
+            <CacheManager isOpen={isCacheManagerOpen} setIsOpen={setIsCacheManagerOpen} />
           </div>
         </MobileNavMenu>
       </MobileNav>
