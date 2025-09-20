@@ -7,6 +7,8 @@ import { CardBody, CardContainer, CardItem } from "@/components/ui/3d-card";
 import { TechIcons } from "@/components/ui/tech-icons";
 import { IconExternalLink } from "@tabler/icons-react";
 import { ProjectItem } from "@/types/projects";
+import { usePreloadImages, usePrefetchOnHover } from "@/hooks/use-prefetch";
+import { getAllProjects } from "@/services/projects";
 
 interface ProductCardProps {
   product: ProjectItem;
@@ -21,8 +23,24 @@ export const ProductCard = ({
   className = "",
   cardContainerClassName = "",
 }: ProductCardProps) => {
+  const { prefetchOnHover } = usePrefetchOnHover();
+  
+  const otherProjectImages = getAllProjects()
+    .filter(p => p.title !== product.title)
+    .slice(0, 3)
+    .map(p => p.thumbnail);
+
+  usePreloadImages(otherProjectImages, 200);
+
+  const handleMouseEnter = () => {
+    prefetchOnHover(product.link);
+  };
+
   const cardContent = (
-    <CardContainer className={`inter-var h-full ${cardContainerClassName}`}>
+    <CardContainer 
+      className={`inter-var h-full ${cardContainerClassName}`}
+      onMouseEnter={handleMouseEnter}
+    >
       <CardBody className="bg-gray-50 relative group/card dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] dark:bg-black dark:border-white/[0.2] border-black/[0.1] w-full h-full rounded-xl p-6 border">
         <CardItem
           translateZ="50"

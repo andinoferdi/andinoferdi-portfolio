@@ -19,10 +19,12 @@ export const CardContainer = ({
   children,
   className,
   containerClassName,
+  onMouseEnter,
 }: {
   children?: React.ReactNode;
   className?: string;
   containerClassName?: string;
+  onMouseEnter?: () => void;
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isMouseEntered, setIsMouseEntered] = useState(false);
@@ -39,6 +41,7 @@ export const CardContainer = ({
   const handleMouseEnter = () => {
     setIsMouseEntered(true);
     if (!containerRef.current) return;
+    onMouseEnter?.();
   };
 
   const handleMouseLeave = () => {

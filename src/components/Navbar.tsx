@@ -13,9 +13,11 @@ import { IconBrandGithub, IconBrandWhatsapp } from "@tabler/icons-react";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { usePrefetchOnHover } from "@/hooks/use-prefetch";
 
 export function MainNavbar() {
   const pathname = usePathname();
+  const { prefetchOnHover } = usePrefetchOnHover();
   
   const navItems = [
     {
@@ -38,7 +40,7 @@ export function MainNavbar() {
     <Navbar>
       <NavBody>
         <NavbarLogo />
-        <CustomNavItems items={navItems} pathname={pathname} />
+        <CustomNavItems items={navItems} pathname={pathname} prefetchOnHover={prefetchOnHover} />
         <div className="flex items-center gap-4">
           <NavbarButton
             variant="secondary"
@@ -114,8 +116,21 @@ export function MainNavbar() {
   );
 }
 
-function CustomNavItems({ items, pathname }: { items: { name: string; link: string }[], pathname: string }) {
+function CustomNavItems({ 
+  items, 
+  pathname, 
+  prefetchOnHover 
+}: { 
+  items: { name: string; link: string }[];
+  pathname: string;
+  prefetchOnHover: (href: string) => void;
+}) {
   const [hovered, setHovered] = useState<number | null>(null);
+
+  const handleMouseEnter = (idx: number, link: string) => {
+    setHovered(idx);
+    prefetchOnHover(link);
+  };
 
   return (
     <div
@@ -124,7 +139,7 @@ function CustomNavItems({ items, pathname }: { items: { name: string; link: stri
     >
       {items.map((item, idx) => (
         <Link
-          onMouseEnter={() => setHovered(idx)}
+          onMouseEnter={() => handleMouseEnter(idx, item.link)}
           className={`relative px-4 py-2 ${
             pathname === item.link 
               ? "text-white font-semibold border border-white rounded-full" 
