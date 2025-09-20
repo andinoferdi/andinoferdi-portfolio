@@ -80,28 +80,30 @@ export const TracingBeam = ({
       >
         <motion.div
           transition={{
-            duration: isMobile ? 0.1 : 0.2, // Faster on mobile
-            delay: isMobile ? 0.2 : 0.5,    // Less delay on mobile
+            duration: isMobile ? 0.3 : 0.2, // Slightly slower for smoother mobile animation
+            delay: isMobile ? 0.1 : 0.5,    // Less delay on mobile
             ease: "easeOut"
           }}
-          animate={!isMobile ? {
+          animate={{
             boxShadow:
               scrollYProgress.get() > 0
                 ? "none"
-                : "rgba(0, 0, 0, 0.24) 0px 3px 8px",
-          } : {}} // Disable shadow animation on mobile
+                : isMobile 
+                  ? "rgba(0, 0, 0, 0.1) 0px 1px 3px" // Lighter shadow on mobile
+                  : "rgba(0, 0, 0, 0.24) 0px 3px 8px",
+          }}
           className="border-netural-200 ml-[20px] sm:ml-[30px] flex h-3 w-3 sm:h-4 sm:w-4 items-center justify-center rounded-full border shadow-sm"
         >
           <motion.div
             transition={{
-              duration: isMobile ? 0.1 : 0.2,
-              delay: isMobile ? 0.2 : 0.5,
+              duration: isMobile ? 0.3 : 0.2,
+              delay: isMobile ? 0.1 : 0.5,
               ease: "easeOut"
             }}
-            animate={!isMobile ? {
+            animate={{
               backgroundColor: scrollYProgress.get() > 0 ? "white" : "#10b981",
               borderColor: scrollYProgress.get() > 0 ? "white" : "#059669",
-            } : {}} // Disable color animation on mobile
+            }}
             className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full border border-neutral-300 bg-white"
           />
         </motion.div>
@@ -123,29 +125,18 @@ export const TracingBeam = ({
             strokeOpacity="0.16"
           />
           
-          {/* Animated path - simplified for mobile */}
-          {!isMobile ? (
-            <motion.path
-              d={`M 1 0V -36 l 18 24 V ${(svgHeight || 100) * 0.8} l -18 24V ${svgHeight || 100}`}
-              fill="none"
-              stroke="url(#gradient)"
-              strokeWidth="1.25"
-              className="motion-reduce:hidden"
-              transition={{
-                duration: 5, // Reduced duration
-                ease: "easeOut"
-              }}
-            />
-          ) : (
-            // Static colored path for mobile
-            <path
-              d={`M 1 0V -36 l 18 24 V ${(svgHeight || 100) * 0.8} l -18 24V ${svgHeight || 100}`}
-              fill="none"
-              stroke="#6344F5"
-              strokeWidth="1.25"
-              strokeOpacity="0.6"
-            />
-          )}
+          {/* Animated path - optimized for mobile */}
+          <motion.path
+            d={`M 1 0V -36 l 18 24 V ${(svgHeight || 100) * 0.8} l -18 24V ${svgHeight || 100}`}
+            fill="none"
+            stroke="url(#gradient)"
+            strokeWidth="1.25"
+            className="motion-reduce:hidden"
+            transition={{
+              duration: isMobile ? 2 : 5, // Faster on mobile
+              ease: "easeOut"
+            }}
+          />
           
           <defs>
             <motion.linearGradient
@@ -153,8 +144,8 @@ export const TracingBeam = ({
               gradientUnits="userSpaceOnUse"
               x1="0"
               x2="0"
-              y1={!isMobile ? y1 : 50}
-              y2={!isMobile ? y2 : (svgHeight || 100) - 50}
+              y1={y1} // Keep animation on mobile too
+              y2={y2} // Keep animation on mobile too
             >
               <stop stopColor="#18CCFC" stopOpacity="0"></stop>
               <stop stopColor="#18CCFC"></stop>

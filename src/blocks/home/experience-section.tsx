@@ -4,7 +4,6 @@ import React, { memo, useMemo } from "react";
 import { TracingBeam } from "@/components/ui/tracing-beam";
 import { IconMapPin, IconExternalLink } from "@tabler/icons-react";
 import { getAllExperiences } from "@/services/experience";
-import { useMobile } from "@/hooks/use-mobile";
 import type { ExperienceItem as ExperienceType } from "@/types/experience";
 
 // Memoized experience item component for better performance
@@ -98,7 +97,6 @@ const ExperienceItem = memo(({ item, index, getStatusColor, getTypeColor }: {
 ExperienceItem.displayName = 'ExperienceItem';
 
 export const ExperienceSection = () => {
-  const isMobile = useMobile();
   const experienceData = getAllExperiences();
 
   // Memoize color functions to prevent recreation on every render
@@ -136,36 +134,20 @@ export const ExperienceSection = () => {
           </p>
         </div>
 
-        {/* Conditional rendering: Use TracingBeam on desktop, simple layout on mobile */}
-        {!isMobile ? (
-          <TracingBeam className="px-4 sm:px-8">
-            <div className="max-w-4xl mx-auto antialiased pt-4 relative">
-              {experienceData.map((item, index) => (
-                <ExperienceItem
-                  key={`experience-${index}`}
-                  item={item}
-                  index={index}
-                  getStatusColor={getStatusColor}
-                  getTypeColor={getTypeColor}
-                />
-              ))}
-            </div>
-          </TracingBeam>
-        ) : (
-          <div className="px-4 sm:px-8">
-            <div className="max-w-4xl mx-auto antialiased pt-4 relative">
-              {experienceData.map((item, index) => (
-                <ExperienceItem
-                  key={`experience-${index}`}
-                  item={item}
-                  index={index}
-                  getStatusColor={getStatusColor}
-                  getTypeColor={getTypeColor}
-                />
-              ))}
-            </div>
+        {/* Use TracingBeam on both desktop and mobile, but optimized for mobile */}
+        <TracingBeam className="px-4 sm:px-8">
+          <div className="max-w-4xl mx-auto antialiased pt-4 relative">
+            {experienceData.map((item, index) => (
+              <ExperienceItem
+                key={`experience-${index}`}
+                item={item}
+                index={index}
+                getStatusColor={getStatusColor}
+                getTypeColor={getTypeColor}
+              />
+            ))}
           </div>
-        )}
+        </TracingBeam>
       </div>
     </div>
   );
