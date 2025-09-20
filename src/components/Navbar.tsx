@@ -12,6 +12,7 @@ import {
 import { IconBrandGithub, IconBrandWhatsapp } from "@tabler/icons-react";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 
 export function MainNavbar() {
   const pathname = usePathname();
@@ -70,7 +71,7 @@ export function MainNavbar() {
           onClose={() => setIsMobileMenuOpen(false)}
         >
           {navItems.map((item, idx) => (
-            <a
+            <Link
               key={`mobile-link-${idx}`}
               href={item.link}
               onClick={() => setIsMobileMenuOpen(false)}
@@ -81,7 +82,7 @@ export function MainNavbar() {
               }`}
             >
               <span className="block">{item.name}</span>
-            </a>
+            </Link>
           ))}
           <div className="flex w-full flex-col gap-4">
             <NavbarButton
@@ -118,7 +119,7 @@ function CustomNavItems({ items, pathname }: { items: { name: string; link: stri
       className="absolute inset-0 hidden flex-1 flex-row items-center justify-center space-x-2 text-sm font-medium text-zinc-600 transition duration-200 hover:text-zinc-800 lg:flex lg:space-x-2"
     >
       {items.map((item, idx) => (
-        <a
+        <Link
           onMouseEnter={() => setHovered(idx)}
           className={`relative px-4 py-2 ${
             pathname === item.link 
@@ -132,7 +133,7 @@ function CustomNavItems({ items, pathname }: { items: { name: string; link: stri
             <div className="absolute inset-0 h-full w-full rounded-full bg-gray-100 dark:bg-neutral-800" />
           )}
           <span className="relative z-20">{item.name}</span>
-        </a>
+        </Link>
       ))}
     </div>
   );
