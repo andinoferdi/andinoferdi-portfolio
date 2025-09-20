@@ -1,169 +1,170 @@
 "use client";
-import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
-import {
-  motion,
-  useTransform,
-  useScroll,
-  useSpring,
-} from "motion/react";
+
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useMobile } from "@/hooks/use-mobile";
 
-export const TracingBeam = ({
-  children,
-  className,
-}: {
+interface TracingBeamProps {
   children: React.ReactNode;
   className?: string;
-}) => {
-  const isMobile = useMobile();
-  const ref = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [svgHeight, setSvgHeight] = useState(0);
-  
-  // Optimize scroll config for mobile
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"],
-    ...(isMobile && { 
-      throttle: 16 // Limit to ~60fps on mobile
-    })
-  });
+}
 
-  // Memoize SVG height calculation
-  const updateSvgHeight = useCallback(() => {
-    if (contentRef.current) {
-      const height = contentRef.current.offsetHeight;
-      setSvgHeight(height);
+export const TracingBeam: React.FC<TracingBeamProps> = ({ children, className }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const isMobile = useMobile();
+  
+  // Throttled scroll handler for better mobile performance
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current) return;
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const elementHeight = rect.height;
+    
+    // Calculate progress based on element position in viewport
+    let progress = 0;
+    
+    if (rect.top <= viewportHeight && rect.bottom >= 0) {
+      const totalScrollableHeight = elementHeight + viewportHeight;
+      const scrolled = viewportHeight - rect.top;
+      progress = Math.max(0, Math.min(1, scrolled / totalScrollableHeight));
+      setIsVisible(true);
+    } else {
+      setIsVisible(false);
     }
+    
+    setScrollProgress(progress);
   }, []);
 
+  // Throttled scroll listener for 60fps performance
   useEffect(() => {
-    updateSvgHeight();
+    let ticking = false;
     
-    // Add resize observer for responsive height
-    if (contentRef.current) {
-      const resizeObserver = new ResizeObserver(updateSvgHeight);
-      resizeObserver.observe(contentRef.current);
-      
-      return () => resizeObserver.disconnect();
-    }
-  }, [updateSvgHeight]);
+    const throttledScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          handleScroll();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
 
-  // Optimize spring parameters based on device capability
-  const springConfig = useMemo(() => ({
-    stiffness: isMobile ? 200 : 400,  // Reduced for mobile
-    damping: isMobile ? 40 : 80,      // Increased damping for mobile
-    mass: isMobile ? 1.5 : 1,         // More mass for smoother mobile animation
-  }), [isMobile]);
+    // Initial calculation
+    handleScroll();
+    
+    window.addEventListener('scroll', throttledScroll, { passive: true });
+    window.addEventListener('resize', throttledScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', throttledScroll);
+      window.removeEventListener('resize', throttledScroll);
+    };
+  }, [handleScroll]);
 
-  // Create transforms (can't be memoized as they use hooks)
-  const y1Transform = useTransform(scrollYProgress, [0, 0.8], [50, Math.max(svgHeight, 100)]);
-  const y2Transform = useTransform(scrollYProgress, [0, 1], [50, Math.max(svgHeight - 200, 50)]);
-
-  const y1 = useSpring(y1Transform, springConfig);
-  const y2 = useSpring(y2Transform, springConfig);
-
+  // Calculate line height and progress for visual effect
+  const lineHeight = Math.max(300, (contentRef.current?.offsetHeight || 0) * 0.8);
+  const progressHeight = lineHeight * scrollProgress;
+  
   return (
-    <motion.div
-      ref={ref}
-      className={cn("relative mx-auto h-full w-full max-w-4xl", className)}
-      style={{
-        willChange: isMobile ? 'auto' : 'transform', // Optimize for mobile
-      }}
+    <div 
+      ref={containerRef}
+      className={cn("relative w-full max-w-4xl mx-auto", className)}
     >
-      <div 
-        className="absolute top-3 left-4 sm:-left-2 md:-left-16"
-        style={{
-          willChange: isMobile ? 'auto' : 'transform',
-        }}
-      >
-        <motion.div
-          transition={{
-            duration: isMobile ? 0.3 : 0.2, // Slightly slower for smoother mobile animation
-            delay: isMobile ? 0.1 : 0.5,    // Less delay on mobile
-            ease: "easeOut"
-          }}
-          animate={{
-            boxShadow:
-              scrollYProgress.get() > 0
-                ? "none"
-                : isMobile 
-                  ? "rgba(0, 0, 0, 0.1) 0px 1px 3px" // Lighter shadow on mobile
-                  : "rgba(0, 0, 0, 0.24) 0px 3px 8px",
-          }}
-          className="border-netural-200 ml-[20px] sm:ml-[30px] flex h-3 w-3 sm:h-4 sm:w-4 items-center justify-center rounded-full border shadow-sm"
-        >
-          <motion.div
-            transition={{
-              duration: isMobile ? 0.3 : 0.2,
-              delay: isMobile ? 0.1 : 0.5,
-              ease: "easeOut"
-            }}
-            animate={{
-              backgroundColor: scrollYProgress.get() > 0 ? "white" : "#10b981",
-              borderColor: scrollYProgress.get() > 0 ? "white" : "#059669",
-            }}
-            className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full border border-neutral-300 bg-white"
-          />
-        </motion.div>
-        <svg
-          viewBox={`0 0 20 ${svgHeight || 100}`}
-          width="20"
-          height={svgHeight || 100}
-          className="ml-3 sm:ml-5 block"
-          aria-hidden="true"
+      {/* Tracing Line Container */}
+      <div className="absolute left-4 top-3 sm:-left-2 md:-left-16">
+        {/* Start Dot */}
+        <div 
+          className={cn(
+            "ml-5 sm:ml-7 flex h-3 w-3 sm:h-4 sm:w-4 items-center justify-center rounded-full border-2 transition-all duration-300",
+            isVisible 
+              ? "border-blue-500 shadow-lg shadow-blue-500/25" 
+              : "border-gray-400"
+          )}
           style={{
-            willChange: isMobile ? 'auto' : 'contents',
+            transform: 'translateZ(0)', // GPU acceleration
+            willChange: isVisible ? 'border-color, box-shadow' : 'auto'
           }}
         >
-          {/* Static background path */}
-          <path
-            d={`M 1 0V -36 l 18 24 V ${(svgHeight || 100) * 0.8} l -18 24V ${svgHeight || 100}`}
-            fill="none"
-            stroke="#9091A0"
-            strokeOpacity="0.16"
+          <div 
+            className={cn(
+              "h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full transition-all duration-300",
+              isVisible ? "bg-blue-500" : "bg-gray-400"
+            )}
+            style={{
+              transform: 'translateZ(0)', // GPU acceleration
+            }}
           />
-          
-          {/* Animated path - optimized for mobile */}
-          <motion.path
-            d={`M 1 0V -36 l 18 24 V ${(svgHeight || 100) * 0.8} l -18 24V ${svgHeight || 100}`}
-            fill="none"
-            stroke="url(#gradient)"
-            strokeWidth="1.25"
-            className="motion-reduce:hidden"
-            transition={{
-              duration: isMobile ? 2 : 5, // Faster on mobile
-              ease: "easeOut"
+        </div>
+
+        {/* Tracing Line */}
+        <div 
+          className="ml-[22px] sm:ml-[30px] mt-2 relative"
+          style={{
+            height: `${lineHeight}px`,
+            transform: 'translateZ(0)', // GPU acceleration
+          }}
+        >
+          {/* Background Line */}
+          <div 
+            className="absolute w-px bg-gray-600/30"
+            style={{
+              height: `${lineHeight}px`,
+              transform: 'translateZ(0)',
             }}
           />
           
-          <defs>
-            <motion.linearGradient
-              id="gradient"
-              gradientUnits="userSpaceOnUse"
-              x1="0"
-              x2="0"
-              y1={y1} // Keep animation on mobile too
-              y2={y2} // Keep animation on mobile too
-            >
-              <stop stopColor="#18CCFC" stopOpacity="0"></stop>
-              <stop stopColor="#18CCFC"></stop>
-              <stop offset="0.325" stopColor="#6344F5"></stop>
-              <stop offset="1" stopColor="#AE48FF" stopOpacity="0"></stop>
-            </motion.linearGradient>
-          </defs>
-        </svg>
+          {/* Animated Progress Line - CSS-based for better mobile performance */}
+          <div 
+            className={cn(
+              "absolute w-px transition-all duration-300 ease-out",
+              // Mobile: simpler gradient, Desktop: full gradient
+              isMobile 
+                ? "bg-blue-500/80" 
+                : "bg-gradient-to-b from-cyan-400 via-blue-500 to-purple-600"
+            )}
+            style={{
+              height: `${progressHeight}px`,
+              transform: 'translateZ(0)', // GPU acceleration
+              willChange: isVisible ? 'height' : 'auto',
+              // Mobile optimization: reduce shadow complexity
+              boxShadow: isMobile 
+                ? isVisible ? '0 0 4px rgba(59, 130, 246, 0.5)' : 'none'
+                : isVisible ? '0 0 8px rgba(59, 130, 246, 0.6), 0 0 16px rgba(59, 130, 246, 0.3)' : 'none',
+              transition: isMobile 
+                ? 'height 0.3s ease-out, box-shadow 0.3s ease-out'
+                : 'height 0.5s ease-out, box-shadow 0.5s ease-out'
+            }}
+          />
+
+          {/* Moving Glow Effect - Only on desktop for performance */}
+          {!isMobile && isVisible && (
+            <div 
+              className="absolute w-2 h-2 -ml-0.5 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50 animate-pulse"
+              style={{
+                top: `${progressHeight - 4}px`,
+                transform: 'translateZ(0)',
+                willChange: 'top',
+                transition: 'top 0.5s ease-out'
+              }}
+            />
+          )}
+        </div>
       </div>
+
+      {/* Content */}
       <div 
-        ref={contentRef} 
-        className="ml-12 sm:ml-20"
+        ref={contentRef}
+        className="ml-12 sm:ml-20 relative"
         style={{
-          willChange: 'auto', // Let browser decide
+          transform: 'translateZ(0)', // GPU acceleration for content
         }}
       >
         {children}
       </div>
-    </motion.div>
+    </div>
   );
 };
