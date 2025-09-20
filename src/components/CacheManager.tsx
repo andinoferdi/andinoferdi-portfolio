@@ -1,10 +1,12 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { IconTrash, IconRefresh, IconDatabase, IconX } from '@tabler/icons-react';
 import { useCacheStatus } from '@/hooks/use-cache-status';
+import { NavbarButton } from '@/components/ui/resizable-navbar';
 
-export const CacheManager = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen: (open: boolean) => void }) => {
+export const CacheManager = () => {
+  const [isOpen, setIsOpen] = useState(false);
   const { 
     totalSize, 
     cacheCount, 
@@ -115,7 +117,19 @@ export const CacheManager = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen
   }
 
   return (
-    <>
+    <div className="relative">
+      <NavbarButton
+        onClick={() => setIsOpen(!isOpen)}
+        variant="secondary"
+        ariaLabel="Cache Manager"
+        className="border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center gap-2"
+      >
+        <IconDatabase size={20} aria-hidden="true" />
+        <span className="hidden sm:inline">
+          {isLoading ? '...' : formatBytes(totalSize)}
+        </span>
+      </NavbarButton>
+
       {isOpen && (
         <>
           {/* Mobile: centered modal with backdrop */}
@@ -139,6 +153,6 @@ export const CacheManager = ({ isOpen, setIsOpen }: { isOpen: boolean; setIsOpen
           </div>
         </>
       )}
-    </>
+    </div>
   );
 };
