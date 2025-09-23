@@ -14,11 +14,16 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { usePrefetchOnHover } from "@/hooks/use-prefetch";
-import { CacheManager } from "@/components/CacheManager";
+import { useCacheStatus } from "@/hooks/use-cache-status";
+import { useAlert } from "@/hooks/use-alert";
+import { IconDatabase, IconTrash, IconRefresh } from "@tabler/icons-react";
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
 
 export function MainNavbar() {
   const pathname = usePathname();
   const { prefetchOnHover } = usePrefetchOnHover();
+  const { totalSize, isLoading, formatBytes, clearAllCache, clearSWCache, refreshCacheStatus } = useCacheStatus();
+  const { confirmAlert, showAlert, AlertComponent } = useAlert();
   
   const navItems = [
     {
@@ -37,9 +42,33 @@ export function MainNavbar() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const handleClearAll = async () => {
+    const confirmed = await confirmAlert(
+      'Clear All Caches',
+      'Are you sure you want to clear all caches? This will reload the page.'
+    );
+    if (confirmed) {
+      await clearAllCache();
+      showAlert('success', 'Success', 'All caches have been cleared successfully!');
+    }
+  };
+
+  const handleClearSW = async () => {
+    const confirmed = await confirmAlert(
+      'Clear Service Worker Cache',
+      'Are you sure you want to clear Service Worker cache?'
+    );
+    if (confirmed) {
+      await clearSWCache();
+      showAlert('success', 'Success', 'Service Worker cache has been cleared successfully!');
+    }
+  };
+
   return (
-    <Navbar>
-      <NavBody>
+    <>
+      <AlertComponent />
+      <Navbar>
+        <NavBody>
         <NavbarLogo />
         <CustomNavItems
           items={navItems}
@@ -63,7 +92,50 @@ export function MainNavbar() {
           >
             <IconBrandWhatsapp size={20} aria-hidden="true" />
           </NavbarButton>
-          <CacheManager />
+          <Dropdown>
+            <DropdownTrigger>
+              <NavbarButton
+                variant="secondary"
+                ariaLabel="Cache Manager"
+                className="border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center gap-2"
+              >
+                <IconDatabase size={20} aria-hidden="true" />
+                <span className="hidden sm:inline">
+                  {isLoading ? '...' : formatBytes(totalSize)}
+                </span>
+              </NavbarButton>
+            </DropdownTrigger>
+            <DropdownMenu 
+              aria-label="Cache Actions"
+              className="bg-white dark:bg-neutral-950 border border-gray-200 dark:border-gray-700 shadow-lg"
+            >
+              <DropdownItem 
+                key="refresh" 
+                startContent={<IconRefresh size={16} />}
+                onPress={refreshCacheStatus}
+                className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                Refresh Status
+              </DropdownItem>
+              <DropdownItem 
+                key="clear-sw" 
+                startContent={<IconTrash size={16} />}
+                onPress={handleClearSW}
+                className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                Clear SW Cache
+              </DropdownItem>
+              <DropdownItem 
+                key="clear-all" 
+                className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20" 
+                color="danger"
+                startContent={<IconTrash size={16} />}
+                onPress={handleClearAll}
+              >
+                Clear All Caches
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
         </div>
       </NavBody>
 
@@ -115,13 +187,53 @@ export function MainNavbar() {
               <IconBrandWhatsapp size={20} aria-hidden="true" />
               <span>WhatsApp</span>
             </NavbarButton>
-            <div className="w-full">
-              <CacheManager />
-            </div>
+            <Dropdown>
+              <DropdownTrigger>
+                <NavbarButton
+                  variant="secondary"
+                  ariaLabel="Cache Manager"
+                  className="w-full border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center gap-2"
+                >
+                  <IconDatabase size={20} aria-hidden="true" />
+                  <span>{isLoading ? '...' : formatBytes(totalSize)}</span>
+                </NavbarButton>
+              </DropdownTrigger>
+              <DropdownMenu 
+                aria-label="Cache Actions"
+                className="bg-white dark:bg-neutral-950 border border-gray-200 dark:border-gray-700 shadow-lg"
+              >
+                <DropdownItem 
+                  key="refresh" 
+                  startContent={<IconRefresh size={16} />}
+                  onPress={refreshCacheStatus}
+                  className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  Refresh Status
+                </DropdownItem>
+                <DropdownItem 
+                  key="clear-sw" 
+                  startContent={<IconTrash size={16} />}
+                  onPress={handleClearSW}
+                  className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  Clear SW Cache
+                </DropdownItem>
+                <DropdownItem 
+                  key="clear-all" 
+                  className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20" 
+                  color="danger"
+                  startContent={<IconTrash size={16} />}
+                  onPress={handleClearAll}
+                >
+                  Clear All Caches
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
           </div>
         </MobileNavMenu>
       </MobileNav>
     </Navbar>
+    </>
   );
 }
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { HeroUIProvider } from "@/components/providers/HeroUIProvider";
 import { MainNavbar } from "@/components/Navbar";
 import { Spotlight } from "@/components/ui/spotlight-new";
 import { ServiceWorkerProvider } from "@/components/providers/ServiceWorkerProvider";
@@ -41,15 +42,17 @@ export default function RootLayout({
       <body className={`${poppins.variable} antialiased bg-black/[0.96] relative overflow-x-hidden bg-grid-white/[0.02]`}>
         <ServiceWorkerProvider>
           <ThemeProvider>
-            <div className="fixed inset-0 z-0">
-              <Spotlight />
-            </div>
-            <div className="relative z-10">
-              <MainNavbar />
-              <div className="pt-16">
-                {children}
+            <HeroUIProvider>
+              <div className="fixed inset-0 z-0">
+                <Spotlight />
               </div>
-            </div>
+              <div className="relative z-10">
+                <MainNavbar />
+                <div className="pt-16">
+                  {children}
+                </div>
+              </div>
+            </HeroUIProvider>
           </ThemeProvider>
         </ServiceWorkerProvider>
       </body>

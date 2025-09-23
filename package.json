@@ -9,11 +9,17 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@heroui/alert": "^2.2.26",
+    "@heroui/dropdown": "^2.3.26",
+    "@heroui/react": "^2.8.4",
+    "@heroui/system": "^2.4.22",
+    "@heroui/theme": "^2.4.22",
     "@tabler/icons-react": "^3.35.0",
     "@types/aos": "^3.0.7",
     "aos": "^2.3.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.23.18",
     "lucide-react": "^0.544.0",
     "motion": "^12.23.16",
     "next": "15.5.3",
