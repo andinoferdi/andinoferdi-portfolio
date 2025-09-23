@@ -2,7 +2,7 @@ import type { Testimonial } from '@/types/hero';
 
 export const heroTestimonials: Testimonial[] = [
   {
-    quote: "ok specialize in Vue.js, React.js, Nuxt.js, and Next.js development, creating modern and responsive web applications with excellent user experience.",
+    quote: "I specialize in Vue.js, React.js, Nuxt.js, and Next.js development, creating modern and responsive web applications with excellent user experience.",
     role: "Front End Developer",
     src: "/images/self/1.webp",
   },
