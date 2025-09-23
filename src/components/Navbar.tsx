@@ -23,7 +23,12 @@ export function MainNavbar() {
   const pathname = usePathname();
   const { prefetchOnHover } = usePrefetchOnHover();
   const { totalSize, isLoading, formatBytes, clearAllCache, clearSWCache, refreshCacheStatus } = useCacheStatus();
-  const { confirmAlert, showAlert, AlertComponent } = useAlert();
+  const { confirmAlert, showAlert, AlertComponent } = (useAlert() as unknown) as {
+    confirmAlert: (title: string, description: string) => Promise<boolean>;
+    showAlert: (type: 'success' | 'error' | 'warning', title: string, description: string) => void;
+    AlertComponent: React.ComponentType;
+    hideAlert: () => void;
+  };
   
   const navItems = [
     {
