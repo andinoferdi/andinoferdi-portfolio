@@ -13,22 +13,9 @@ import { IconBrandGithub, IconBrandWhatsapp } from "@tabler/icons-react";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { usePrefetchOnHover } from "@/hooks/use-prefetch";
-import { useCacheStatus } from "@/hooks/use-cache-status";
-import { useAlert } from "@/hooks/use-alert";
-import { IconDatabase, IconTrash, IconRefresh } from "@tabler/icons-react";
-import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/react";
 
 export function MainNavbar() {
   const pathname = usePathname();
-  const { prefetchOnHover } = usePrefetchOnHover();
-  const { totalSize, isLoading, formatBytes, clearAllCache, clearSWCache, refreshCacheStatus } = useCacheStatus();
-  const { confirmAlert, showAlert, AlertComponent } = (useAlert() as unknown) as {
-    confirmAlert: (title: string, description: string) => Promise<boolean>;
-    showAlert: (type: 'success' | 'error' | 'warning', title: string, description: string) => void;
-    AlertComponent: React.ComponentType;
-    hideAlert: () => void;
-  };
   
   const navItems = [
     {
@@ -47,38 +34,14 @@ export function MainNavbar() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const handleClearAll = async () => {
-    const confirmed = await confirmAlert(
-      'Clear All Caches',
-      'Are you sure you want to clear all caches? This will reload the page.'
-    );
-    if (confirmed) {
-      await clearAllCache();
-      showAlert('success', 'Success', 'All caches have been cleared successfully!');
-    }
-  };
-
-  const handleClearSW = async () => {
-    const confirmed = await confirmAlert(
-      'Clear Service Worker Cache',
-      'Are you sure you want to clear Service Worker cache?'
-    );
-    if (confirmed) {
-      await clearSWCache();
-      showAlert('success', 'Success', 'Service Worker cache has been cleared successfully!');
-    }
-  };
-
   return (
     <>
-      <AlertComponent />
       <Navbar>
         <NavBody>
         <NavbarLogo />
         <CustomNavItems
           items={navItems}
           pathname={pathname}
-          prefetchOnHover={prefetchOnHover}
         />
         <div className="flex items-center gap-4">
           <NavbarButton
@@ -97,50 +60,6 @@ export function MainNavbar() {
           >
             <IconBrandWhatsapp size={20} aria-hidden="true" />
           </NavbarButton>
-          <Dropdown>
-            <DropdownTrigger>
-              <NavbarButton
-                variant="secondary"
-                ariaLabel="Cache Manager"
-                className="border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center gap-2"
-              >
-                <IconDatabase size={20} aria-hidden="true" />
-                <span className="hidden sm:inline">
-                  {isLoading ? '...' : formatBytes(totalSize)}
-                </span>
-              </NavbarButton>
-            </DropdownTrigger>
-            <DropdownMenu 
-              aria-label="Cache Actions"
-              className="bg-white dark:bg-neutral-950 border border-gray-200 dark:border-gray-700 shadow-lg"
-            >
-              <DropdownItem 
-                key="refresh" 
-                startContent={<IconRefresh size={16} />}
-                onPress={refreshCacheStatus}
-                className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
-                Refresh Status
-              </DropdownItem>
-              <DropdownItem 
-                key="clear-sw" 
-                startContent={<IconTrash size={16} />}
-                onPress={handleClearSW}
-                className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
-                Clear SW Cache
-              </DropdownItem>
-              <DropdownItem 
-                key="clear-all" 
-                className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20" 
-                color="danger"
-                startContent={<IconTrash size={16} />}
-                onPress={handleClearAll}
-              >
-                Clear All Caches
-              </DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
         </div>
       </NavBody>
 
@@ -192,48 +111,6 @@ export function MainNavbar() {
               <IconBrandWhatsapp size={20} aria-hidden="true" />
               <span>WhatsApp</span>
             </NavbarButton>
-            <Dropdown>
-              <DropdownTrigger>
-                <NavbarButton
-                  variant="secondary"
-                  ariaLabel="Cache Manager"
-                  className="w-full border border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500 flex items-center justify-center gap-2"
-                >
-                  <IconDatabase size={20} aria-hidden="true" />
-                  <span>{isLoading ? '...' : formatBytes(totalSize)}</span>
-                </NavbarButton>
-              </DropdownTrigger>
-              <DropdownMenu 
-                aria-label="Cache Actions"
-                className="bg-white dark:bg-neutral-950 border border-gray-200 dark:border-gray-700 shadow-lg"
-              >
-                <DropdownItem 
-                  key="refresh" 
-                  startContent={<IconRefresh size={16} />}
-                  onPress={refreshCacheStatus}
-                  className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                >
-                  Refresh Status
-                </DropdownItem>
-                <DropdownItem 
-                  key="clear-sw" 
-                  startContent={<IconTrash size={16} />}
-                  onPress={handleClearSW}
-                  className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                >
-                  Clear SW Cache
-                </DropdownItem>
-                <DropdownItem 
-                  key="clear-all" 
-                  className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20" 
-                  color="danger"
-                  startContent={<IconTrash size={16} />}
-                  onPress={handleClearAll}
-                >
-                  Clear All Caches
-                </DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
           </div>
         </MobileNavMenu>
       </MobileNav>
@@ -244,18 +121,15 @@ export function MainNavbar() {
 
 function CustomNavItems({ 
   items, 
-  pathname, 
-  prefetchOnHover 
+  pathname
 }: { 
   items: { name: string; link: string }[];
   pathname: string;
-  prefetchOnHover: (href: string) => void;
 }) {
   const [hovered, setHovered] = useState<number | null>(null);
 
-  const handleMouseEnter = (idx: number, link: string) => {
+  const handleMouseEnter = (idx: number) => {
     setHovered(idx);
-    prefetchOnHover(link);
   };
 
   return (
@@ -265,7 +139,7 @@ function CustomNavItems({
     >
       {items.map((item, idx) => (
         <Link
-          onMouseEnter={() => handleMouseEnter(idx, item.link)}
+          onMouseEnter={() => handleMouseEnter(idx)}
           className={`relative px-4 py-2 ${
             pathname === item.link 
               ? "text-white font-semibold border border-white rounded-full" 

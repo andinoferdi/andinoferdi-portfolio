@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useMemo } from "react";
+import React from "react";
 import { TracingBeam } from "@/components/ui/tracing-beam";
 import { IconMapPin, IconExternalLink } from "@tabler/icons-react";
 import { 
@@ -12,8 +12,7 @@ import {
 import { useMobile } from "@/hooks/use-mobile";
 import type { ExperienceItem } from "@/types/experience";
 
-// Memoized company logo component for better performance
-const CompanyLogo = memo(({ 
+const CompanyLogo = ({ 
   logo, 
   company, 
   index 
@@ -28,18 +27,16 @@ const CompanyLogo = memo(({
         src={logo}
         alt={`${company} logo`}
         className="w-full h-full object-contain"
-        loading={index > 1 ? "lazy" : "eager"}
+        loading="lazy"
         style={{
           transform: 'translateZ(0)', // GPU acceleration
         }}
       />
     </div>
   </div>
-));
-CompanyLogo.displayName = 'CompanyLogo';
+);
 
-// Memoized status badge component
-const StatusBadge = memo(({ 
+const StatusBadge = ({ 
   type, 
   status, 
   getTypeColor, 
@@ -59,11 +56,9 @@ const StatusBadge = memo(({
       {status}
     </span>
   </div>
-));
-StatusBadge.displayName = 'StatusBadge';
+);
 
-// Memoized achievements list component
-const AchievementsList = memo(({ achievements }: { achievements: string[] }) => (
+const AchievementsList = ({ achievements }: { achievements: string[] }) => (
   <div className="mb-6">
     <div className="flex items-center gap-2 mb-4">
       <span className="text-lg">🏆</span>
@@ -81,11 +76,9 @@ const AchievementsList = memo(({ achievements }: { achievements: string[] }) => 
       ))}
     </ul>
   </div>
-));
-AchievementsList.displayName = 'AchievementsList';
+);
 
-// Memoized website link component
-const WebsiteLink = memo(({ website }: { website: string }) => (
+const WebsiteLink = ({ website }: { website: string }) => (
   <div className="flex justify-center sm:justify-end">
     <a
       href={website}
@@ -102,11 +95,9 @@ const WebsiteLink = memo(({ website }: { website: string }) => (
       <IconExternalLink className="w-4 h-4" />
     </a>
   </div>
-));
-WebsiteLink.displayName = 'WebsiteLink';
+);
 
-// Main experience item component - heavily optimized for mobile
-const ExperienceItem = memo(({ 
+const ExperienceItem = ({ 
   item, 
   index,
   isMobile
@@ -178,16 +169,13 @@ const ExperienceItem = memo(({
       <WebsiteLink website={item.website} />
     )}
   </div>
-));
-ExperienceItem.displayName = 'ExperienceItem';
+);
 
-// Main component
 export const ExperienceSection = () => {
   const isMobile = useMobile();
   
-  // Memoize expensive operations
-  const experienceData = useMemo(() => getSortedExperiences(), []);
-  const sectionInfo = useMemo(() => getExperienceSection(), []);
+  const experienceData = getSortedExperiences();
+  const sectionInfo = getExperienceSection();
 
   return (
     <div 

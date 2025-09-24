@@ -1,28 +1,18 @@
 import type { ExperienceItem } from '@/types/experience';
 import { experienceData, experienceSection } from '@/data/experience';
 
-// Memoized and cached data to prevent unnecessary re-computations
-let cachedExperiences: ExperienceItem[] | null = null;
-let cachedSortedExperiences: ExperienceItem[] | null = null;
-
 export const getAllExperiences = (): ExperienceItem[] => {
-  if (cachedExperiences === null) {
-    cachedExperiences = [...experienceData];
-  }
-  return cachedExperiences;
+  return [...experienceData];
 };
 
 export const getSortedExperiences = (): ExperienceItem[] => {
-  if (cachedSortedExperiences === null) {
-    cachedSortedExperiences = [...experienceData].sort((a, b) => {
-      // Sort by start date (newest first)
-      if (b.startDate === a.startDate) {
-        return b.endDate.localeCompare(a.endDate);
-      }
-      return b.startDate.localeCompare(a.startDate);
-    });
-  }
-  return cachedSortedExperiences;
+  return [...experienceData].sort((a, b) => {
+    // Sort by start date (newest first)
+    if (b.startDate === a.startDate) {
+      return b.endDate.localeCompare(a.endDate);
+    }
+    return b.startDate.localeCompare(a.startDate);
+  });
 };
 
 export const getExperienceById = (id: string): ExperienceItem | undefined => {

@@ -5,8 +5,6 @@ import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { HeroUIProvider } from "@/components/providers/HeroUIProvider";
 import { MainNavbar } from "@/components/Navbar";
 import { Spotlight } from "@/components/ui/spotlight-new";
-import { ServiceWorkerProvider } from "@/components/providers/ServiceWorkerProvider";
-import "@/lib/cache-utils";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -40,21 +38,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${poppins.variable} antialiased bg-black/[0.96] relative overflow-x-hidden bg-grid-white/[0.02]`}>
-        <ServiceWorkerProvider>
-          <ThemeProvider>
-            <HeroUIProvider>
-              <div className="fixed inset-0 z-0">
-                <Spotlight />
+        <ThemeProvider>
+          <HeroUIProvider>
+            <div className="fixed inset-0 z-0">
+              <Spotlight />
+            </div>
+            <div className="relative z-10">
+              <MainNavbar />
+              <div className="pt-16">
+                {children}
               </div>
-              <div className="relative z-10">
-                <MainNavbar />
-                <div className="pt-16">
-                  {children}
-                </div>
-              </div>
-            </HeroUIProvider>
-          </ThemeProvider>
-        </ServiceWorkerProvider>
+            </div>
+          </HeroUIProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

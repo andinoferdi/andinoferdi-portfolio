@@ -16,7 +16,6 @@ import { HoverBorderGradient } from "@/components/ui/hover-border-gradient";
 import { heroTestimonials, heroTextFlipWords } from "@/data/hero";
 import { getFeaturedProjects } from "@/services/projects";
 import { ProjectItem } from "@/types/projects";
-import { usePreloadImages } from "@/hooks/use-prefetch";
 
 export const HeroSection = () => {
   const featuredProjects = getFeaturedProjects();
@@ -26,13 +25,6 @@ export const HeroSection = () => {
     offset: ["start start", "end start"],
   });
 
-  const allProjectImages = featuredProjects.map(project => project.thumbnail);
-  const testimonialImages = heroTestimonials.map(testimonial => testimonial.src);
-  
-  usePreloadImages([...allProjectImages, ...testimonialImages], 50);
-
-
- 
   return (
     <div
       ref={ref}
