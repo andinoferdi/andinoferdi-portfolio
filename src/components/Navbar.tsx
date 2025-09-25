@@ -81,11 +81,12 @@ export function MainNavbar() {
               key={`mobile-link-${idx}`}
               href={item.link}
               onClick={() => setIsMobileMenuOpen(false)}
-              className={`relative px-4 py-2 rounded-full ${
+              className={`relative px-4 py-2 rounded-full transition-colors duration-200 ${
                 pathname === item.link
                   ? "text-white font-semibold border border-white"
-                  : "text-neutral-600 dark:text-neutral-300"
+                  : "text-neutral-600 dark:text-neutral-300 hover:text-white hover:border-gray-500"
               }`}
+              aria-current={pathname === item.link ? "page" : undefined}
             >
               <span className="block">{item.name}</span>
             </Link>

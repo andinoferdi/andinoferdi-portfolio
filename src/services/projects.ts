@@ -10,8 +10,11 @@ export const getFeaturedProjects = (): ProjectItem[] => {
 };
 
 export const getProjectsByTechnology = (technology: string): ProjectItem[] => {
+  const normalizedTech = technology.toLowerCase().trim();
   return projectsItem.filter(project => 
-    project.technologies.includes(technology.toLowerCase())
+    project.technologies.some(tech => 
+      tech.toLowerCase().includes(normalizedTech)
+    )
   );
 };
 

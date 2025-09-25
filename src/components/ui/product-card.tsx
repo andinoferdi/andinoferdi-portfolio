@@ -63,7 +63,6 @@ export const ProductCard = ({
                 width={400}
                 className="h-48 w-full object-cover rounded-xl group-hover/card:shadow-xl"
                 alt={`${product.title} project screenshot`}
-                loading="lazy"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 onError={handleImageError}
               />

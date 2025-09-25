@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { TracingBeam } from "@/components/ui/tracing-beam";
 import { IconMapPin, IconExternalLink } from "@tabler/icons-react";
 import { 
@@ -23,13 +24,15 @@ const CompanyLogo = ({
 }) => (
   <div className="flex-shrink-0 mx-auto sm:mx-0 sm:ml-0">
     <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl p-2 sm:p-3 flex items-center justify-center">
-      <img
+      <Image
         src={logo}
         alt={`${company} logo`}
+        width={80}
+        height={80}
         className="w-full h-full object-contain"
-        loading="lazy"
+        priority={index <= 2}
         style={{
-          transform: 'translateZ(0)', // GPU acceleration
+          transform: 'translateZ(0)',
         }}
       />
     </div>

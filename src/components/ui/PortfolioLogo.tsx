@@ -14,7 +14,6 @@ export const PortfolioLogo = () => {
           width={48}
           height={48}
           className="rounded-full object-contain"
-          loading="lazy"
         />
       </div>
     </Link>
