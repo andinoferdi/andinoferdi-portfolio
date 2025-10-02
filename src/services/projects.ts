@@ -29,7 +29,7 @@ export const getProjectsData = (): ProjectsData => {
         description:
           "My workshop assignment: a creative design studio website that showcases digital solutions, services, and portfolio with a modern UI/UX design and responsive layout.",
         image: "/images/projects/anro.webp",
-        technologies: ["HTML", "CSS", "TypeScript"],
+        technologies: ["HTML", "CSS", "Javascript"],
         liveUrl: "https://anrostudio.netlify.app/",
         githubUrl: "https://github.com/andinoferdi/anro-studio",
       },

@@ -12,7 +12,7 @@ import {
   ChevronDown
 } from "lucide-react";
 import Image from "next/image";
-import { getMusicData, formatTime, getDefaultVolume, getAudioDuration } from "@/services/music";
+import { getMusicData, formatTime, getDefaultVolume } from "@/services/music";
 import { type MusicPlayerState } from "@/types/music";
 
 export const MiniPlayer = () => {
@@ -23,7 +23,7 @@ export const MiniPlayer = () => {
     currentTrack: tracks[0] || null,
     isPlaying: false,
     currentTime: 0,
-    duration: 0,
+    duration: tracks[0]?.duration || 0,
     volume: getDefaultVolume(),
     isShuffled: false,
     repeatMode: 'none',
@@ -41,25 +41,13 @@ export const MiniPlayer = () => {
   }, [volume]);
 
   useEffect(() => {
-    const loadTrackDuration = async () => {
-      if (currentTrack && currentTrack.duration === 0) {
-        try {
-          const trackDuration = await getAudioDuration(currentTrack.audioUrl);
-          setPlayerState(prev => ({
-            ...prev,
-            duration: trackDuration,
-            currentTrack: {
-              ...prev.currentTrack!,
-              duration: trackDuration
-            }
-          }));
-        } catch (error) {
-          console.error('Failed to load audio duration:', error);
-        }
-      }
-    };
-
-    loadTrackDuration();
+    // Set initial duration from track data
+    if (currentTrack && currentTrack.duration > 0) {
+      setPlayerState(prev => ({
+        ...prev,
+        duration: currentTrack.duration
+      }));
+    }
   }, [currentTrack]);
 
   useEffect(() => {
@@ -85,13 +73,25 @@ export const MiniPlayer = () => {
         currentTrackIndex: nextIndex,
         currentTrack: nextTrack,
         currentTime: 0,
-        duration: nextTrack.duration || 0
+        duration: nextTrack.duration
       };
     });
   };
 
   const handlePrevious = () => {
     setPlayerState(prev => {
+      // Jika current time > 3 detik, restart lagu yang sama
+      if (prev.currentTime > 3) {
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+        }
+        return {
+          ...prev,
+          currentTime: 0
+        };
+      }
+      
+      // Jika current time <= 3 detik, pindah ke lagu sebelumnya
       const prevIndex = prev.currentTrackIndex === 0 
         ? prev.playlist.length - 1 
         : prev.currentTrackIndex - 1;
@@ -101,7 +101,7 @@ export const MiniPlayer = () => {
         currentTrackIndex: prevIndex,
         currentTrack: prevTrack,
         currentTime: 0,
-        duration: prevTrack.duration || 0
+        duration: prevTrack.duration
       };
     });
   };
@@ -121,10 +121,13 @@ export const MiniPlayer = () => {
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
-      setPlayerState(prev => ({ 
-        ...prev, 
-        duration: audioRef.current?.duration || 0 
-      }));
+      const audioDuration = audioRef.current.duration;
+      if (audioDuration && audioDuration > 0) {
+        setPlayerState(prev => ({ 
+          ...prev, 
+          duration: audioDuration
+        }));
+      }
     }
   };
 

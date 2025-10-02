@@ -8,7 +8,7 @@ export const getMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
         title: "Every Breath You Take",
         artist: "The Police",
         album: "Synchronicity",
-        duration: 0, // Will be detected automatically
+        duration: 252, // 4:12 in seconds
         audioUrl: "/music/Every Breath You Take.mp3",
         coverImage: "/music/images/Every Breath You Take.jpeg",
         genre: "Rock"
@@ -24,7 +24,7 @@ export const getMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
             title: "Every Breath You Take",
             artist: "The Police",
             album: "Synchronicity",
-            duration: 0, // Will be detected automatically
+            duration: 252, // 4:12 in seconds
             audioUrl: "/music/Every Breath You Take.mp3",
             coverImage: "/music/images/Every Breath You Take.jpeg",
             genre: "Rock"
