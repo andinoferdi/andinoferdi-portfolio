@@ -156,7 +156,7 @@ export const MiniPlayer = () => {
         initial={{ x: 400, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-         className="fixed right-2 sm:right-4 top-16 sm:top-20 z-50"
+         className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40"
       >
         <AnimatePresence mode="wait">
           {!isExpanded ? (
