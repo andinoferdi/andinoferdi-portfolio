@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TitleProvider } from "@/components/providers/title-provider";
 import { DemoNavbar } from "@/components/navbar";
 import { DemoFooter } from "@/components/footer";
+import { MiniPlayer } from "@/components/mini-player";
 import ThemeAwareAurora from "@/components/theme-aware-aurora";
 
 const poppins = Poppins({
@@ -80,6 +81,7 @@ export default function RootLayout({
                   {children}
                 </main>
                 <DemoFooter />
+                <MiniPlayer />
               </div>
             </div>
           </TitleProvider>
