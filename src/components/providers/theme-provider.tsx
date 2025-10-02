@@ -13,13 +13,11 @@ type ThemeProviderProps = {
 type ThemeProviderState = {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  mounted: boolean;
 };
 
 const initialState: ThemeProviderState = {
   theme: "system",
   setTheme: () => null,
-  mounted: false,
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
@@ -27,47 +25,46 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  storageKey = "next-ui-theme",
+  storageKey = "vite-ui-theme",
   ...props
 }: ThemeProviderProps) {
-  const [mounted, setMounted] = useState(false);
-  const [theme, setTheme] = useState<Theme>(defaultTheme);
-
-  // Initialize theme on mount
-  useEffect(() => {
-    setMounted(true);
-    
-    const storedTheme = localStorage.getItem(storageKey) as Theme;
-    if (storedTheme) {
-      setTheme(storedTheme);
-    } else {
-      // Use system preference if no stored theme
-      setTheme("system");
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window !== "undefined") {
+      const storedTheme = localStorage.getItem(storageKey) as Theme;
+      if (storedTheme) {
+        return storedTheme;
+      }
+      // Jika tidak ada stored theme, gunakan system preference
+      return "system";
     }
-  }, [storageKey]);
+    return defaultTheme;
+  });
 
-  // Apply theme to DOM
   useEffect(() => {
-    if (!mounted) return;
+    if (typeof window === "undefined") return;
     
     const root = window.document.documentElement;
+
     root.classList.remove("light", "dark");
 
-    let actualTheme: "light" | "dark";
-    
     if (theme === "system") {
-      actualTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    } else {
-      actualTheme = theme as "light" | "dark";
+      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+        .matches
+        ? "dark"
+        : "light";
+
+      root.classList.add(systemTheme);
+      root.style.colorScheme = systemTheme;
+      return;
     }
 
-    root.classList.add(actualTheme);
-    root.style.colorScheme = actualTheme;
-  }, [theme, mounted]);
+    root.classList.add(theme);
+    root.style.colorScheme = theme;
+  }, [theme]);
 
   // Listen for system theme changes
   useEffect(() => {
-    if (!mounted || theme !== "system") return;
+    if (typeof window === "undefined" || theme !== "system") return;
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     
@@ -85,17 +82,16 @@ export function ThemeProvider({
     return () => {
       mediaQuery.removeEventListener("change", handleChange);
     };
-  }, [theme, mounted]);
+  }, [theme]);
 
   const value = {
     theme,
-    setTheme: (newTheme: Theme) => {
-      if (mounted) {
-        localStorage.setItem(storageKey, newTheme);
+    setTheme: (theme: Theme) => {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(storageKey, theme);
       }
-      setTheme(newTheme);
+      setTheme(theme);
     },
-    mounted,
   };
 
   return (

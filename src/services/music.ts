@@ -44,85 +44,31 @@ export const getMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
 
 export const getAudioDuration = (audioUrl: string): Promise<number> => {
   return new Promise((resolve, reject) => {
-    // Cek cache terlebih dahulu
-    if (durationCache.has(audioUrl)) {
-      resolve(durationCache.get(audioUrl)!);
-      return;
-    }
-
-    // Cek apakah sedang loading
-    if (loadingDurations.has(audioUrl)) {
-      // Wait for existing loading to complete
-      const checkInterval = setInterval(() => {
-        if (durationCache.has(audioUrl)) {
-          clearInterval(checkInterval);
-          resolve(durationCache.get(audioUrl)!);
-        }
-      }, 100);
-      
-      // Timeout after 10 seconds
-      setTimeout(() => {
-        clearInterval(checkInterval);
-        reject(new Error(`Timeout loading duration for ${audioUrl}`));
-      }, 10000);
-      return;
-    }
-
-    // Mark as loading
-    loadingDurations.add(audioUrl);
-
     const audio = new Audio();
     
-    const cleanup = () => {
-      loadingDurations.delete(audioUrl);
-      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
-      audio.removeEventListener('error', onError);
-      audio.removeEventListener('canplaythrough', onCanPlayThrough);
-    };
-
-    const onLoadedMetadata = () => {
-      const duration = audio.duration;
-      if (isFinite(duration) && duration > 0) {
-        durationCache.set(audioUrl, duration);
-        cleanup();
-        resolve(duration);
-      } else {
-        cleanup();
-        reject(new Error(`Invalid duration for ${audioUrl}`));
-      }
-    };
-
-    const onError = (e: Event) => {
-      cleanup();
-      reject(new Error(`Failed to load audio metadata for ${audioUrl}: ${e}`));
-    };
-
-    const onCanPlayThrough = () => {
-      // Fallback jika loadedmetadata tidak terpanggil
-      if (!durationCache.has(audioUrl)) {
-        const duration = audio.duration;
-        if (isFinite(duration) && duration > 0) {
-          durationCache.set(audioUrl, duration);
-          cleanup();
-          resolve(duration);
-        }
-      }
-    };
-
-    audio.addEventListener('loadedmetadata', onLoadedMetadata);
-    audio.addEventListener('error', onError);
-    audio.addEventListener('canplaythrough', onCanPlayThrough);
+    // Set timeout untuk menghindari loading yang terlalu lama
+    const timeout = setTimeout(() => {
+      reject(new Error(`Timeout loading audio: ${audioUrl}`));
+    }, 10000); // 10 detik timeout
     
-    // Set timeout untuk mencegah hanging
-    setTimeout(() => {
-      if (loadingDurations.has(audioUrl)) {
-        cleanup();
-        reject(new Error(`Timeout loading duration for ${audioUrl}`));
+    audio.addEventListener('loadedmetadata', () => {
+      clearTimeout(timeout);
+      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+        resolve(audio.duration);
+      } else {
+        reject(new Error(`Invalid duration for audio: ${audioUrl}`));
       }
-    }, 15000);
-
+    });
+    
+    audio.addEventListener('error', (e) => {
+      clearTimeout(timeout);
+      reject(new Error(`Failed to load audio: ${audioUrl} - ${e.type}`));
+    });
+    
+    // Set crossOrigin untuk menghindari CORS issues
+    audio.crossOrigin = 'anonymous';
+    audio.preload = 'metadata';
     audio.src = audioUrl;
-    audio.load();
   });
 };
 
@@ -137,26 +83,50 @@ export const getDefaultVolume = (): number => {
 };
 
 export const loadTrackDuration = async (audioUrl: string): Promise<number> => {
+  // Cek cache terlebih dahulu
+  if (durationCache.has(audioUrl)) {
+    return durationCache.get(audioUrl)!;
+  }
+
+  // Cek apakah sedang loading
+  if (loadingDurations.has(audioUrl)) {
+    // Wait for existing loading to complete
+    return new Promise((resolve, reject) => {
+      const checkCache = () => {
+        if (durationCache.has(audioUrl)) {
+          resolve(durationCache.get(audioUrl)!);
+        } else if (!loadingDurations.has(audioUrl)) {
+          reject(new Error(`Failed to load duration for ${audioUrl}`));
+        } else {
+          setTimeout(checkCache, 100);
+        }
+      };
+      checkCache();
+    });
+  }
+
+  // Mark as loading
+  loadingDurations.add(audioUrl);
+
   try {
-    return await getAudioDuration(audioUrl);
+    const duration = await getAudioDuration(audioUrl);
+    durationCache.set(audioUrl, duration);
+    return duration;
   } catch (error) {
     console.warn(`Failed to load duration for ${audioUrl}:`, error);
-    return 0; // Fallback duration
+    // Set fallback duration (4:12 = 252 seconds)
+    const fallbackDuration = 252;
+    durationCache.set(audioUrl, fallbackDuration);
+    return fallbackDuration;
+  } finally {
+    // Remove from loading set
+    loadingDurations.delete(audioUrl);
   }
 };
 
-export const loadAllTrackDurations = async (tracks: Track[]): Promise<Track[]> => {
-  const loadPromises = tracks.map(async (track) => {
-    try {
-      const duration = await loadTrackDuration(track.audioUrl);
-      return { ...track, duration };
-    } catch (error) {
-      console.warn(`Failed to load duration for track ${track.id}:`, error);
-      return track; // Return original track with duration 0
-    }
-  });
-
-  return Promise.all(loadPromises);
+export const preloadTrackDurations = async (tracks: Track[]): Promise<void> => {
+  const promises = tracks.map(track => loadTrackDuration(track.audioUrl));
+  await Promise.allSettled(promises);
 };
 
 export const getCachedDuration = (audioUrl: string): number | null => {

@@ -12,7 +12,7 @@ import {
   ChevronDown
 } from "lucide-react";
 import Image from "next/image";
-import { getMusicData, formatTime, getDefaultVolume, loadTrackDuration, getCachedDuration } from "@/services/music";
+import { getMusicData, formatTime, getDefaultVolume, loadTrackDuration, preloadTrackDurations } from "@/services/music";
 import { type MusicPlayerState } from "@/types/music";
 
 export const MiniPlayer = () => {
@@ -23,7 +23,7 @@ export const MiniPlayer = () => {
     currentTrack: tracks[0] || null,
     isPlaying: false,
     currentTime: 0,
-    duration: tracks[0]?.duration || 0,
+    duration: 0, // Will be loaded dynamically
     volume: getDefaultVolume(),
     isShuffled: false,
     repeatMode: 'none',
@@ -31,6 +31,8 @@ export const MiniPlayer = () => {
     currentTrackIndex: 0,
     isExpanded: false
   });
+
+  const [isLoadingDuration, setIsLoadingDuration] = useState(false);
 
   const { currentTrack, isPlaying, currentTime, duration, volume, isExpanded } = playerState;
 
@@ -40,33 +42,41 @@ export const MiniPlayer = () => {
     }
   }, [volume]);
 
+  // Load duration when track changes
   useEffect(() => {
-    // Load real duration from audio file
-    if (currentTrack) {
-      const cachedDuration = getCachedDuration(currentTrack.audioUrl);
-      if (cachedDuration) {
+    const loadDuration = async () => {
+      if (!currentTrack) return;
+      
+      setIsLoadingDuration(true);
+      try {
+        const realDuration = await loadTrackDuration(currentTrack.audioUrl);
         setPlayerState(prev => ({
           ...prev,
-          duration: cachedDuration
+          duration: realDuration
         }));
-      } else {
-        // Load duration asynchronously
-        loadTrackDuration(currentTrack.audioUrl)
-          .then((duration) => {
-            if (duration > 0) {
-              setPlayerState(prev => ({
-                ...prev,
-                duration: duration
-              }));
-            }
-          })
-          .catch((error) => {
-            console.warn('Failed to load track duration:', error);
-            // Keep duration as 0 if loading fails
-          });
+      } catch (error) {
+        console.warn('Failed to load track duration:', error);
+        // Keep current duration or use fallback
+      } finally {
+        setIsLoadingDuration(false);
       }
-    }
+    };
+
+    loadDuration();
   }, [currentTrack]);
+
+  // Preload all track durations on component mount
+  useEffect(() => {
+    const preloadDurations = async () => {
+      try {
+        await preloadTrackDurations(tracks);
+      } catch (error) {
+        console.warn('Failed to preload track durations:', error);
+      }
+    };
+
+    preloadDurations();
+  }, [tracks]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -91,7 +101,7 @@ export const MiniPlayer = () => {
         currentTrackIndex: nextIndex,
         currentTrack: nextTrack,
         currentTime: 0,
-        duration: nextTrack.duration
+        duration: 0 // Will be loaded by useEffect
       };
     });
   };
@@ -119,7 +129,7 @@ export const MiniPlayer = () => {
         currentTrackIndex: prevIndex,
         currentTrack: prevTrack,
         currentTime: 0,
-        duration: prevTrack.duration
+        duration: 0 // Will be loaded by useEffect
       };
     });
   };
@@ -140,7 +150,7 @@ export const MiniPlayer = () => {
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
       const audioDuration = audioRef.current.duration;
-      if (audioDuration && audioDuration > 0 && isFinite(audioDuration)) {
+      if (audioDuration && audioDuration > 0) {
         setPlayerState(prev => ({ 
           ...prev, 
           duration: audioDuration
@@ -277,7 +287,13 @@ export const MiniPlayer = () => {
                <div className="space-y-1.5 sm:space-y-2">
                  <div className="flex items-center justify-between text-xs text-neutral-600 dark:text-neutral-400">
                    <span>{formatTime(currentTime)}</span>
-                   <span>{duration > 0 ? formatTime(duration) : '--:--'}</span>
+                   <span>
+                     {isLoadingDuration ? (
+                       <span className="animate-pulse">--:--</span>
+                     ) : (
+                       formatTime(duration)
+                     )}
+                   </span>
                  </div>
                  
                  <input
@@ -286,7 +302,8 @@ export const MiniPlayer = () => {
                    max={duration || 0}
                    value={currentTime}
                    onChange={handleSeek}
-                   className="w-full h-1.5 sm:h-2 bg-neutral-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer slider"
+                   disabled={isLoadingDuration || duration === 0}
+                   className="w-full h-1.5 sm:h-2 bg-neutral-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer slider disabled:opacity-50 disabled:cursor-not-allowed"
                  />
 
                  <div className="flex items-center justify-center gap-1.5 sm:gap-2">
