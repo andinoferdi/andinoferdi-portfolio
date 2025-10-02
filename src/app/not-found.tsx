@@ -38,9 +38,9 @@ export default function NotFound() {
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="javascript:history.back()">
+              <button onClick={() => window.history.back()}>
                 Go Back
-              </Link>
+              </button>
             </Button>
           </div>
         </CardContent>

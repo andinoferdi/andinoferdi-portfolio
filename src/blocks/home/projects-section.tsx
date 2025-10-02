@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { getProjectsData } from "@/services/projects";
 import { ProjectCard } from "@/components/project-card";
 import { HoverBorderGradient } from "@/components/ui/hover-border-button";
@@ -28,7 +29,7 @@ export const ProjectsSection = () => {
 
         <div className="flex justify-center mt-12">
           <HoverBorderGradient
-            as="a"
+            as={Link}
             href="/projects"
             containerClassName="rounded-full"
             className="flex items-center gap-2 px-8 py-3 text-lg font-medium"

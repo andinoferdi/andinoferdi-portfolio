@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { getNavbarConfig } from "@/stores/navbar-menu";
 import {
   Navbar,
@@ -84,14 +85,14 @@ export const DemoNavbar = () => {
         </MobileNavHeader>
         <MobileNavMenu isOpen={isOpen} onClose={() => setIsOpen(false)}>
           {menuItems.map((item, index) => (
-            <a
+            <Link
               key={index}
               href={item.link}
-              className="text-neutral-600 dark:text-neutral-300 hover:text-neutral-800 dark:hover:text-neutral-100 transition-colors"
+              className="text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-100 transition-all duration-300 ease-out hover:scale-105 font-medium"
               onClick={handleItemClick}
             >
               {item.name}
-            </a>
+            </Link>
           ))}
         </MobileNavMenu>
       </MobileNav>
