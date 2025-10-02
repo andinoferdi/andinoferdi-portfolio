@@ -21,6 +21,10 @@ export const metadata: Metadata = {
     shortcut: "/images/Logo.png",
     apple: "/images/Logo.png",
   },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+  },
 };
 
 export default function RootLayout({
@@ -35,35 +39,35 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
-                function getInitialTheme() {
-                  const persistedTheme = window.localStorage.getItem('next-ui-theme');
-                  const hasPersistedTheme = typeof persistedTheme === 'string';
-                  
-                  if (hasPersistedTheme) {
-                    return persistedTheme;
-                  }
-                  
-                  const mql = window.matchMedia('(prefers-color-scheme: dark)');
-                  const hasMediaQueryPreference = typeof mql.matches === 'boolean';
-                  
-                  if (hasMediaQueryPreference) {
-                    return mql.matches ? 'dark' : 'light';
-                  }
-                  
-                  return 'system';
-                }
-                
-                const theme = getInitialTheme();
-                const root = document.documentElement;
-                root.classList.remove('light', 'dark');
-                
-                if (theme === 'system') {
+                try {
+                  const persistedTheme = localStorage.getItem('next-ui-theme');
                   const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                  root.classList.add(systemTheme);
-                  root.style.colorScheme = systemTheme;
-                } else {
-                  root.classList.add(theme);
-                  root.style.colorScheme = theme;
+                  const theme = persistedTheme || 'system';
+                  
+                  const root = document.documentElement;
+                  root.classList.remove('light', 'dark');
+                  
+                  if (theme === 'system') {
+                    root.classList.add(systemTheme);
+                    root.style.colorScheme = systemTheme;
+                  } else {
+                    root.classList.add(theme);
+                    root.style.colorScheme = theme;
+                  }
+                  
+                  // Mark theme as loaded to enable transitions
+                  setTimeout(() => {
+                    root.classList.add('theme-loaded');
+                  }, 0);
+                } catch (e) {
+                  // Fallback to system theme if localStorage is not available
+                  const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                  document.documentElement.classList.add(systemTheme);
+                  document.documentElement.style.colorScheme = systemTheme;
+                  
+                  setTimeout(() => {
+                    document.documentElement.classList.add('theme-loaded');
+                  }, 0);
                 }
               })();
             `,

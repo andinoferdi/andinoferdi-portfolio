@@ -13,11 +13,13 @@ type ThemeProviderProps = {
 type ThemeProviderState = {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  mounted: boolean;
 };
 
 const initialState: ThemeProviderState = {
   theme: "system",
   setTheme: () => null,
+  mounted: false,
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
@@ -25,46 +27,47 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  storageKey = "vite-ui-theme",
+  storageKey = "next-ui-theme",
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== "undefined") {
-      const storedTheme = localStorage.getItem(storageKey) as Theme;
-      if (storedTheme) {
-        return storedTheme;
-      }
-      // Jika tidak ada stored theme, gunakan system preference
-      return "system";
-    }
-    return defaultTheme;
-  });
+  const [mounted, setMounted] = useState(false);
+  const [theme, setTheme] = useState<Theme>(defaultTheme);
 
+  // Initialize theme on mount
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    setMounted(true);
+    
+    const storedTheme = localStorage.getItem(storageKey) as Theme;
+    if (storedTheme) {
+      setTheme(storedTheme);
+    } else {
+      // Use system preference if no stored theme
+      setTheme("system");
+    }
+  }, [storageKey]);
+
+  // Apply theme to DOM
+  useEffect(() => {
+    if (!mounted) return;
     
     const root = window.document.documentElement;
-
     root.classList.remove("light", "dark");
 
+    let actualTheme: "light" | "dark";
+    
     if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light";
-
-      root.classList.add(systemTheme);
-      root.style.colorScheme = systemTheme;
-      return;
+      actualTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    } else {
+      actualTheme = theme as "light" | "dark";
     }
 
-    root.classList.add(theme);
-    root.style.colorScheme = theme;
-  }, [theme]);
+    root.classList.add(actualTheme);
+    root.style.colorScheme = actualTheme;
+  }, [theme, mounted]);
 
   // Listen for system theme changes
   useEffect(() => {
-    if (typeof window === "undefined" || theme !== "system") return;
+    if (!mounted || theme !== "system") return;
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     
@@ -82,16 +85,17 @@ export function ThemeProvider({
     return () => {
       mediaQuery.removeEventListener("change", handleChange);
     };
-  }, [theme]);
+  }, [theme, mounted]);
 
   const value = {
     theme,
-    setTheme: (theme: Theme) => {
-      if (typeof window !== "undefined") {
-        localStorage.setItem(storageKey, theme);
+    setTheme: (newTheme: Theme) => {
+      if (mounted) {
+        localStorage.setItem(storageKey, newTheme);
       }
-      setTheme(theme);
+      setTheme(newTheme);
     },
+    mounted,
   };
 
   return (

@@ -12,7 +12,7 @@ import {
   ChevronDown
 } from "lucide-react";
 import Image from "next/image";
-import { getMusicData, formatTime, getDefaultVolume } from "@/services/music";
+import { getMusicData, formatTime, getDefaultVolume, loadTrackDuration, getCachedDuration } from "@/services/music";
 import { type MusicPlayerState } from "@/types/music";
 
 export const MiniPlayer = () => {
@@ -41,12 +41,30 @@ export const MiniPlayer = () => {
   }, [volume]);
 
   useEffect(() => {
-    // Set initial duration from track data
-    if (currentTrack && currentTrack.duration > 0) {
-      setPlayerState(prev => ({
-        ...prev,
-        duration: currentTrack.duration
-      }));
+    // Load real duration from audio file
+    if (currentTrack) {
+      const cachedDuration = getCachedDuration(currentTrack.audioUrl);
+      if (cachedDuration) {
+        setPlayerState(prev => ({
+          ...prev,
+          duration: cachedDuration
+        }));
+      } else {
+        // Load duration asynchronously
+        loadTrackDuration(currentTrack.audioUrl)
+          .then((duration) => {
+            if (duration > 0) {
+              setPlayerState(prev => ({
+                ...prev,
+                duration: duration
+              }));
+            }
+          })
+          .catch((error) => {
+            console.warn('Failed to load track duration:', error);
+            // Keep duration as 0 if loading fails
+          });
+      }
     }
   }, [currentTrack]);
 
@@ -122,7 +140,7 @@ export const MiniPlayer = () => {
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
       const audioDuration = audioRef.current.duration;
-      if (audioDuration && audioDuration > 0) {
+      if (audioDuration && audioDuration > 0 && isFinite(audioDuration)) {
         setPlayerState(prev => ({ 
           ...prev, 
           duration: audioDuration
@@ -259,7 +277,7 @@ export const MiniPlayer = () => {
                <div className="space-y-1.5 sm:space-y-2">
                  <div className="flex items-center justify-between text-xs text-neutral-600 dark:text-neutral-400">
                    <span>{formatTime(currentTime)}</span>
-                   <span>{formatTime(duration)}</span>
+                   <span>{duration > 0 ? formatTime(duration) : '--:--'}</span>
                  </div>
                  
                  <input
