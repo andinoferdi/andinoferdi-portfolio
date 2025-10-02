@@ -30,7 +30,27 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head />
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  const theme = localStorage.getItem('theme') || 'system';
+                  const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                  const finalTheme = theme === 'system' ? systemTheme : theme;
+                  
+                  document.documentElement.classList.remove('light', 'dark');
+                  document.documentElement.classList.add(finalTheme);
+                  document.documentElement.style.colorScheme = finalTheme;
+                } catch (e) {
+                  console.warn('Theme initialization failed:', e);
+                }
+              })();
+            `,
+          }}
+        />
+      </head>
       <body
         className={`${poppins.variable} font-sans antialiased`}
         suppressHydrationWarning
@@ -40,6 +60,7 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          storageKey="theme"
         >
             <TitleProvider>
               <div className="relative flex flex-col min-h-screen">
