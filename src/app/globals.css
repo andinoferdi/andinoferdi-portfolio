@@ -118,10 +118,5 @@
   }
   body {
     @apply bg-background text-foreground;
-    overflow-x: auto;
-  }
-  html {
-    overflow-x: auto;
-    overflow-y: scroll;
   }
 }
