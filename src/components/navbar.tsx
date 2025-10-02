@@ -13,7 +13,7 @@ import {
   MobileNavToggle,
   NavbarLogo,
 } from "@/components/ui/resizable-navbar";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ModeToggle } from "@/components/ui/mode-toggle";
 import { Github } from "lucide-react";
 import { IconBrandWhatsapp } from "@tabler/icons-react";
 
@@ -54,7 +54,7 @@ export const DemoNavbar = () => {
           >
             <IconBrandWhatsapp className="h-4 w-4" />
           </a>
-          <ThemeToggle />
+          <ModeToggle />
         </div>
       </NavBody>
       <MobileNav>
@@ -79,7 +79,7 @@ export const DemoNavbar = () => {
             >
               <IconBrandWhatsapp className="h-4 w-4" />
             </a>
-            <ThemeToggle />
+            <ModeToggle />
             <MobileNavToggle isOpen={isOpen} onClick={toggleMobileMenu} />
           </div>
         </MobileNavHeader>

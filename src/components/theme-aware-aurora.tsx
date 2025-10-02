@@ -1,19 +1,13 @@
 "use client";
 
-import { useTheme } from "@/components/providers/theme-provider";
+import { useTheme } from "next-themes";
 import Aurora from "./Aurora";
+import { memo } from "react";
 
-export default function ThemeAwareAurora() {
-  const { theme } = useTheme();
+const ThemeAwareAurora = memo(function ThemeAwareAurora() {
+  const { resolvedTheme } = useTheme();
 
-  const actualTheme = theme === "system" 
-    ? (typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-    : theme;
-
-  const colorStops =
-    actualTheme === "dark"
-      ? ["#1a1a2e", "#16213e", "#0f3460"]
-      : ["#1a1a2e", "#16213e", "#0f3460"]; 
+  const colorStops = ["#1a1a2e", "#16213e", "#0f3460"]; 
 
   return (
     <Aurora 
@@ -21,7 +15,9 @@ export default function ThemeAwareAurora() {
       amplitude={1.0}
       blend={1}
       speed={0.5}
-      opacity={actualTheme === "dark" ? 1.0 : 0.3}
+      opacity={resolvedTheme === "dark" ? 1.0 : 0.3}
     />
   );
-}
+});
+
+export default ThemeAwareAurora;

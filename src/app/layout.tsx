@@ -30,69 +30,33 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                function getInitialTheme() {
-                  const persistedTheme = window.localStorage.getItem('next-ui-theme');
-                  const hasPersistedTheme = typeof persistedTheme === 'string';
-                  
-                  if (hasPersistedTheme) {
-                    return persistedTheme;
-                  }
-                  
-                  const mql = window.matchMedia('(prefers-color-scheme: dark)');
-                  const hasMediaQueryPreference = typeof mql.matches === 'boolean';
-                  
-                  if (hasMediaQueryPreference) {
-                    return mql.matches ? 'dark' : 'light';
-                  }
-                  
-                  return 'system';
-                }
-                
-                const theme = getInitialTheme();
-                const root = document.documentElement;
-                root.classList.remove('light', 'dark');
-                
-                if (theme === 'system') {
-                  const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                  root.classList.add(systemTheme);
-                  root.style.colorScheme = systemTheme;
-                } else {
-                  root.classList.add(theme);
-                  root.style.colorScheme = theme;
-                }
-              })();
-            `,
-          }}
-        />
-      </head>
+      <head />
       <body
         className={`${poppins.variable} font-sans antialiased`}
+        suppressHydrationWarning
       >
         <ThemeProvider
+          attribute="class"
           defaultTheme="system"
-          storageKey="next-ui-theme"
+          enableSystem
+          disableTransitionOnChange
         >
-          <TitleProvider>
-            <div className="relative flex flex-col min-h-screen">
-              <div className="fixed inset-0 z-0">
-                <ThemeAwareAurora />
+            <TitleProvider>
+              <div className="relative flex flex-col min-h-screen">
+                <div className="fixed inset-0 z-0">
+                  <ThemeAwareAurora />
+                </div>
+                <div className="relative z-10 flex flex-col min-h-screen">
+                  <DemoNavbar />
+                  <main className="flex-1">
+                    {children}
+                  </main>
+                  <DemoFooter />
+                  <MiniPlayer />
+                </div>
               </div>
-              <div className="relative z-10 flex flex-col min-h-screen">
-                <DemoNavbar />
-                <main className="flex-1">
-                  {children}
-                </main>
-                <DemoFooter />
-                <MiniPlayer />
-              </div>
-            </div>
-          </TitleProvider>
-        </ThemeProvider>
+            </TitleProvider>
+          </ThemeProvider>
       </body>
     </html>
   );
