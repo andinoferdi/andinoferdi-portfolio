@@ -3,56 +3,53 @@ import { type Track, type Playlist } from "@/types/music";
 const durationValueCache = new Map<string, number>(); // nilai durasi final
 const durationPromiseCache = new Map<string, Promise<number>>(); // in-flight promise
 
+const shuffleArray = <T>(array: T[]): T[] => {
+  // Guard untuk SSR - kembalikan array original di server
+  if (typeof window === "undefined") {
+    return [...array];
+  }
+
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
 export const getMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
+  const originalTracks: Track[] = [
+    {
+      id: "every-breath-you-take",
+      title: "Every Breath You Take",
+      artist: "The Police",
+      album: "Synchronicity",
+      duration: 0,
+      audioUrl: "/music/Every Breath You Take.mp3", // disarankan ganti kebab-case tanpa spasi
+      coverImage: "/music/images/Every Breath You Take.jpeg",
+      genre: "Rock",
+    },
+    {
+      id: "i-want-it-that-way",
+      title: "I Want It That Way",
+      artist: "Backstreet Boys",
+      album: "Millennium",
+      duration: 0,
+      audioUrl: "/music/I Want It That Way.mp3",
+      coverImage: "/music/images/I Want It That Way.jpeg",
+      genre: "Pop",
+    },
+  ];
+
+  const shuffledTracks = shuffleArray(originalTracks);
+
   return {
-    tracks: [
-      {
-        id: "every-breath-you-take",
-        title: "Every Breath You Take",
-        artist: "The Police",
-        album: "Synchronicity",
-        duration: 0,
-        audioUrl: "/music/Every Breath You Take.mp3", // disarankan ganti kebab-case tanpa spasi
-        coverImage: "/music/images/Every Breath You Take.jpeg",
-        genre: "Rock",
-      },
-      {
-        id: "i-want-it-that-way",
-        title: "I Want It That Way",
-        artist: "Backstreet Boys",
-        album: "Millennium",
-        duration: 0,
-        audioUrl: "/music/I Want It That Way.mp3",
-        coverImage: "/music/images/I Want It That Way.jpeg",
-        genre: "Pop",
-      },
-    ],
+    tracks: shuffledTracks,
     playlists: [
       {
         id: "default-playlist",
         name: "My Playlist",
-        tracks: [
-          {
-            id: "every-breath-you-take",
-            title: "Every Breath You Take",
-            artist: "The Police",
-            album: "Synchronicity",
-            duration: 0,
-            audioUrl: "/music/Every Breath You Take.mp3",
-            coverImage: "/music/images/Every Breath You Take.jpeg",
-            genre: "Rock",
-          },
-          {
-            id: "i-want-it-that-way",
-            title: "I Want It That Way",
-            artist: "Backstreet Boys",
-            album: "Millennium",
-            duration: 0,
-            audioUrl: "/music/I Want It That Way.mp3",
-            coverImage: "/music/images/I Want It That Way.jpeg",
-            genre: "Pop",
-          },
-        ],
+        tracks: shuffledTracks,
         coverImage: "/music/images/Every Breath You Take.jpeg",
       },
     ],
@@ -150,4 +147,62 @@ export const getCachedDuration = (audioUrl: string): number | null => {
 export const clearDurationCache = (): void => {
   durationValueCache.clear();
   durationPromiseCache.clear();
+};
+
+// Function untuk mendapatkan original tracks
+export const getOriginalTracks = (): Track[] => [
+  {
+    id: "every-breath-you-take",
+    title: "Every Breath You Take",
+    artist: "The Police",
+    album: "Synchronicity",
+    duration: 0,
+    audioUrl: "/music/Every Breath You Take.mp3",
+    coverImage: "/music/images/Every Breath You Take.jpeg",
+    genre: "Rock",
+  },
+  {
+    id: "i-want-it-that-way",
+    title: "I Want It That Way",
+    artist: "Backstreet Boys",
+    album: "Millennium",
+    duration: 0,
+    audioUrl: "/music/I Want It That Way.mp3",
+    coverImage: "/music/images/I Want It That Way.jpeg",
+    genre: "Pop",
+  },
+];
+
+export const getShuffledMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
+  const originalTracks = getOriginalTracks();
+
+  // Di server, kembalikan urutan asli untuk menghindari hydration mismatch
+  if (typeof window === "undefined") {
+    return {
+      tracks: originalTracks,
+      playlists: [
+        {
+          id: "default-playlist",
+          name: "My Playlist",
+          tracks: originalTracks,
+          coverImage: "/music/images/Every Breath You Take.jpeg",
+        },
+      ],
+    };
+  }
+
+  // Di client, shuffle tracks
+  const shuffledTracks = shuffleArray(originalTracks);
+
+  return {
+    tracks: shuffledTracks,
+    playlists: [
+      {
+        id: "default-playlist",
+        name: "My Playlist",
+        tracks: shuffledTracks,
+        coverImage: "/music/images/Every Breath You Take.jpeg",
+      },
+    ],
+  };
 };

@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import {
-  getMusicData,
+  getOriginalTracks,
+  getShuffledMusicData,
   formatTime,
   getDefaultVolume,
   loadTrackDuration,
@@ -22,21 +23,40 @@ import {
 import { type MusicPlayerState } from "@/types/music";
 
 export const MiniPlayer = () => {
-  const { tracks } = getMusicData();
   const audioRef = useRef<HTMLAudioElement>(null);
-
+  
+  // Selalu gunakan data original untuk initial state (konsisten SSR)
+  const originalTracks = getOriginalTracks();
+  
   const [playerState, setPlayerState] = useState<MusicPlayerState>({
-    currentTrack: tracks[0] || null,
+    currentTrack: originalTracks[0] || null,
     isPlaying: false,
     currentTime: 0,
     duration: 0,
     volume: getDefaultVolume(),
     isShuffled: false,
     repeatMode: "none",
-    playlist: tracks,
+    playlist: originalTracks,
     currentTrackIndex: 0,
     isExpanded: false,
   });
+
+  const [hasShuffled, setHasShuffled] = useState(false);
+
+  // Shuffle setelah mounted (client-side only)
+  useEffect(() => {
+    if (typeof window !== "undefined" && !hasShuffled) {
+      const shuffledData = getShuffledMusicData();
+      setPlayerState(prev => ({
+        ...prev,
+        currentTrack: shuffledData.tracks[0] || null,
+        playlist: shuffledData.tracks,
+        currentTrackIndex: 0,
+        currentTime: 0
+      }));
+      setHasShuffled(true);
+    }
+  }, [hasShuffled]);
 
   const [isLoadingDuration, setIsLoadingDuration] = useState(false);
 
@@ -71,13 +91,13 @@ export const MiniPlayer = () => {
   useEffect(() => {
     const preloadDurations = async () => {
       try {
-        await preloadTrackDurations(tracks);
+        await preloadTrackDurations(playerState.playlist);
       } catch (error) {
         console.warn("Failed to preload track durations:", error);
       }
     };
     preloadDurations();
-  }, [tracks]);
+  }, [playerState.playlist]);
 
   // Kontrol play/pause, ulangi panggilan play saat ganti track
   useEffect(() => {
