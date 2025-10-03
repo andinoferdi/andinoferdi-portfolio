@@ -6,7 +6,7 @@ import { TitleProvider } from "@/components/providers/title-provider";
 import { DemoNavbar } from "@/components/navbar";
 import { DemoFooter } from "@/components/footer";
 import { MiniPlayer } from "@/components/mini-player";
-import ThemeAwareAurora from "@/components/theme-aware-aurora";
+import ThemeScript from "@/components/ui/theme-script";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -30,7 +30,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head />
+      <head>
+        <ThemeScript />
+      </head>
       <body
         className={`${poppins.variable} font-sans antialiased`}
         suppressHydrationWarning
@@ -40,11 +42,12 @@ export default function RootLayout({
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          storageKey="theme"
+          enableColorScheme={false}
         >
             <TitleProvider>
               <div className="relative flex flex-col min-h-screen">
                 <div className="fixed inset-0 z-0">
-                  <ThemeAwareAurora />
                 </div>
                 <div className="relative z-10 flex flex-col min-h-screen">
                   <DemoNavbar />
