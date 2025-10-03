@@ -6,6 +6,7 @@ import { TitleProvider } from "@/components/providers/title-provider";
 import { DemoNavbar } from "@/components/navbar";
 import { DemoFooter } from "@/components/footer";
 import { MiniPlayer } from "@/components/mini-player";
+import { EnhancedGridBackground } from "@/components/enhanced-grid-background";
 import ThemeScript from "@/components/ui/theme-script";
 
 const poppins = Poppins({
@@ -47,8 +48,7 @@ export default function RootLayout({
         >
             <TitleProvider>
               <div className="relative flex flex-col min-h-screen">
-                <div className="fixed inset-0 z-0">
-                </div>
+                <EnhancedGridBackground />
                 <div className="relative z-10 flex flex-col min-h-screen">
                   <DemoNavbar />
                   <main className="flex-1">
