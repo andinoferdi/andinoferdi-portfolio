@@ -5,7 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Spotlight } from "@/components/ui/spotlight-new";
 import { HoverBorderGradient } from "@/components/ui/hover-border-button";
-import { Download, Music, Image, FileText, Play } from "lucide-react";
+import { Download, Music, Image, FileText, Play, Building2 } from "lucide-react";
+import { getProjectsData } from "@/services/projects";
+import { getProfileData } from "@/services/profile";
+import { getOriginalTracks } from "@/services/music";
+import { getExperienceData } from "@/services/journey";
 
 interface LoadingScreenProps {
   onComplete: () => void;
@@ -17,21 +21,57 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   const [currentAsset, setCurrentAsset] = useState("");
   const [showStartButton, setShowStartButton] = useState(false);
 
-  const assets = useMemo(() => [
-    { name: "Profile Images", icon: Image, count: 4 },
-    { name: "Project Screenshots", icon: Image, count: 4 },
-    { name: "Music Tracks", icon: Music, count: 4 },
-    { name: "Music Covers", icon: Image, count: 4 },
-    { name: "CV Document", icon: FileText, count: 1 },
-    { name: "Logo Assets", icon: Image, count: 1 },
-  ], []);
+  const assets = useMemo(() => {
+    const projectsData = getProjectsData();
+    const profileData = getProfileData();
+    const musicData = getOriginalTracks();
+    const experienceData = getExperienceData();
+
+    return [
+      { 
+        name: "Profile Images", 
+        icon: Image, 
+        count: profileData.profiles.length,
+        description: "Profile carousel images"
+      },
+      { 
+        name: "Project Screenshots", 
+        icon: Image, 
+        count: projectsData.projects.length,
+        description: "Project showcase images"
+      },
+      { 
+        name: "Music Tracks", 
+        icon: Music, 
+        count: musicData.length,
+        description: "Audio files for mini player"
+      },
+      { 
+        name: "Music Covers", 
+        icon: Image, 
+        count: musicData.length,
+        description: "Album cover images"
+      },
+      { 
+        name: "CV Document", 
+        icon: FileText, 
+        count: 1,
+        description: "Resume download file"
+      },
+      { 
+        name: "Journey Logos", 
+        icon: Building2, 
+        count: experienceData.experiences.filter(exp => exp.logo).length,
+        description: "Company and institution logos"
+      },
+    ];
+  }, []);
 
   const totalAssets = assets.reduce((sum, asset) => sum + asset.count, 0);
 
   useEffect(() => {
     let currentProgress = 0;
     let assetIndex = 0;
-    let assetProgress = 0;
 
     const interval = setInterval(() => {
       if (currentProgress >= 100) {
@@ -47,16 +87,12 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
       currentProgress = Math.min(currentProgress + increment, 100);
       setProgress(Math.floor(currentProgress));
 
-      const currentAssetTotal = assets[assetIndex]?.count || 0;
-      const assetProgressIncrement = (increment / totalAssets) * currentAssetTotal;
-      assetProgress += assetProgressIncrement;
-
-      if (assetProgress >= currentAssetTotal && assetIndex < assets.length - 1) {
-        assetIndex++;
-        assetProgress = 0;
-      }
-
-      if (assetIndex < assets.length) {
+      // Calculate which asset should be active based on progress
+      const progressPerAsset = 100 / assets.length;
+      const newAssetIndex = Math.floor(currentProgress / progressPerAsset);
+      
+      if (newAssetIndex !== assetIndex && newAssetIndex < assets.length) {
+        assetIndex = newAssetIndex;
         setCurrentAsset(assets[assetIndex].name);
       }
     }, 50);
@@ -159,7 +195,11 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
               {assets.map((asset, index) => {
                 const Icon = asset.icon;
                 const isActive = currentAsset === asset.name;
-                const isCompleted = assets.findIndex(a => a.name === currentAsset) > index;
+                const progressPerAsset = 100 / assets.length;
+                const assetStartProgress = index * progressPerAsset;
+                const assetEndProgress = (index + 1) * progressPerAsset;
+                const isCompleted = progress >= assetEndProgress;
+                const isInProgress = progress >= assetStartProgress && progress < assetEndProgress;
 
                 return (
                   <motion.div
@@ -168,21 +208,21 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.8 + index * 0.1 }}
                     className={cn(
-                      "flex items-center gap-2 p-3 rounded-lg border transition-all duration-300",
-                      isActive
+                      "flex items-center gap-2 p-3 rounded-lg border transition-all duration-500",
+                      isCompleted
+                        ? "border-green-500 bg-green-500/20"
+                        : isActive || isInProgress
                         ? "border-primary bg-primary/10"
-                        : isCompleted
-                        ? "border-green-500 bg-green-500/10"
                         : "border-border bg-muted/50"
                     )}
                   >
                     <Icon
                       className={cn(
                         "h-4 w-4",
-                        isActive
-                          ? "text-primary"
-                          : isCompleted
+                        isCompleted
                           ? "text-green-500"
+                          : isActive || isInProgress
+                          ? "text-primary"
                           : "text-muted-foreground"
                       )}
                     />
@@ -190,17 +230,17 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
                       <p
                         className={cn(
                           "text-xs font-medium",
-                          isActive
-                            ? "text-primary"
-                            : isCompleted
+                          isCompleted
                             ? "text-green-500"
+                            : isActive || isInProgress
+                            ? "text-primary"
                             : "text-muted-foreground"
                         )}
                       >
                         {asset.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {asset.count} files
+                        {asset.count} {asset.count === 1 ? 'file' : 'files'}
                       </p>
                     </div>
                   </motion.div>
