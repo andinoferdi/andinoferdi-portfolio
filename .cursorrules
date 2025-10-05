@@ -10,64 +10,71 @@ You are a Senior Front-End Developer and Expert in ReactJS, NextJS, TypeScript, 
 - Optimize for performance and user experience
 
 ### Project Architecture
-Modern NextJS 15 with App Router and TypeScript:
-- App Router with TypeScript configuration
-- Component-based architecture (blocks/, components/, ui/)
+Modern web application with component-based architecture:
+- Component-based architecture (components/, ui/, blocks/)
 - Service layer for business logic (services/)
 - Type definitions for all data structures (types/)
-- Custom hooks for responsive behavior (hooks/)
-- State management (stores/)
-- TailwindCSS 4 for styling
+- Custom hooks for reusable logic (hooks/)
+- State management (stores/, providers/)
+- Utility functions (lib/, utils/)
+- Styling with TailwindCSS and CSS modules
 
 ### Technology Stack
-- ReactJS 19.1.1 with NextJS 15.5.4 App Router
-- TypeScript 5.9.2 with strict configuration
-- TailwindCSS 4.1.13 with custom theme and animations
-- ESLint 9.36.0 with Next.js configuration
-- Turbopack for development and build optimization
-- Icon libraries: Lucide React, Tabler Icons
-- Animation: Motion library, TailwindCSS Animate
+- ReactJS with NextJS App Router (latest stable versions)
+- TypeScript with strict configuration
+- TailwindCSS with custom theme and animations
+- ESLint with project-specific configuration
+- Modern build tools (Turbopack, Vite, or Webpack)
+- Icon libraries: Lucide React, Tabler Icons, Heroicons
+- Animation: Framer Motion, TailwindCSS Animate, CSS animations
 - Utility libraries: clsx, tailwind-merge, class-variance-authority
 
 ### Code Implementation Guidelines
 Follow these rules when you write code:
 
 #### Component Structure
-- Use "use client" directive for client-side components
+- Use "use client" directive for client-side components (NextJS) or appropriate directives for other frameworks
 - Prefer const arrow functions over function declarations
 - Use PascalCase for component names
 - Use descriptive variable and function names with "handle" prefix for events
 - Export components as named exports when possible
 - Implement proper TypeScript interfaces for all props
-- Place components in appropriate directories (blocks/, components/, ui/)
+- Place components in appropriate directories (components/, ui/, blocks/, features/)
 - Use forwardRef for components that need ref forwarding
 - Implement displayName for better debugging experience
 - Use composite components pattern (e.g., Card with CardHeader, CardContent)
+- Follow atomic design principles (atoms, molecules, organisms, templates)
 
 #### Styling & UI
-- Always use TailwindCSS classes for styling; avoid inline CSS
+- Always use TailwindCSS classes for styling; avoid inline CSS when possible
 - Use conditional classes with template literals for dynamic styling
 - Implement dark mode support with dark: prefix and CSS variables
 - Ensure responsive design with mobile-first approach
 - Add hover states and transitions for better UX
-- Follow TailwindCSS 4 syntax and features
+- Follow TailwindCSS syntax and features (latest version)
 - Use custom CSS variables for theming (--background, --foreground)
 - Implement variant-based styling system (primary, secondary, outline, ghost)
 - Use custom animations and keyframes defined in TailwindCSS config
 - Apply custom shadows (soft, medium, hard, glow) for depth
 - Use custom spacing and border radius values
 - Implement backdrop blur effects where appropriate
+- Support CSS modules as alternative styling approach
+- Use CSS-in-JS libraries (styled-components, emotion) when appropriate
 
 #### Performance Optimization
-- Use Turbopack for faster development and build times
+- Use modern build tools (Turbopack, Vite, Webpack) for faster development and build times
 - Use GPU acceleration with transform: translateZ(0) for heavy animations
 - Implement proper loading strategies (priority for above-fold images)
 - Use React.memo for expensive components
-- Optimize images with Next.js Image component
+- Optimize images with Next.js Image component or appropriate image optimization
 - Implement proper cleanup in useEffect hooks
-- Use custom hooks for responsive behavior (useIsMobile)
+- Use custom hooks for reusable logic and responsive behavior
 - Implement proper MediaQuery API usage for responsive design
-- Use cn utility function for efficient class merging
+- Use utility functions for efficient class merging (cn, clsx)
+- Implement code splitting and lazy loading
+- Use service workers for caching strategies
+- Optimize bundle size with tree shaking
+- Implement proper asset preloading strategies
 
 #### Accessibility
 - Add proper ARIA labels and roles
@@ -93,17 +100,19 @@ Follow these rules when you write code:
 - Define action and event handler types explicitly
 
 #### File Organization
-- Place components in appropriate directories (blocks/, components/, ui/)
-- Separate business logic into services/
-- Define types in types/
+- Place components in appropriate directories (components/, ui/, blocks/, features/)
+- Separate business logic into services/ or api/
+- Define types in types/ or interfaces/
 - Use custom hooks in hooks/
-- Keep utility functions in lib/
-- Follow the established folder structure
-- Use stores/ for state management
-- Use providers/ for context providers
+- Keep utility functions in lib/ or utils/
+- Follow the established folder structure for the project
+- Use stores/ or state/ for state management
+- Use providers/ or contexts/ for context providers
 - Use layouts/ for layout components
-- Avoid unnecessary index.tsx files for exports
+- Avoid unnecessary index.tsx files for exports unless beneficial
 - Use proper import/export patterns
+- Group related files together (co-location)
+- Use barrel exports sparingly and only when beneficial
 
 #### Best Practices
 - Use early returns for cleaner code flow
@@ -112,11 +121,77 @@ Follow these rules when you write code:
 - Follow the DRY principle
 - Write self-documenting code
 - Ensure all imports are properly organized
-- Use NextJS 15 App Router patterns
+- Use modern React patterns (hooks, functional components)
 - Implement proper Context API usage for state management
 - Use useEffect for side effects with proper cleanup
 - Implement proper external link handling with security attributes
-- Use proper image optimization with Next.js Image component
+- Use proper image optimization with Next.js Image component or appropriate alternatives
 - Implement responsive design with custom breakpoints
-- Use proper font loading with Next.js font optimization
+- Use proper font loading with Next.js font optimization or appropriate alternatives
 - Implement proper metadata management for SEO
+- Use proper error handling and logging
+- Implement proper testing strategies
+- Use proper version control practices
+- Follow semantic versioning
+- Implement proper CI/CD practices
+- Use proper environment variable management
+- Implement proper security practices
+
+### Framework-Specific Guidelines
+
+#### NextJS Projects
+- Use App Router for new projects
+- Implement proper metadata management
+- Use server components when possible
+- Implement proper API routes
+- Use proper middleware for authentication and routing
+- Implement proper image optimization
+- Use proper font optimization
+
+#### React Projects (Non-NextJS)
+- Use appropriate routing library (React Router)
+- Implement proper state management (Redux, Zustand, Context)
+- Use proper build tools (Vite, Create React App, Webpack)
+- Implement proper code splitting
+- Use proper testing setup (Jest, React Testing Library)
+
+#### Vue.js Projects
+- Use Composition API for new projects
+- Implement proper state management (Pinia, Vuex)
+- Use proper routing (Vue Router)
+- Follow Vue.js style guide
+- Use proper TypeScript integration
+
+#### Angular Projects
+- Use standalone components for new projects
+- Implement proper dependency injection
+- Use proper routing (Angular Router)
+- Follow Angular style guide
+- Use proper TypeScript configuration
+
+### Testing Guidelines
+- Write unit tests for utility functions and hooks
+- Write integration tests for components
+- Write end-to-end tests for critical user flows
+- Use proper testing libraries (Jest, Vitest, Cypress, Playwright)
+- Implement proper test coverage
+- Use proper mocking strategies
+- Write tests before implementing features (TDD when appropriate)
+
+### Code Quality
+- Use proper linting rules (ESLint, Prettier)
+- Implement proper pre-commit hooks
+- Use proper code review practices
+- Follow consistent naming conventions
+- Use proper documentation (JSDoc, README)
+- Implement proper logging and monitoring
+- Use proper error tracking (Sentry, LogRocket)
+
+### Deployment & DevOps
+- Use proper environment management
+- Implement proper CI/CD pipelines
+- Use proper containerization (Docker)
+- Implement proper monitoring and alerting
+- Use proper backup strategies
+- Implement proper security scanning
+- Use proper performance monitoring

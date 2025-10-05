@@ -1,9 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Andino Ferdiansah - Portfolio Website
+
+A modern, responsive portfolio website built with Next.js 15, TypeScript, and TailwindCSS. Features an intelligent loading screen with asset preloading, interactive music player, and smooth animations.
+
+
+## Tech Stack
+
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript 5.9.2
+- **Styling**: TailwindCSS 4.1.13
+- **Animation**: Framer Motion
+- **Icons**: Lucide React, Tabler Icons
+- **Build Tool**: Turbopack
+- **Font**: Poppins (Google Fonts)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ 
+- npm, yarn, pnpm, or bun
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/andinoferdi/andinoferdi-portfolio.git
+cd andinoferdi-portfolio
+```
+
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+# or
+bun install
+```
+
+3. Run the development server:
 ```bash
 npm run dev
 # or
@@ -14,23 +50,52 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/                    # Next.js App Router pages
+├── blocks/                 # Page-level components
+│   ├── home/              # Home page sections
+│   └── projects/          # Projects page
+├── components/             # Reusable components
+│   ├── ui/                # UI components (buttons, cards, etc.)
+│   ├── providers/         # Context providers
+│   ├── loading-screen.tsx  # Smart loading screen
+│   ├── mini-player.tsx    # Music player component
+│   └── ...
+├── services/               # Business logic layer
+│   ├── asset-preloader.ts # Asset preloading service
+│   ├── hero.ts            # Hero section data
+│   ├── projects.ts        # Projects data
+│   ├── music.ts           # Music player data
+│   └── ...
+├── types/                  # TypeScript type definitions
+├── hooks/                  # Custom React hooks
+├── stores/                 # State management
+└── lib/                    # Utility functions
+```
 
-## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+### Build for Production
+```bash
+npm run build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Start Production Server
+```bash
+npm run start
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## License
 
-## Deploy on Vercel
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Author
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Andino Ferdiansah**
+- GitHub: [@andinoferdi](https://github.com/andinoferdi)
+- LinkedIn: [Andino Ferdiansah](https://linkedin.com/in/andinoferdi)
+- Email: andinoferdiansah@gmail.com
