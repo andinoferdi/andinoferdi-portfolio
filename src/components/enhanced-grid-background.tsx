@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-// import { BlobEffects } from "@/components/ui/blob-effects";
+import { BlobEffects } from "@/components/ui/blob-effects";
 
 interface EnhancedGridBackgroundProps {
   className?: string;
@@ -18,7 +18,7 @@ export const EnhancedGridBackground = ({ className }: EnhancedGridBackgroundProp
         )}
       />
       
-      {/* <BlobEffects /> */}
+      <BlobEffects />
     </div>
   );
 };

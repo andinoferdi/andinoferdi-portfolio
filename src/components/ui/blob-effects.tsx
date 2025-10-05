@@ -1,154 +1,131 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface BlobEffectsProps {
   className?: string;
 }
 
 export const BlobEffects = ({ className }: BlobEffectsProps) => {
-  const blobRefs = useRef<(HTMLDivElement | null)[]>([]);
-
-  const setBlobRef = (index: number) => (ref: HTMLDivElement | null) => {
-    blobRefs.current[index] = ref;
-  };
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isLowEnd, setIsLowEnd] = useState(false);
+  const lastUpdateRef = useRef(0);
 
   useEffect(() => {
-    let ticking = false;
-
-    const updateBlobs = () => {
-      const scrollY = window.scrollY;
-      const windowHeight = window.innerHeight;
-      const documentHeight = document.documentElement.scrollHeight;
-      const scrollProgress = scrollY / (documentHeight - windowHeight);
+    const checkDevice = () => {
       const isMobile = window.innerWidth < 768;
+      const cores = navigator.hardwareConcurrency || 2;
+      const isLowEndDevice = isMobile && cores <= 4;
+      setIsLowEnd(isLowEndDevice);
+    };
 
-      blobRefs.current.forEach((blob, index) => {
-        if (!blob) return;
+    checkDevice();
+  }, []);
 
-        // Variasi speed dan amplitude untuk setiap blob
-        const speed = 0.3 + index * 0.15;
-        const amplitude = isMobile ? 25 + index * 10 : 40 + index * 15;
+  useEffect(() => {
+    if (isLowEnd || !containerRef.current) return;
 
-        // Variasi pola gerakan untuk setiap blob
-        const phase = (index * Math.PI) / 2; // 90 derajat offset per blob
-        const xOffset = Math.sin(scrollY * speed * 0.01 + phase) * amplitude;
-        const yOffset =
-          Math.cos(scrollY * speed * 0.01 + phase) * (amplitude * 0.7);
+    const container = containerRef.current;
+    const blobs = container.querySelectorAll<HTMLDivElement>("[data-blob]");
+    const isMobile = window.innerWidth < 768;
+    const throttleMs = isMobile ? 50 : 16;
 
-        // Opacity berdasarkan scroll progress dengan variasi
-        const baseOpacity = 0.08 + index * 0.02;
-        const scrollOpacity = Math.sin(scrollProgress * Math.PI + index) * 0.05;
-        const finalOpacity = Math.max(
-          0.05,
-          Math.min(0.15, baseOpacity + scrollOpacity)
-        );
+    const updateBlobs = (timestamp: number) => {
+      if (timestamp - lastUpdateRef.current < throttleMs) return;
+      lastUpdateRef.current = timestamp;
 
-        blob.style.transform = `translate3d(${xOffset}px, ${yOffset}px, 0) scale(${
-          1 + scrollProgress * 0.1
-        })`;
-        blob.style.opacity = finalOpacity.toString();
-        blob.style.transition =
-          "transform 0.4s ease-out, opacity 0.3s ease-out";
+      const scrollY = window.scrollY;
+      const scrollFactor = scrollY * 0.001;
+
+      blobs.forEach((blob, index) => {
+        const speed = 0.3 + index * 0.1;
+        const amplitude = isMobile ? 15 + index * 5 : 30 + index * 10;
+        const phase = index * 1.57;
+
+        const x = Math.sin(scrollFactor * speed + phase) * amplitude;
+        const y = Math.cos(scrollFactor * speed + phase) * amplitude * 0.5;
+
+        blob.style.setProperty("--x", `${x}px`);
+        blob.style.setProperty("--y", `${y}px`);
       });
-
-      ticking = false;
     };
 
+    let rafId: number;
     const handleScroll = () => {
-      if (!ticking) {
-        requestAnimationFrame(updateBlobs);
-        ticking = true;
-      }
-    };
-
-    const handleResize = () => {
-      updateBlobs();
+      rafId = requestAnimationFrame(updateBlobs);
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleResize, { passive: true });
-
-    updateBlobs();
+    updateBlobs(0);
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleResize);
+      if (rafId) cancelAnimationFrame(rafId);
     };
-  }, []);
+  }, [isLowEnd]);
+
+  if (isLowEnd) return null;
+
+  const isMobileClass = "md:w-96 md:h-96 w-64 h-64";
+  const baseClass =
+    "absolute rounded-full mix-blend-multiply pointer-events-none";
+  const mobileBlur = "blur-[60px] md:blur-[100px]";
+  const transformStyle = {
+    transform: "translate3d(var(--x, 0), var(--y, 0), 0)",
+    willChange: "transform",
+  };
 
   return (
-    <div className={`fixed inset-0 pointer-events-none -z-10 ${className}`}>
-      {/* Deep Blue blob - top left */}
+    <div
+      ref={containerRef}
+      className={`fixed inset-0 pointer-events-none -z-10 overflow-hidden ${className}`}
+    >
       <div
-        ref={setBlobRef(0)}
-        className="absolute top-0 -left-4 md:w-96 md:h-96 w-72 h-72 bg-blue-600 dark:bg-blue-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-10 dark:opacity-8"
-        style={{
-          animation: "blob 6s ease-in-out infinite",
-        }}
+        data-blob
+        className={`${baseClass} ${isMobileClass} ${mobileBlur} top-0 -left-4 bg-blue-600 dark:bg-blue-500 opacity-10 dark:opacity-8`}
+        style={transformStyle}
       />
 
-      {/* Indigo blob - top right */}
       <div
-        ref={setBlobRef(1)}
-        className="absolute top-0 -right-4 w-72 h-72 md:w-96 md:h-96 bg-indigo-600 dark:bg-indigo-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-10 dark:opacity-8"
-        style={{
-          animation: "blob 8s ease-in-out infinite 2s",
-        }}
+        data-blob
+        className={`${baseClass} ${isMobileClass} ${mobileBlur} top-0 -right-4 bg-indigo-600 dark:bg-indigo-500 opacity-10 dark:opacity-8`}
+        style={transformStyle}
       />
 
-      {/* Purple blob - bottom left */}
       <div
-        ref={setBlobRef(2)}
-        className="absolute -bottom-8 left-[-40%] md:left-20 w-72 h-72 md:w-96 md:h-96 bg-purple-600 dark:bg-purple-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-10 dark:opacity-8"
-        style={{
-          animation: "blob 7s ease-in-out infinite 4s",
-        }}
+        data-blob
+        className={`${baseClass} ${isMobileClass} ${mobileBlur} -bottom-8 left-0 md:left-20 bg-purple-600 dark:bg-purple-500 opacity-10 dark:opacity-8`}
+        style={transformStyle}
       />
 
-      {/* Violet blob - bottom right */}
       <div
-        ref={setBlobRef(3)}
-        className="absolute -bottom-10 right-4 md:right-20 w-72 h-72 md:w-96 md:h-96 bg-violet-600 dark:bg-violet-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-9 dark:opacity-6"
-        style={{
-          animation: "blob 9s ease-in-out infinite 1s",
-        }}
+        data-blob
+        className={`${baseClass} ${isMobileClass} ${mobileBlur} -bottom-10 right-4 md:right-20 bg-violet-600 dark:bg-violet-500 opacity-9 dark:opacity-6`}
+        style={transformStyle}
       />
 
-      {/* Navy blob - center left */}
       <div
-        ref={setBlobRef(4)}
-        className="absolute top-1/2 -left-8 md:w-80 md:h-80 w-64 h-64 bg-blue-700 dark:bg-blue-600 rounded-full mix-blend-multiply filter blur-[120px] opacity-8 dark:opacity-5"
-        style={{
-          animation: "blob 10s ease-in-out infinite 3s",
-        }}
+        data-blob
+        className={`${baseClass} w-0 md:w-80 h-0 md:h-80 blur-[90px] top-1/2 -left-8 bg-blue-700 dark:bg-blue-600 opacity-8 dark:opacity-5 hidden md:block`}
+        style={transformStyle}
       />
 
-      {/* Slate blob - center right */}
       <div
-        ref={setBlobRef(5)}
-        className="absolute top-1/2 -right-8 md:w-80 md:h-80 w-64 h-64 bg-slate-600 dark:bg-slate-500 rounded-full mix-blend-multiply filter blur-[120px] opacity-8 dark:opacity-5"
-        style={{
-          animation: "blob 12s ease-in-out infinite 5s",
-        }}
+        data-blob
+        className={`${baseClass} w-0 md:w-80 h-0 md:h-80 blur-[90px] top-1/2 -right-8 bg-slate-600 dark:bg-slate-500 opacity-8 dark:opacity-5 hidden md:block`}
+        style={transformStyle}
       />
 
-      {/* Indigo light blob - center top */}
       <div
-        ref={setBlobRef(6)}
-        className="absolute top-1/4 left-1/2 transform -translate-x-1/2 md:w-72 md:h-72 w-56 h-56 bg-indigo-500 dark:bg-indigo-400 rounded-full mix-blend-multiply filter blur-[110px] opacity-6 dark:opacity-4"
-        style={{
-          animation: "blob 11s ease-in-out infinite 1.5s",
-        }}
+        data-blob
+        className={`${baseClass} w-0 md:w-72 h-0 md:h-72 blur-[80px] top-1/4 left-1/2 -translate-x-1/2 bg-indigo-500 dark:bg-indigo-400 opacity-6 dark:opacity-4 hidden md:block`}
+        style={transformStyle}
       />
 
-      {/* Purple light blob - center bottom */}
       <div
-        ref={setBlobRef(7)}
-        className="absolute bottom-1/4 left-1/2 transform -translate-x-1/2 md:w-72 md:h-72 w-56 h-56 bg-purple-500 dark:bg-purple-400 rounded-full mix-blend-multiply filter blur-[110px] opacity-6 dark:opacity-4"
-        style={{
-          animation: "blob 13s ease-in-out infinite 6s",
-        }}
+        data-blob
+        className={`${baseClass} w-0 md:w-72 h-0 md:h-72 blur-[80px] bottom-1/4 left-1/2 -translate-x-1/2 bg-purple-500 dark:bg-purple-400 opacity-6 dark:opacity-4 hidden md:block`}
+        style={transformStyle}
       />
     </div>
   );
