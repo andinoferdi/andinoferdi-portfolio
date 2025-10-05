@@ -7,11 +7,10 @@ export const getProjectsData = (): ProjectsData => {
         id: "freshko",
         title: "FreshKo",
         description:
-          "My college workshop assignment: a modern food delivery platform with real-time inventory management and a seamless user experience.",
+          "My workshop course assignment: a modern food delivery platform with real-time inventory management and a seamless user experience.",
         image: "/images/projects/FreshKo.png",
         technologies: ["Next.js", "TypeScript", "Tailwind CSS"],
         liveUrl: "https://freshko.vercel.app",
-        githubUrl: "https://github.com/andinoferdi/freshko",
       },
       {
         id: "portfolio-v2",
@@ -21,17 +20,24 @@ export const getProjectsData = (): ProjectsData => {
         image: "/images/projects/portfolio-v2.png",
         technologies: ["React", "Javascript", "Tailwind CSS"],
         liveUrl: "https://andinoferdi-portfolio-v2.netlify.app/",
-        githubUrl: "https://github.com/andinoferdi/portfolio-v2",
       },
       {
         id: "anro-studio",
         title: "Anro Studio",
         description:
-          "My workshop assignment: a creative design studio website that showcases digital solutions, services, and portfolio with a modern UI/UX design and responsive layout.",
+          "My workshop course assignment: a creative design studio website that showcases digital solutions, services, and portfolio with a modern UI/UX design and responsive layout.",
         image: "/images/projects/anro.png",
         technologies: ["HTML", "CSS", "Javascript"],
         liveUrl: "https://anrostudio.netlify.app/",
-        githubUrl: "https://github.com/andinoferdi/anro-studio",
+      },
+      {
+        id: "pet-finder",
+        title: "Pet Finder",
+        description:
+          "My Machine Learning course assignment: AI-powered expert system using forward chaining method to help users find the perfect pet based on their personality and lifestyle through interactive questions with 99% accuracy.",
+        image: "/images/projects/pet-finder.png",
+        technologies: ["Next.js", "TypeScript", "Tailwind CSS"],
+        liveUrl: "https://sistem-pakar-hewan-peliharaan.vercel.app/",
       },
     ],
   };

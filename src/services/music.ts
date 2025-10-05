@@ -16,44 +16,6 @@ const shuffleArray = <T>(array: T[]): T[] => {
   return shuffled;
 };
 
-export const getMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
-  const originalTracks: Track[] = [
-    {
-      id: "every-breath-you-take",
-      title: "Every Breath You Take",
-      artist: "The Police",
-      album: "Synchronicity",
-      duration: 0,
-      audioUrl: "/music/Every Breath You Take.mp3", // disarankan ganti kebab-case tanpa spasi
-      coverImage: "/music/images/Every Breath You Take.jpeg",
-      genre: "Rock",
-    },
-    {
-      id: "i-want-it-that-way",
-      title: "I Want It That Way",
-      artist: "Backstreet Boys",
-      album: "Millennium",
-      duration: 0,
-      audioUrl: "/music/I Want It That Way.mp3",
-      coverImage: "/music/images/I Want It That Way.jpeg",
-      genre: "Pop",
-    },
-  ];
-
-  const shuffledTracks = shuffleArray(originalTracks);
-
-  return {
-    tracks: shuffledTracks,
-    playlists: [
-      {
-        id: "default-playlist",
-        name: "My Playlist",
-        tracks: shuffledTracks,
-        coverImage: "/music/images/Every Breath You Take.jpeg",
-      },
-    ],
-  };
-};
 
 export const getAudioDuration = (audioUrl: string): Promise<number> => {
   if (typeof window === "undefined") return Promise.resolve(0);
@@ -150,7 +112,7 @@ export const getOriginalTracks = (): Track[] => [
     album: "Synchronicity",
     duration: 0,
     audioUrl: "/music/Every Breath You Take.mp3",
-    coverImage: "/music/images/Every Breath You Take.jpeg",
+    coverImage: "/music/images/Every Breath You Take.jpg",
     genre: "Rock",
   },
   {
@@ -160,7 +122,7 @@ export const getOriginalTracks = (): Track[] => [
     album: "Millennium",
     duration: 0,
     audioUrl: "/music/I Want It That Way.mp3",
-    coverImage: "/music/images/I Want It That Way.jpeg",
+    coverImage: "/music/images/I Want It That Way.jpg",
     genre: "Pop",
   },
   {
@@ -170,15 +132,24 @@ export const getOriginalTracks = (): Track[] => [
     album: "Dookie",
     duration: 0,
     audioUrl: "/music/Basket Case.mp3",
-    coverImage: "/music/images/Basket Case.jpeg",
+    coverImage: "/music/images/Basket Case.jpg",
+    genre: "Punk",
+  },
+  {
+    id: "Viva-La-Vida",
+    title: "Viva La Vida",
+    artist: "Coldplay",
+    album: "Viva La Vida or Death and All His Friends",
+    duration: 0,
+    audioUrl: "/music/Viva La Vida.mp3",
+    coverImage: "/music/images/Viva La Vida.jpg",
     genre: "Punk",
   },
 ];
 
-export const getShuffledMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
+export const getMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
   const originalTracks = getOriginalTracks();
 
-  // Di server, kembalikan urutan asli untuk menghindari hydration mismatch
   if (typeof window === "undefined") {
     return {
       tracks: originalTracks,
@@ -187,13 +158,12 @@ export const getShuffledMusicData = (): { tracks: Track[]; playlists: Playlist[]
           id: "default-playlist",
           name: "My Playlist",
           tracks: originalTracks,
-          coverImage: "/music/images/Every Breath You Take.jpeg",
+          coverImage: "/music/images/Every Breath You Take.jpg",
         },
       ],
     };
   }
 
-  // Di client, shuffle tracks
   const shuffledTracks = shuffleArray(originalTracks);
 
   return {
@@ -203,7 +173,7 @@ export const getShuffledMusicData = (): { tracks: Track[]; playlists: Playlist[]
         id: "default-playlist",
         name: "My Playlist",
         tracks: shuffledTracks,
-        coverImage: "/music/images/Every Breath You Take.jpeg",
+        coverImage: "/music/images/Every Breath You Take.jpg",
       },
     ],
   };

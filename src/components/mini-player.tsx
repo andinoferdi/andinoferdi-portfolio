@@ -14,7 +14,7 @@ import {
 import Image from "next/image";
 import {
   getOriginalTracks,
-  getShuffledMusicData,
+  getMusicData,
   formatTime,
   getDefaultVolume,
   loadTrackDuration,
@@ -46,7 +46,7 @@ export const MiniPlayer = () => {
   // Shuffle setelah mounted (client-side only)
   useEffect(() => {
     if (typeof window !== "undefined" && !hasShuffled) {
-      const shuffledData = getShuffledMusicData();
+      const shuffledData = getMusicData();
       setPlayerState(prev => ({
         ...prev,
         currentTrack: shuffledData.tracks[0] || null,
