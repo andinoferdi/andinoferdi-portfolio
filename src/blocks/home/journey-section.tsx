@@ -11,22 +11,24 @@ const ExperienceTimelineEntry = ({ experience }: { experience: Experience }) => 
   return (
     <div className="space-y-4 bg-background/90 backdrop-blur-md border border-border/60 rounded-xl p-6 shadow-lg">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           {experience.logo ? (
-            <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-background/90 backdrop-blur-md border border-border/60 flex items-center justify-center">
+            <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-background/90 backdrop-blur-md border border-border/60 flex items-center justify-center flex-shrink-0">
               <Image
                 src={experience.logo}
                 alt={`${experience.company} logo`}
-                width={32}
-                height={32}
+                width={40}
+                height={40}
                 className="w-full h-full object-contain"
               />
             </div>
           ) : (
-            <Building2 className="h-5 w-5 text-primary" />
+            <div className="w-10 h-10 rounded-lg bg-background/90 backdrop-blur-md border border-border/60 flex items-center justify-center flex-shrink-0">
+              <Building2 className="h-5 w-5 text-primary" />
+            </div>
           )}
-          <div>
-            <h3 className="text-xl font-bold text-foreground">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-xl font-bold text-foreground mb-1">
               {experience.title}
             </h3>
             <div className="flex items-center gap-2">

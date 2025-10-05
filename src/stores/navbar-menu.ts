@@ -34,12 +34,12 @@ export const defaultNavbarConfig: NavbarConfig = {
       link: "/",
     },
     {
-      name: "Projects", 
+      name: "Projects",
       link: "/projects",
     },
     {
-      name: "About",
-      link: "/about",
+      name: "Gallery",
+      link: "/gallery",
     },
   ],
   logo: {

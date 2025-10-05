@@ -63,6 +63,7 @@ export const getExperienceData = (): ExperienceData => {
         title: "Software Development Intern",
         company: "CV.MCFLYON TEKNOLOGI INDONESIA",
         location: "Gresik, Indonesia",
+        logo: "/images/journey/mti.png",
         website: "https://www.mcflyon.co.id/",
         period: {
           start: "2022",

@@ -37,7 +37,7 @@ export const defaultFooterConfig: FooterConfig = {
     {
       title: "Company",
       links: [
-        { name: "About", href: "/about" },
+        { name: "Gallery ", href: "/gallery " },
         { name: "Blog", href: "/blog" },
         { name: "Careers", href: "/careers" },
         { name: "Contact", href: "/contact" },
