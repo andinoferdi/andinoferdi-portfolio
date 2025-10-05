@@ -39,6 +39,15 @@ export const getProjectsData = (): ProjectsData => {
         technologies: ["Next.js", "TypeScript", "Tailwind CSS"],
         liveUrl: "https://sistem-pakar-hewan-peliharaan.vercel.app/",
       },
+      {
+        id: "portfolio",
+        title: "Portfolio",
+        description:
+          "My First Portfolio Website And i made it in 2023, it's not finished yet because i'm still learning and improving my skills.",
+        image: "/images/projects/portfolio.jpg",
+        technologies: ["HTML", "Javascript", "CSS"],
+        liveUrl: "https://andinoferdi-portfolio.netlify.app//",
+      },
     ],
   };
 };
