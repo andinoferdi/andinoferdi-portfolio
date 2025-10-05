@@ -3,6 +3,7 @@
 import { getHomePageData } from "@/services/hero";
 import { HeroSection } from "./hero-section";
 import { ProjectsSection } from "./projects-section";
+import { ExperienceSection } from "./journey-section";
 import { PageTitle } from "@/components/page-title";
 
 export default function Home() {
@@ -13,6 +14,7 @@ export default function Home() {
       <PageTitle title="Andino Ferdiansah | Developer" />
       <HeroSection data={data.hero} />
       <ProjectsSection />
+      <ExperienceSection />
     </>
   );
 }

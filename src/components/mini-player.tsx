@@ -128,43 +128,42 @@ export const MiniPlayer = () => {
     });
   };
 
-const PREV_RESTART_THRESHOLD = 3; // detik
+  const PREV_RESTART_THRESHOLD = 3; // detik
 
-const handlePrevious = () => {
-  setPlayerState((prev) => {
-    const t = prev.currentTime || 0;
+  const handlePrevious = () => {
+    setPlayerState((prev) => {
+      const t = prev.currentTime || 0;
 
-    // Jika > 3 dtk: restart lagu saat ini ke 0 dan autoplay
-    if (t > PREV_RESTART_THRESHOLD) {
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
+      // Jika > 3 dtk: restart lagu saat ini ke 0 dan autoplay
+      if (t > PREV_RESTART_THRESHOLD) {
+        if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+        }
+        return {
+          ...prev,
+          currentTime: 0,
+          isPlaying: true,
+        };
       }
+
+      // Jika ≤ 3 dtk: pindah ke lagu sebelumnya dan autoplay
+      const prevIndex =
+        prev.currentTrackIndex === 0
+          ? prev.playlist.length - 1
+          : prev.currentTrackIndex - 1;
+
+      const prevTrack = prev.playlist[prevIndex];
+
       return {
         ...prev,
+        currentTrackIndex: prevIndex,
+        currentTrack: prevTrack,
         currentTime: 0,
+        duration: 0,
         isPlaying: true,
       };
-    }
-
-    // Jika ≤ 3 dtk: pindah ke lagu sebelumnya dan autoplay
-    const prevIndex =
-      prev.currentTrackIndex === 0
-        ? prev.playlist.length - 1
-        : prev.currentTrackIndex - 1;
-
-    const prevTrack = prev.playlist[prevIndex];
-
-    return {
-      ...prev,
-      currentTrackIndex: prevIndex,
-      currentTrack: prevTrack,
-      currentTime: 0,
-      duration: 0,
-      isPlaying: true,
-    };
-  });
-};
-
+    });
+  };
 
   const handleVolumeChange = (newVolume: number) => {
     setPlayerState((prev) => ({ ...prev, volume: newVolume }));
@@ -228,7 +227,7 @@ const handlePrevious = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl border border-neutral-200 dark:border-neutral-700 p-2 w-48 sm:w-56 md:w-64 cursor-pointer"
+              className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer"
               onClick={toggleExpanded}
             >
               <div className="flex items-center gap-1.5 sm:gap-2">
@@ -269,10 +268,10 @@ const handlePrevious = () => {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-xs text-neutral-900 dark:text-white truncate">
+                  <h4 className="font-medium text-xs text-foreground truncate">
                     {currentTrack.title}
                   </h4>
-                  <p className="text-xs text-neutral-600 dark:text-neutral-400 truncate">
+                  <p className="text-xs text-muted-foreground truncate">
                     {currentTrack.artist}
                   </p>
                 </div>
@@ -283,16 +282,16 @@ const handlePrevious = () => {
                       e.stopPropagation();
                       handlePlayPause();
                     }}
-                    className="p-1 sm:p-1.5 rounded-full bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+                    className="p-2 rounded-full bg-foreground text-background hover:bg-foreground/80 transition-colors"
                   >
                     {isPlaying ? (
-                      <Pause className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-neutral-700 dark:text-neutral-300" />
+                      <Pause className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-background" />
                     ) : (
-                      <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-neutral-700 dark:text-neutral-300" />
+                      <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-background" />
                     )}
                   </button>
 
-                  <ChevronUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-neutral-500" />
+                  <ChevronUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-muted-foreground" />
                 </div>
               </div>
             </motion.div>
@@ -303,17 +302,17 @@ const handlePrevious = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ duration: 0.3 }}
-              className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-neutral-200 dark:border-neutral-700 p-3 w-48 sm:w-52 md:w-56"
+              className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56"
             >
               <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <h3 className="font-bold text-sm sm:text-base text-neutral-900 dark:text-white">
+                <h3 className="font-bold text-sm sm:text-base text-foreground">
                   Now Playing
                 </h3>
                 <button
                   onClick={toggleExpanded}
                   className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                 >
-                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-neutral-600 dark:text-neutral-400" />
+                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
                 </button>
               </div>
 
@@ -328,16 +327,16 @@ const handlePrevious = () => {
               </div>
 
               <div className="text-center mb-2 sm:mb-3">
-                <h4 className="font-bold text-sm sm:text-base text-neutral-900 dark:text-white">
+                <h4 className="font-bold text-sm sm:text-base text-foreground">
                   {currentTrack.title}
                 </h4>
-                <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                <p className="text-xs text-muted-foreground">
                   {currentTrack.artist}
                 </p>
               </div>
 
               <div className="space-y-1.5 sm:space-y-2">
-                <div className="flex items-center justify-between text-xs text-neutral-600 dark:text-neutral-400">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{formatTime(currentTime)}</span>
                   <span>
                     {isLoadingDuration ? (
@@ -355,7 +354,7 @@ const handlePrevious = () => {
                   value={currentTime}
                   onChange={handleSeek}
                   disabled={isLoadingDuration || duration === 0}
-                  className="w-full h-1.5 sm:h-2 bg-neutral-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer slider disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer progress-slider disabled:opacity-50 disabled:cursor-not-allowed"
                 />
 
                 <div className="flex items-center justify-center gap-1.5 sm:gap-2">
@@ -363,17 +362,17 @@ const handlePrevious = () => {
                     onClick={handlePrevious}
                     className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                   >
-                    <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-neutral-700 dark:text-neutral-300" />
+                    <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-foreground" />
                   </button>
 
                   <button
                     onClick={handlePlayPause}
-                    className="p-1.5 sm:p-2 rounded-full bg-neutral-900 dark:bg-white hover:bg-neutral-800 dark:hover:bg-neutral-100 transition-colors"
+                    className="p-1.5 sm:p-2 rounded-full bg-foreground hover:bg-foreground/90 transition-colors"
                   >
                     {isPlaying ? (
-                      <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white dark:text-neutral-900" />
+                      <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-background" />
                     ) : (
-                      <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white dark:text-neutral-900 ml-0.5" />
+                      <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-background ml-0.5" />
                     )}
                   </button>
 
@@ -381,12 +380,12 @@ const handlePrevious = () => {
                     onClick={handleNext}
                     className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                   >
-                    <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-neutral-700 dark:text-neutral-300" />
+                    <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-foreground" />
                   </button>
                 </div>
 
                 <div className="flex items-center gap-1 sm:gap-1.5">
-                  <Volume2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-neutral-600 dark:text-neutral-400" />
+                  <Volume2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
                   <input
                     type="range"
                     min="0"
@@ -396,9 +395,9 @@ const handlePrevious = () => {
                     onChange={(e) =>
                       handleVolumeChange(parseFloat(e.target.value))
                     }
-                    className="flex-1 h-1.5 sm:h-2 bg-neutral-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer slider"
+                    className="flex-1 h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer volume-slider"
                   />
-                  <span className="text-xs text-neutral-600 dark:text-neutral-400 w-6 sm:w-8">
+                  <span className="text-xs text-muted-foreground w-6 sm:w-8">
                     {Math.round(volume * 100)}%
                   </span>
                 </div>
@@ -423,7 +422,40 @@ const handlePrevious = () => {
           animation: audioWave 1.2s ease-in-out infinite;
         }
 
-        .slider::-webkit-slider-thumb {
+        /* Progress Slider */
+        .progress-slider {
+          background: linear-gradient(
+            to right,
+            #3b82f6 0%,
+            #3b82f6 ${(currentTime / (duration || 1)) * 100}%,
+            rgba(150, 150, 150, 0.3) ${(currentTime / (duration || 1)) * 100}%,
+            rgba(150, 150, 150, 0.3) 100%
+          );
+        }
+
+        /* Volume Slider */
+        .volume-slider {
+          background: linear-gradient(
+            to right,
+            #3b82f6 0%,
+            #3b82f6 ${volume * 100}%,
+            rgba(150, 150, 150, 0.3) ${volume * 100}%,
+            rgba(150, 150, 150, 0.3) 100%
+          );
+        }
+
+        .progress-slider::-webkit-slider-track,
+        .volume-slider::-webkit-slider-track {
+          background: transparent;
+        }
+
+        .progress-slider::-moz-range-track,
+        .volume-slider::-moz-range-track {
+          background: transparent;
+        }
+
+        .progress-slider::-webkit-slider-thumb,
+        .volume-slider::-webkit-slider-thumb {
           appearance: none;
           width: 16px;
           height: 16px;
@@ -431,17 +463,33 @@ const handlePrevious = () => {
           background: #3b82f6;
           cursor: pointer;
           border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
 
-        .slider::-moz-range-thumb {
+        .progress-slider::-moz-range-thumb,
+        .volume-slider::-moz-range-thumb {
           width: 16px;
           height: 16px;
           border-radius: 50%;
           background: #3b82f6;
           cursor: pointer;
           border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .progress-slider:hover::-webkit-slider-thumb,
+        .volume-slider:hover::-webkit-slider-thumb {
+          background: #2563eb;
+        }
+
+        .progress-slider:hover::-moz-range-thumb,
+        .volume-slider:hover::-moz-range-thumb {
+          background: #2563eb;
+        }
+
+        .progress-slider:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
       `}</style>
     </>

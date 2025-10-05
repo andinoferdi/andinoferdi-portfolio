@@ -10,16 +10,14 @@ interface EnhancedGridBackgroundProps {
 export const EnhancedGridBackground = ({ className }: EnhancedGridBackgroundProps) => {
   return (
     <div className={cn("fixed inset-0 z-0", className)}>
-      {/* Background Grid */}
       <div
         className={cn(
-          "absolute inset-0 opacity-40 [background-size:40px_40px]",
+          "absolute inset-0 opacity-50 [background-size:40px_40px]",
           "[background-image:linear-gradient(to_right,#e4e4e7_1px,transparent_1px),linear-gradient(to_bottom,#e4e4e7_1px,transparent_1px)]",
           "dark:[background-image:linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)]"
         )}
       />
       
-      {/* Blob Effects */}
       <BlobEffects />
     </div>
   );

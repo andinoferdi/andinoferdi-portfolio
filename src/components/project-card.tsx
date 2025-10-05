@@ -1,22 +1,10 @@
 "use client";
 
+import { TechnologyIcon } from "@/components/ui/technology-icon";
 import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
 import { ExternalLink, Github } from "lucide-react";
-import { IconBrandReact, IconBrandTypescript, IconBrandTailwind, IconBrandHtml5, IconBrandCss3, IconBrandJavascript, IconBrandSvelte, IconBrandThreejs } from "@tabler/icons-react";
 import Image from "next/image";
 import { type Project } from "@/types/projects";
-
-const technologyIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  "Next.js": () => <span className="text-black dark:text-white font-bold text-xs">N</span>,
-  "TypeScript": IconBrandTypescript,
-  "Tailwind CSS": IconBrandTailwind,
-  "React": IconBrandReact,
-  "HTML": IconBrandHtml5,
-  "CSS": IconBrandCss3,
-  "Javascript": IconBrandJavascript,
-  "Svelte": IconBrandSvelte,
-  "Three.js": IconBrandThreejs,
-};
 
 interface ProjectCardProps {
   project: Project;
@@ -49,22 +37,15 @@ export const ProjectCard = ({ project, showCodeButton = true }: ProjectCardProps
           </p>
 
           <div className="flex flex-wrap gap-2 mb-4">
-            {project.technologies.map((tech) => {
-              const IconComponent = technologyIcons[tech];
-              return (
-                <span
-                  key={tech}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md text-xs text-muted-foreground"
-                >
-                  {IconComponent ? (
-                    <IconComponent className="h-3 w-3" />
-                  ) : (
-                    <span>🔧</span>
-                  )}
-                  {tech}
-                </span>
-              );
-            })}
+            {project.technologies.map((tech) => (
+              <span
+                key={tech}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-md text-xs text-muted-foreground"
+              >
+                <TechnologyIcon technology={tech} className="h-3 w-3" />
+                {tech}
+              </span>
+            ))}
           </div>
 
           <div className="flex gap-2 mt-auto">
