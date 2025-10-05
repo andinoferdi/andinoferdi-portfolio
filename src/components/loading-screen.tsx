@@ -10,6 +10,7 @@ import { getProjectsData } from "@/services/projects";
 import { getProfileData } from "@/services/profile";
 import { getOriginalTracks } from "@/services/music";
 import { getExperienceData } from "@/services/journey";
+import { getGalleryData } from "@/services/gallery";
 
 interface LoadingScreenProps {
   onComplete: () => void;
@@ -26,6 +27,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
     const profileData = getProfileData();
     const musicData = getOriginalTracks();
     const experienceData = getExperienceData();
+    const galleryData = getGalleryData();
 
     return [
       { 
@@ -51,6 +53,12 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
         icon: Image, 
         count: musicData.length,
         description: "Album cover images"
+      },
+      { 
+        name: "Gallery Images", 
+        icon: Image, 
+        count: galleryData.items.length,
+        description: "Gallery showcase images"
       },
       { 
         name: "CV Document", 
