@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { useTheme } from "next-themes";
 
@@ -27,23 +27,49 @@ export const Spotlight = ({
   xOffset = 100,
 }: SpotlightProps = {}) => {
   const { theme } = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Default gradients optimized for both light and dark modes
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  // Adjusted values for mobile
+  const mobileWidth = Math.min(width * 0.6, 300);
+  const mobileHeight = Math.min(height * 0.7, 800);
+  const mobileSmallWidth = Math.min(smallWidth * 0.5, 120);
+  const mobileXOffset = Math.min(xOffset * 0.4, 40);
+  const mobileTranslateY = Math.min(translateY * 0.8, -280);
+
+  // Default gradients optimized for both light and dark modes with mobile adjustments
   const defaultGradientFirst = theme === "dark" 
-    ? "radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, .08) 0, hsla(210, 100%, 55%, .02) 50%, hsla(210, 100%, 45%, 0) 80%)"
-    : "radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, .15) 0, hsla(210, 100%, 55%, .08) 50%, hsla(210, 100%, 45%, 0) 80%)";
+    ? `radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, ${isMobile ? '.04' : '.08'}) 0, hsla(210, 100%, 55%, ${isMobile ? '.01' : '.02'}) 50%, hsla(210, 100%, 45%, 0) 80%)`
+    : `radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, ${isMobile ? '.08' : '.15'}) 0, hsla(210, 100%, 55%, ${isMobile ? '.04' : '.08'}) 50%, hsla(210, 100%, 45%, 0) 80%)`;
 
   const defaultGradientSecond = theme === "dark"
-    ? "radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .06) 0, hsla(210, 100%, 55%, .02) 80%, transparent 100%)"
-    : "radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .12) 0, hsla(210, 100%, 55%, .06) 80%, transparent 100%)";
+    ? `radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, ${isMobile ? '.03' : '.06'}) 0, hsla(210, 100%, 55%, ${isMobile ? '.01' : '.02'}) 80%, transparent 100%)`
+    : `radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, ${isMobile ? '.06' : '.12'}) 0, hsla(210, 100%, 55%, ${isMobile ? '.03' : '.06'}) 80%, transparent 100%)`;
 
   const defaultGradientThird = theme === "dark"
-    ? "radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .04) 0, hsla(210, 100%, 45%, .02) 80%, transparent 100%)"
-    : "radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .08) 0, hsla(210, 100%, 45%, .04) 80%, transparent 100%)";
+    ? `radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, ${isMobile ? '.02' : '.04'}) 0, hsla(210, 100%, 45%, ${isMobile ? '.01' : '.02'}) 80%, transparent 100%)`
+    : `radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, ${isMobile ? '.04' : '.08'}) 0, hsla(210, 100%, 45%, ${isMobile ? '.02' : '.04'}) 80%, transparent 100%)`;
 
   const finalGradientFirst = gradientFirst || defaultGradientFirst;
   const finalGradientSecond = gradientSecond || defaultGradientSecond;
   const finalGradientThird = gradientThird || defaultGradientThird;
+
+  // Use mobile-adjusted values
+  const finalWidth = isMobile ? mobileWidth : width;
+  const finalHeight = isMobile ? mobileHeight : height;
+  const finalSmallWidth = isMobile ? mobileSmallWidth : smallWidth;
+  const finalXOffset = isMobile ? mobileXOffset : xOffset;
+  const finalTranslateY = isMobile ? mobileTranslateY : translateY;
   return (
     <motion.div
       initial={{
@@ -59,7 +85,7 @@ export const Spotlight = ({
     >
       <motion.div
         animate={{
-          x: [0, xOffset, 0],
+          x: [0, finalXOffset, 0],
         }}
         transition={{
           duration,
@@ -71,10 +97,10 @@ export const Spotlight = ({
       >
         <div
           style={{
-            transform: `translateY(${translateY}px) rotate(-45deg)`,
+            transform: `translateY(${finalTranslateY}px) rotate(-45deg)`,
             background: finalGradientFirst,
-            width: `${width}px`,
-            height: `${height}px`,
+            width: `${finalWidth}px`,
+            height: `${finalHeight}px`,
           }}
           className={`absolute top-0 left-0`}
         />
@@ -83,8 +109,8 @@ export const Spotlight = ({
           style={{
             transform: "rotate(-45deg) translate(5%, -50%)",
             background: finalGradientSecond,
-            width: `${smallWidth}px`,
-            height: `${height}px`,
+            width: `${finalSmallWidth}px`,
+            height: `${finalHeight}px`,
           }}
           className={`absolute top-0 left-0 origin-top-left`}
         />
@@ -93,8 +119,8 @@ export const Spotlight = ({
           style={{
             transform: "rotate(-45deg) translate(-180%, -70%)",
             background: finalGradientThird,
-            width: `${smallWidth}px`,
-            height: `${height}px`,
+            width: `${finalSmallWidth}px`,
+            height: `${finalHeight}px`,
           }}
           className={`absolute top-0 left-0 origin-top-left`}
         />
@@ -102,7 +128,7 @@ export const Spotlight = ({
 
       <motion.div
         animate={{
-          x: [0, -xOffset, 0],
+          x: [0, -finalXOffset, 0],
         }}
         transition={{
           duration,
@@ -114,10 +140,10 @@ export const Spotlight = ({
       >
         <div
           style={{
-            transform: `translateY(${translateY}px) rotate(45deg)`,
+            transform: `translateY(${finalTranslateY}px) rotate(45deg)`,
             background: finalGradientFirst,
-            width: `${width}px`,
-            height: `${height}px`,
+            width: `${finalWidth}px`,
+            height: `${finalHeight}px`,
           }}
           className={`absolute top-0 right-0`}
         />
@@ -126,8 +152,8 @@ export const Spotlight = ({
           style={{
             transform: "rotate(45deg) translate(-5%, -50%)",
             background: finalGradientSecond,
-            width: `${smallWidth}px`,
-            height: `${height}px`,
+            width: `${finalSmallWidth}px`,
+            height: `${finalHeight}px`,
           }}
           className={`absolute top-0 right-0 origin-top-right`}
         />
@@ -136,8 +162,8 @@ export const Spotlight = ({
           style={{
             transform: "rotate(45deg) translate(180%, -70%)",
             background: finalGradientThird,
-            width: `${smallWidth}px`,
-            height: `${height}px`,
+            width: `${finalSmallWidth}px`,
+            height: `${finalHeight}px`,
           }}
           className={`absolute top-0 right-0 origin-top-right`}
         />
