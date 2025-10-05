@@ -18,9 +18,9 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   description: "Andino Ferdiansah | Developer",
   icons: {
-    icon: "/images/Logo.png",
-    shortcut: "/images/Logo.png",
-    apple: "/images/Logo.png",
+    icon: "/src/app/favicon.ico",
+    shortcut: "/src/app/favicon.ico",
+    apple: "/src/app/favicon.ico",
   },
 };
 

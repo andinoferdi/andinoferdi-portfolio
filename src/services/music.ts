@@ -4,7 +4,6 @@ const durationValueCache = new Map<string, number>(); // nilai durasi final
 const durationPromiseCache = new Map<string, Promise<number>>(); // in-flight promise
 
 const shuffleArray = <T>(array: T[]): T[] => {
-  // Guard untuk SSR - kembalikan array original di server
   if (typeof window === "undefined") {
     return [...array];
   }
@@ -57,22 +56,19 @@ export const getMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
 };
 
 export const getAudioDuration = (audioUrl: string): Promise<number> => {
-  // Guard SSR
   if (typeof window === "undefined") return Promise.resolve(0);
 
-  // Cache nilai final
   if (durationValueCache.has(audioUrl)) {
     return Promise.resolve(durationValueCache.get(audioUrl)!);
   }
 
-  // Cache in-flight promise
   if (durationPromiseCache.has(audioUrl)) {
     return durationPromiseCache.get(audioUrl)!;
   }
 
   const p = new Promise<number>((resolve) => {
     const audio = new Audio();
-    const encodedSrc = encodeURI(audioUrl); // aman untuk spasi
+    const encodedSrc = encodeURI(audioUrl); 
     let settled = false;
 
     const done = (value: number) => {
@@ -80,14 +76,12 @@ export const getAudioDuration = (audioUrl: string): Promise<number> => {
       settled = true;
       durationValueCache.set(audioUrl, value);
       durationPromiseCache.delete(audioUrl);
-      // cleanup
       audio.removeAttribute("src");
       audio.load();
       resolve(value);
     };
 
     const timeoutId = window.setTimeout(() => {
-      // timeout: kembalikan 0 agar UI nonaktifkan slider
       done(0);
     }, 10000);
 
@@ -110,7 +104,7 @@ export const getAudioDuration = (audioUrl: string): Promise<number> => {
       { once: true }
     );
 
-    audio.crossOrigin = "anonymous"; // aman utk same-origin; diperlukan bila CDN
+    audio.crossOrigin = "anonymous";
     audio.preload = "metadata";
     audio.src = encodedSrc;
   });
@@ -131,7 +125,6 @@ export const formatTime = (seconds: number): string => {
 export const getDefaultVolume = (): number => 0.5;
 
 export const loadTrackDuration = async (audioUrl: string): Promise<number> => {
-  // satu pintu lewat getAudioDuration agar cache konsisten
   return getAudioDuration(audioUrl);
 };
 
@@ -149,7 +142,6 @@ export const clearDurationCache = (): void => {
   durationPromiseCache.clear();
 };
 
-// Function untuk mendapatkan original tracks
 export const getOriginalTracks = (): Track[] => [
   {
     id: "every-breath-you-take",
@@ -170,6 +162,16 @@ export const getOriginalTracks = (): Track[] => [
     audioUrl: "/music/I Want It That Way.mp3",
     coverImage: "/music/images/I Want It That Way.jpeg",
     genre: "Pop",
+  },
+  {
+    id: "basket-case",
+    title: "Basket Case",
+    artist: "Green Day",
+    album: "Dookie",
+    duration: 0,
+    audioUrl: "/music/Basket Case.mp3",
+    coverImage: "/music/images/Basket Case.jpeg",
+    genre: "Punk",
   },
 ];
 

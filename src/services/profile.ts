@@ -8,28 +8,28 @@ export const getProfileData = (): ProfileData => {
           "I build modern, responsive web apps using Vue.js, React.js, Nuxt.js, and Next.js with focus on excellent user experience.",
         name: "Front End Developer",
         designation: "Modern Web Development",
-        src: "/images/self/1.webp",
+        src: "/images/self/1.png",
       },
       {
         quote:
           "Experienced in Laravel, Golang, and Python, specializing in backend architecture, API services, and database optimization.",
         name: "Back End Developer",
         designation: "Server & Database Expert",
-        src: "/images/self/2.webp",
+        src: "/images/self/2.png",
       },
       {
         quote:
           "Skilled in Flutter and React Native, delivering high-performance cross-platform mobile apps with near-native experience.",
         name: "Mobile Developer",
         designation: "Cross-Platform Apps",
-        src: "/images/self/3.webp",
+        src: "/images/self/3.png",
       },
       {
         quote:
           "Proficient in Figma, designing clean, intuitive, and engaging UI/UX that balances aesthetics with functionality.",
         name: "UI/UX Designer",
         designation: "Design & User Experience",
-        src: "/images/self/4.webp",
+        src: "/images/self/4.png",
       },
     ],
     cvDownload: {

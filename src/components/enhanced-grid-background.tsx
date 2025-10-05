@@ -7,7 +7,9 @@ interface EnhancedGridBackgroundProps {
   className?: string;
 }
 
-export const EnhancedGridBackground = ({ className }: EnhancedGridBackgroundProps) => {
+export const EnhancedGridBackground = ({
+  className,
+}: EnhancedGridBackgroundProps) => {
   return (
     <div className={cn("fixed inset-0 z-0", className)}>
       {/* Grid Pattern */}
@@ -18,7 +20,7 @@ export const EnhancedGridBackground = ({ className }: EnhancedGridBackgroundProp
           "dark:[background-image:linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)]"
         )}
       />
-      
+
       {/* Spotlight Effect */}
       <Spotlight
         gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, .12) 0, hsla(210, 100%, 55%, .06) 50%, hsla(210, 100%, 45%, 0) 80%)"
