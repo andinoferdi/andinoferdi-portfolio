@@ -9,6 +9,7 @@ export const GalleryPage = () => {
   const galleryData = getGalleryData();
 
   const galleryItems = galleryData.items.map((item: GalleryItem) => ({
+    id: item.id,
     title: item.title,
     src: item.src,
   }));
