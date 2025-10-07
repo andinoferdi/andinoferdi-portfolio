@@ -22,7 +22,7 @@ import { type MusicPlayerState } from "@/types/music";
 export const MiniPlayer = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // SHUFFLE SEKALI SAAT MOUNT (hindari race di useEffect)
+
   const shuffledPlaylist = useMemo(() => {
     const tracks = [...getOriginalTracks()];
     for (let i = tracks.length - 1; i > 0; i--) {
@@ -48,7 +48,7 @@ export const MiniPlayer = () => {
   const { currentTrack, isPlaying, currentTime, duration, volume, isExpanded } =
     playerState;
 
-  // Persist & apply volume
+  
   useEffect(() => {
     try {
       const saved = localStorage.getItem("mp_volume");
@@ -66,40 +66,13 @@ export const MiniPlayer = () => {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
-  // Hindari double-play: tunggu canplay saat ganti track
+
   const pendingReadyRef = useRef(false);
 
   useEffect(() => {
     const a = audioRef.current;
-    if (!a || !currentTrack) return;
-
-    pendingReadyRef.current = true; // tahan effect isPlaying sampai siap
-    a.pause();
-    try {
-      a.currentTime = 0;
-    } catch {}
-    a.load();
-
-    const onReady = () => {
-      pendingReadyRef.current = false;
-      if (playerState.isPlaying) {
-        a.play().catch(() => {});
-      }
-    };
-
-    a.addEventListener("canplay", onReady, { once: true });
-    return () => {
-      a.removeEventListener("canplay", onReady);
-    };
-    // sengaja tidak menambahkan isPlaying ke dependency agar tidak memicu ulang load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTrack]);
-
-  // Kontrol play/pause hanya saat isPlaying berubah (bukan saat track berubah)
-  useEffect(() => {
-    const a = audioRef.current;
     if (!a) return;
-    if (pendingReadyRef.current) return; // tunggu siap
+    if (pendingReadyRef.current) return; 
     if (isPlaying) {
       a.play().catch(() => {});
     } else {
@@ -107,30 +80,81 @@ export const MiniPlayer = () => {
     }
   }, [isPlaying]);
 
-  // iOS/Safari priming: hangatkan decoder pada klik play pertama
+  
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a || !currentTrack) return;
+
+    pendingReadyRef.current = true;
+
+    a.pause();
+    try {
+      a.currentTime = 0;
+    } catch {}
+   
+    a.load();
+
+    const ensureZeroThenPlay = () => {
+     
+      const afterSeek = () => {
+        a.removeEventListener("seeked", afterSeek);
+        pendingReadyRef.current = false;
+        if (isPlaying) {
+          a.play().catch(() => {});
+        }
+      };
+
+      if (a.currentTime > 0.01) {
+        a.addEventListener("seeked", afterSeek, { once: true });
+        try {
+          a.currentTime = 0;
+        } catch {
+          afterSeek();
+        }
+      } else {
+        afterSeek();
+      }
+    };
+
+    const onCanPlay = () => {
+      a.removeEventListener("canplay", onCanPlay);
+      if (a.duration && a.duration > 0) {
+        setPlayerState((prev) => ({ ...prev, duration: a.duration }));
+      }
+      ensureZeroThenPlay();
+    };
+
+    if (a.readyState >= 3) {
+      onCanPlay();
+    } else {
+      a.addEventListener("canplay", onCanPlay, { once: true });
+    }
+
+    return () => {
+      a.removeEventListener("canplay", onCanPlay);
+    };
+  }, [currentTrack, isPlaying]);
+
+
   const [primed, setPrimed] = useState(false);
   const handlePlayPause = () => {
     const a = audioRef.current;
     if (!a) return;
 
-    if (!playerState.isPlaying) {
-      if (!primed) {
-        // Lakukan priming di dalam gesture yang sama
-        a.play()
-          .then(() => {
-            a.pause();
-            try {
-              a.currentTime = 0;
-            } catch {}
-            setPrimed(true);
-            setPlayerState((prev) => ({ ...prev, isPlaying: true }));
-          })
-          .catch(() => {
-            // Jika gagal (policy), lanjut toggle biasa
-            setPlayerState((prev) => ({ ...prev, isPlaying: true }));
-          });
-        return;
-      }
+    if (!playerState.isPlaying && !primed) {
+      a.play()
+        .then(() => {
+          a.pause();
+          try {
+            a.currentTime = 0;
+          } catch {}
+          setPrimed(true);
+          setPlayerState((prev) => ({ ...prev, isPlaying: true }));
+        })
+        .catch(() => {
+          setPlayerState((prev) => ({ ...prev, isPlaying: true }));
+        });
+      return;
     }
 
     setPlayerState((prev) => ({ ...prev, isPlaying: !prev.isPlaying }));
@@ -146,17 +170,15 @@ export const MiniPlayer = () => {
         currentTrack: nextTrack,
         currentTime: 0,
         duration: 0,
-        isPlaying: true, // autoplay lagu berikutnya
+        isPlaying: true, 
       };
     });
   };
 
-  const PREV_RESTART_THRESHOLD = 3; // detik
-
+  const PREV_RESTART_THRESHOLD = 3; 
   const handlePrevious = () => {
     setPlayerState((prev) => {
       const t = prev.currentTime || 0;
-
       if (t > PREV_RESTART_THRESHOLD) {
         if (audioRef.current) {
           try {
@@ -165,13 +187,11 @@ export const MiniPlayer = () => {
         }
         return { ...prev, currentTime: 0, isPlaying: true };
       }
-
       const prevIndex =
         prev.currentTrackIndex === 0
           ? prev.playlist.length - 1
           : prev.currentTrackIndex - 1;
       const prevTrack = prev.playlist[prevIndex];
-
       return {
         ...prev,
         currentTrackIndex: prevIndex,
@@ -206,7 +226,6 @@ export const MiniPlayer = () => {
     setIsLoadingDuration(false);
   };
 
-  // Tampilkan placeholder durasi saat ganti track
   useEffect(() => {
     setIsLoadingDuration(true);
   }, [currentTrack]);
@@ -462,7 +481,6 @@ export const MiniPlayer = () => {
           animation: audioWave 1.2s ease-in-out infinite;
         }
 
-        /* Progress Slider */
         .progress-slider {
           background: linear-gradient(
             to right,
@@ -472,7 +490,6 @@ export const MiniPlayer = () => {
             rgba(150, 150, 150, 0.3) 100%
           );
         }
-        /* Volume Slider */
         .volume-slider {
           background: linear-gradient(
             to right,
