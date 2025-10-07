@@ -1,19 +1,11 @@
 import { type Track, type Playlist } from "@/types/music";
 
-const durationValueCache = new Map<string, number>(); // nilai durasi final
-const durationPromiseCache = new Map<string, Promise<number>>(); // in-flight promise
+const durationValueCache = new Map<string, number>(); 
+const durationPromiseCache = new Map<string, Promise<number>>(); 
 
 const shuffleArray = <T>(array: T[]): T[] => {
-  if (typeof window === "undefined") {
-    return [...array];
-  }
 
-  const shuffled = [...array];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled;
+  return [...array];
 };
 
 export const getMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
@@ -79,7 +71,7 @@ export const getMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
         id: "default-playlist",
         name: "My Playlist",
         tracks: shuffledTracks,
-        coverImage: "/music/images/Every Breath You Take.jpg",
+        coverImage: shuffledTracks[0]?.coverImage,
       },
     ],
   };
@@ -228,30 +220,15 @@ export const getOriginalTracks = (): Track[] => [
 export const getShuffledMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
   const originalTracks = getOriginalTracks();
 
-  if (typeof window === "undefined") {
-    return {
-      tracks: originalTracks,
-      playlists: [
-        {
-          id: "default-playlist",
-          name: "My Playlist",
-          tracks: originalTracks,
-          coverImage: "/music/images/Every Breath You Take.jpg",
-        },
-      ],
-    };
-  }
-
-  const shuffledTracks = shuffleArray(originalTracks);
 
   return {
-    tracks: shuffledTracks,
+    tracks: originalTracks,
     playlists: [
       {
         id: "default-playlist",
         name: "My Playlist",
-        tracks: shuffledTracks,
-        coverImage: "/music/images/Every Breath You Take.jpg",
+        tracks: originalTracks,
+        coverImage: originalTracks[0]?.coverImage || "/music/images/Every Breath You Take.jpg",
       },
     ],
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
@@ -14,102 +14,125 @@ import {
 import Image from "next/image";
 import {
   getOriginalTracks,
-  getShuffledMusicData,
   formatTime,
   getDefaultVolume,
-  loadTrackDuration,
-  preloadTrackDurations,
 } from "@/services/music";
 import { type MusicPlayerState } from "@/types/music";
 
 export const MiniPlayer = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
-  
-  // Selalu gunakan data original untuk initial state (konsisten SSR)
-  const originalTracks = getOriginalTracks();
-  
-  const [playerState, setPlayerState] = useState<MusicPlayerState>({
-    currentTrack: originalTracks[0] || null,
+
+  // SHUFFLE SEKALI SAAT MOUNT (hindari race di useEffect)
+  const shuffledPlaylist = useMemo(() => {
+    const tracks = [...getOriginalTracks()];
+    for (let i = tracks.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
+    }
+    return tracks;
+  }, []);
+
+  const [playerState, setPlayerState] = useState<MusicPlayerState>(() => ({
+    currentTrack: shuffledPlaylist[0] || null,
     isPlaying: false,
     currentTime: 0,
     duration: 0,
     volume: getDefaultVolume(),
-    isShuffled: false,
+    isShuffled: true,
     repeatMode: "none",
-    playlist: originalTracks,
+    playlist: shuffledPlaylist,
     currentTrackIndex: 0,
     isExpanded: false,
-  });
-
-  const [hasShuffled, setHasShuffled] = useState(false);
-
-  // Shuffle setelah mounted (client-side only)
-  useEffect(() => {
-    if (typeof window !== "undefined" && !hasShuffled) {
-      const shuffledData = getShuffledMusicData();
-      setPlayerState(prev => ({
-        ...prev,
-        currentTrack: shuffledData.tracks[0] || null,
-        playlist: shuffledData.tracks,
-        currentTrackIndex: 0,
-        currentTime: 0
-      }));
-      setHasShuffled(true);
-    }
-  }, [hasShuffled]);
-
-  const [isLoadingDuration, setIsLoadingDuration] = useState(false);
+  }));
 
   const { currentTrack, isPlaying, currentTime, duration, volume, isExpanded } =
     playerState;
 
+  // Persist & apply volume
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem("mp_volume");
+      if (saved !== null) {
+        const v = parseFloat(saved);
+        if (!Number.isNaN(v)) setPlayerState((p) => ({ ...p, volume: v }));
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("mp_volume", String(volume));
+    } catch {}
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
-  // Muat durasi saat track berubah
+  // Hindari double-play: tunggu canplay saat ganti track
+  const pendingReadyRef = useRef(false);
+
   useEffect(() => {
-    const loadDuration = async () => {
-      if (!currentTrack) return;
-      setIsLoadingDuration(true);
-      try {
-        const realDuration = await loadTrackDuration(currentTrack.audioUrl);
-        setPlayerState((prev) => ({
-          ...prev,
-          duration: realDuration,
-        }));
-      } catch (error) {
-        console.warn("Failed to load track duration:", error);
-      } finally {
-        setIsLoadingDuration(false);
+    const a = audioRef.current;
+    if (!a || !currentTrack) return;
+
+    pendingReadyRef.current = true; // tahan effect isPlaying sampai siap
+    a.pause();
+    try {
+      a.currentTime = 0;
+    } catch {}
+    a.load();
+
+    const onReady = () => {
+      pendingReadyRef.current = false;
+      if (playerState.isPlaying) {
+        a.play().catch(() => {});
       }
     };
-    loadDuration();
+
+    a.addEventListener("canplay", onReady, { once: true });
+    return () => {
+      a.removeEventListener("canplay", onReady);
+    };
+    // sengaja tidak menambahkan isPlaying ke dependency agar tidak memicu ulang load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTrack]);
 
-  // Preload durasi semua track saat mount
+  // Kontrol play/pause hanya saat isPlaying berubah (bukan saat track berubah)
   useEffect(() => {
-    const preloadDurations = async () => {
-      try {
-        await preloadTrackDurations(playerState.playlist);
-      } catch (error) {
-        console.warn("Failed to preload track durations:", error);
-      }
-    };
-    preloadDurations();
-  }, [playerState.playlist]);
-
-  // Kontrol play/pause, ulangi panggilan play saat ganti track
-  useEffect(() => {
-    if (!audioRef.current) return;
+    const a = audioRef.current;
+    if (!a) return;
+    if (pendingReadyRef.current) return; // tunggu siap
     if (isPlaying) {
-      audioRef.current.play().catch(() => {});
+      a.play().catch(() => {});
     } else {
-      audioRef.current.pause();
+      a.pause();
     }
-  }, [isPlaying, currentTrack]);
+  }, [isPlaying]);
 
+  // iOS/Safari priming: hangatkan decoder pada klik play pertama
+  const [primed, setPrimed] = useState(false);
   const handlePlayPause = () => {
+    const a = audioRef.current;
+    if (!a) return;
+
+    if (!playerState.isPlaying) {
+      if (!primed) {
+        // Lakukan priming di dalam gesture yang sama
+        a.play()
+          .then(() => {
+            a.pause();
+            try {
+              a.currentTime = 0;
+            } catch {}
+            setPrimed(true);
+            setPlayerState((prev) => ({ ...prev, isPlaying: true }));
+          })
+          .catch(() => {
+            // Jika gagal (policy), lanjut toggle biasa
+            setPlayerState((prev) => ({ ...prev, isPlaying: true }));
+          });
+        return;
+      }
+    }
+
     setPlayerState((prev) => ({ ...prev, isPlaying: !prev.isPlaying }));
   };
 
@@ -122,8 +145,8 @@ export const MiniPlayer = () => {
         currentTrackIndex: nextIndex,
         currentTrack: nextTrack,
         currentTime: 0,
-        duration: 0, // akan dimuat lewat useEffect
-        isPlaying: true, // selalu autoplay
+        duration: 0,
+        isPlaying: true, // autoplay lagu berikutnya
       };
     });
   };
@@ -134,24 +157,19 @@ export const MiniPlayer = () => {
     setPlayerState((prev) => {
       const t = prev.currentTime || 0;
 
-      // Jika > 3 dtk: restart lagu saat ini ke 0 dan autoplay
       if (t > PREV_RESTART_THRESHOLD) {
         if (audioRef.current) {
-          audioRef.current.currentTime = 0;
+          try {
+            audioRef.current.currentTime = 0;
+          } catch {}
         }
-        return {
-          ...prev,
-          currentTime: 0,
-          isPlaying: true,
-        };
+        return { ...prev, currentTime: 0, isPlaying: true };
       }
 
-      // Jika ≤ 3 dtk: pindah ke lagu sebelumnya dan autoplay
       const prevIndex =
         prev.currentTrackIndex === 0
           ? prev.playlist.length - 1
           : prev.currentTrackIndex - 1;
-
       const prevTrack = prev.playlist[prevIndex];
 
       return {
@@ -178,21 +196,27 @@ export const MiniPlayer = () => {
     }
   };
 
+  const [isLoadingDuration, setIsLoadingDuration] = useState(false);
   const handleLoadedMetadata = () => {
     if (!audioRef.current) return;
     const audioDuration = audioRef.current.duration;
     if (audioDuration && audioDuration > 0) {
-      setPlayerState((prev) => ({
-        ...prev,
-        duration: audioDuration,
-      }));
+      setPlayerState((prev) => ({ ...prev, duration: audioDuration }));
     }
+    setIsLoadingDuration(false);
   };
+
+  // Tampilkan placeholder durasi saat ganti track
+  useEffect(() => {
+    setIsLoadingDuration(true);
+  }, [currentTrack]);
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTime = parseFloat(e.target.value);
     if (audioRef.current) {
-      audioRef.current.currentTime = newTime;
+      try {
+        audioRef.current.currentTime = newTime;
+      } catch {}
       setPlayerState((prev) => ({ ...prev, currentTime: newTime }));
     }
   };
@@ -208,6 +232,9 @@ export const MiniPlayer = () => {
       <audio
         ref={audioRef}
         src={currentTrack.audioUrl}
+        preload="auto"
+        playsInline
+        crossOrigin="anonymous"
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleNext}
@@ -237,7 +264,14 @@ export const MiniPlayer = () => {
                     alt={currentTrack.title}
                     width={40}
                     height={40}
+                    sizes="(max-width: 640px) 32px, 40px"
+                    priority={true}
                     className="w-full h-full object-cover"
+                    onError={() => {
+                      console.warn(
+                        `Failed to load image: ${currentTrack.coverImage}`
+                      );
+                    }}
                   />
                   {isPlaying && (
                     <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
@@ -322,7 +356,14 @@ export const MiniPlayer = () => {
                   alt={currentTrack.title}
                   width={224}
                   height={192}
+                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
+                  priority={true}
                   className="w-full h-full object-contain"
+                  onError={() => {
+                    console.warn(
+                      `Failed to load image: ${currentTrack.coverImage}`
+                    );
+                  }}
                 />
               </div>
 
@@ -417,7 +458,6 @@ export const MiniPlayer = () => {
             transform: scaleY(1);
           }
         }
-
         .audio-visualizer > div {
           animation: audioWave 1.2s ease-in-out infinite;
         }
@@ -432,7 +472,6 @@ export const MiniPlayer = () => {
             rgba(150, 150, 150, 0.3) 100%
           );
         }
-
         /* Volume Slider */
         .volume-slider {
           background: linear-gradient(
@@ -443,17 +482,14 @@ export const MiniPlayer = () => {
             rgba(150, 150, 150, 0.3) 100%
           );
         }
-
         .progress-slider::-webkit-slider-track,
         .volume-slider::-webkit-slider-track {
           background: transparent;
         }
-
         .progress-slider::-moz-range-track,
         .volume-slider::-moz-range-track {
           background: transparent;
         }
-
         .progress-slider::-webkit-slider-thumb,
         .volume-slider::-webkit-slider-thumb {
           appearance: none;
@@ -465,7 +501,6 @@ export const MiniPlayer = () => {
           border: 2px solid white;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
-
         .progress-slider::-moz-range-thumb,
         .volume-slider::-moz-range-thumb {
           width: 16px;
@@ -476,17 +511,14 @@ export const MiniPlayer = () => {
           border: 2px solid white;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
         }
-
         .progress-slider:hover::-webkit-slider-thumb,
         .volume-slider:hover::-webkit-slider-thumb {
           background: #2563eb;
         }
-
         .progress-slider:hover::-moz-range-thumb,
         .volume-slider:hover::-moz-range-thumb {
           background: #2563eb;
         }
-
         .progress-slider:disabled {
           opacity: 0.5;
           cursor: not-allowed;

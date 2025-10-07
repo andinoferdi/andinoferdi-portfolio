@@ -34,7 +34,6 @@ export const ProfileCarousel = ({
   };
 
   const randomRotateY = (index: number) => {
-    // Use index-based rotation to ensure consistent server/client rendering
     const rotations = [-10, -5, 0, 5, 10, -8, 3, -3, 7, -7];
     return rotations[index % rotations.length];
   };
@@ -88,8 +87,13 @@ export const ProfileCarousel = ({
                     alt={profile.name}
                     width={500}
                     height={500}
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    priority={isActive(index)}
                     draggable={false}
                     className="h-full w-full rounded-3xl object-cover object-center"
+                    onError={() => {
+                      console.warn(`Failed to load profile image: ${profile.src}`);
+                    }}
                   />
                 </motion.div>
               ))}
