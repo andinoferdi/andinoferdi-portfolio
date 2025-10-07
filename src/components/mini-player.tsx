@@ -22,7 +22,6 @@ import { type MusicPlayerState } from "@/types/music";
 export const MiniPlayer = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
-
   const shuffledPlaylist = useMemo(() => {
     const tracks = [...getOriginalTracks()];
     for (let i = tracks.length - 1; i > 0; i--) {
@@ -48,7 +47,6 @@ export const MiniPlayer = () => {
   const { currentTrack, isPlaying, currentTime, duration, volume, isExpanded } =
     playerState;
 
-  
   useEffect(() => {
     try {
       const saved = localStorage.getItem("mp_volume");
@@ -66,13 +64,12 @@ export const MiniPlayer = () => {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
-
   const pendingReadyRef = useRef(false);
 
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
-    if (pendingReadyRef.current) return; 
+    if (pendingReadyRef.current) return;
     if (isPlaying) {
       a.play().catch(() => {});
     } else {
@@ -80,7 +77,6 @@ export const MiniPlayer = () => {
     }
   }, [isPlaying]);
 
-  
   useEffect(() => {
     const a = audioRef.current;
     if (!a || !currentTrack) return;
@@ -91,11 +87,10 @@ export const MiniPlayer = () => {
     try {
       a.currentTime = 0;
     } catch {}
-   
+
     a.load();
 
     const ensureZeroThenPlay = () => {
-     
       const afterSeek = () => {
         a.removeEventListener("seeked", afterSeek);
         pendingReadyRef.current = false;
@@ -135,7 +130,6 @@ export const MiniPlayer = () => {
     };
   }, [currentTrack, isPlaying]);
 
-
   const [primed, setPrimed] = useState(false);
   const handlePlayPause = () => {
     const a = audioRef.current;
@@ -170,12 +164,12 @@ export const MiniPlayer = () => {
         currentTrack: nextTrack,
         currentTime: 0,
         duration: 0,
-        isPlaying: true, 
+        isPlaying: true,
       };
     });
   };
 
-  const PREV_RESTART_THRESHOLD = 3; 
+  const PREV_RESTART_THRESHOLD = 3;
   const handlePrevious = () => {
     setPlayerState((prev) => {
       const t = prev.currentTime || 0;
@@ -243,6 +237,12 @@ export const MiniPlayer = () => {
   const toggleExpanded = () => {
     setPlayerState((prev) => ({ ...prev, isExpanded: !prev.isExpanded }));
   };
+
+  const progressPercent = useMemo(
+    () => (duration ? (currentTime / duration) * 100 : 0),
+    [currentTime, duration]
+  );
+  const volumePercent = useMemo(() => volume * 100, [volume]);
 
   if (!currentTrack) return null;
 
@@ -415,6 +415,9 @@ export const MiniPlayer = () => {
                   onChange={handleSeek}
                   disabled={isLoadingDuration || duration === 0}
                   className="w-full h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer progress-slider disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${progressPercent}%, rgba(150, 150, 150, 0.3) ${progressPercent}%, rgba(150, 150, 150, 0.3) 100%)`,
+                  }}
                 />
 
                 <div className="flex items-center justify-center gap-1.5 sm:gap-2">
@@ -456,6 +459,9 @@ export const MiniPlayer = () => {
                       handleVolumeChange(parseFloat(e.target.value))
                     }
                     className="flex-1 h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer volume-slider"
+                    style={{
+                      background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${volumePercent}%, rgba(150, 150, 150, 0.3) ${volumePercent}%, rgba(150, 150, 150, 0.3) 100%)`,
+                    }}
                   />
                   <span className="text-xs text-muted-foreground w-6 sm:w-8">
                     {Math.round(volume * 100)}%
@@ -479,25 +485,6 @@ export const MiniPlayer = () => {
         }
         .audio-visualizer > div {
           animation: audioWave 1.2s ease-in-out infinite;
-        }
-
-        .progress-slider {
-          background: linear-gradient(
-            to right,
-            #3b82f6 0%,
-            #3b82f6 ${(currentTime / (duration || 1)) * 100}%,
-            rgba(150, 150, 150, 0.3) ${(currentTime / (duration || 1)) * 100}%,
-            rgba(150, 150, 150, 0.3) 100%
-          );
-        }
-        .volume-slider {
-          background: linear-gradient(
-            to right,
-            #3b82f6 0%,
-            #3b82f6 ${volume * 100}%,
-            rgba(150, 150, 150, 0.3) ${volume * 100}%,
-            rgba(150, 150, 150, 0.3) 100%
-          );
         }
         .progress-slider::-webkit-slider-track,
         .volume-slider::-webkit-slider-track {
