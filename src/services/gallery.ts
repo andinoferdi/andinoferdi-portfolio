@@ -4,23 +4,23 @@ export const getGalleryData = (): GalleryData => {
   const items: GalleryItem[] = [
     {
       id: "1",
+      title: "Mt Penanggungan - 13 September 2025",
+      src: "/images/self/4.jpg",
+    },
+    {
+      id: "2",
       title: "Mt Lorokan - 31 August 2025",
       src: "/images/self/1.jpg",
     },
     {
-      id: "2",
-      title: "Mt Cendono - 19 July 2025",
-      src: "/images/self/2.jpg",
-    },
-    {
       id: "3",
-      title: "Mt Penanggungan - 13 September 2025",
+      title: "Mt Cendono - 19 July 2025",
       src: "/images/self/3.jpg",
     },
     {
       id: "4",
       title: "Ngalur Beach - 26 July 2025",
-      src: "/images/self/4.jpg",
+      src: "/images/self/2.jpg",
     },
     {
       id: "5",
