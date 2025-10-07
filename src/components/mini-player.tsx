@@ -65,12 +65,17 @@ export const MiniPlayer = () => {
   }, [volume]);
 
   const pendingReadyRef = useRef(false);
+  const isPlayingRef = useRef(isPlaying);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
     if (pendingReadyRef.current) return;
-    if (isPlaying) {
+    if (isPlayingRef.current) {
       a.play().catch(() => {});
     } else {
       a.pause();
@@ -94,7 +99,7 @@ export const MiniPlayer = () => {
       const afterSeek = () => {
         a.removeEventListener("seeked", afterSeek);
         pendingReadyRef.current = false;
-        if (isPlaying) {
+        if (isPlayingRef.current) {
           a.play().catch(() => {});
         }
       };
