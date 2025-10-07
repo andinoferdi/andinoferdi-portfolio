@@ -128,7 +128,7 @@ export const MiniPlayer = () => {
     return () => {
       a.removeEventListener("canplay", onCanPlay);
     };
-  }, [currentTrack, isPlaying]);
+  }, [currentTrack]);
 
   const [primed, setPrimed] = useState(false);
   const handlePlayPause = () => {
