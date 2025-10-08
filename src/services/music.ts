@@ -60,6 +60,16 @@ export const getMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
       coverImage: "/music/images/Terbuang Dalam Waktu.jpg",
       genre: "Alternative Rock",
     },
+    {
+      id: "supermassive-black-hole",
+      title: "Supermassive Black Hole",
+      artist: "Muse",
+      album: "Black Holes and Revelations",
+      duration: 0,
+      audioUrl: "/music/Supermassive Black Hole.mp3",
+      coverImage: "/music/images/Supermassive Black Hole.jpg",
+      genre: "Alternative Rock",
+    },
   ];
 
   const shuffledTracks = shuffleArray(originalTracks);
@@ -213,6 +223,16 @@ export const getOriginalTracks = (): Track[] => [
     duration: 0,
     audioUrl: "/music/Terbuang Dalam Waktu.mp3",
     coverImage: "/music/images/Terbuang Dalam Waktu.jpg",
+    genre: "Alternative Rock",
+  },
+  {
+    id: "supermassive-black-hole",
+    title: "Supermassive Black Hole",
+    artist: "Muse",
+    album: "Black Holes and Revelations",
+    duration: 0,
+    audioUrl: "/music/Supermassive Black Hole.mp3",
+    coverImage: "/music/images/Supermassive Black Hole.jpg",
     genre: "Alternative Rock",
   },
 ];
