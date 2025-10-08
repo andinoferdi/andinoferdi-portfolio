@@ -160,6 +160,17 @@ export const formatTime = (seconds: number): string => {
 
 export const getDefaultVolume = (): number => 0.5;
 
+// Pastikan URL audio absolut agar tidak bermasalah di nested routes/SSR
+export const normalizeTrackUrl = (url: string) => {
+  if (!url) return url;
+  if (/^https?:\/\//i.test(url)) return url;
+  if (typeof window !== "undefined") {
+    const base = window.location.origin;
+    return `${base}${url.startsWith("/") ? url : "/" + url}`;
+  }
+  return url; // fallback (client-only anyway)
+};
+
 export const loadTrackDuration = async (audioUrl: string): Promise<number> => {
   return getAudioDuration(audioUrl);
 };
