@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { cn } from "@/lib/utils";
 import { Spotlight } from "@/components/ui/spotlight-new";
 import { HoverBorderGradient } from "@/components/ui/hover-border-button";
 import { Download, Music, Image, FileText, Play, Building2 } from "lucide-react";
@@ -194,67 +193,6 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
                 </div>
               </motion.div>
 
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.6, duration: 0.6 }}
-                className="grid grid-cols-2 gap-3 w-full"
-              >
-              {assets.map((asset, index) => {
-                const Icon = asset.icon;
-                const isActive = currentAsset === asset.name;
-                const progressPerAsset = 100 / assets.length;
-                const assetStartProgress = index * progressPerAsset;
-                const assetEndProgress = (index + 1) * progressPerAsset;
-                const isCompleted = progress >= assetEndProgress;
-                const isInProgress = progress >= assetStartProgress && progress < assetEndProgress;
-
-                return (
-                  <motion.div
-                    key={asset.name}
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ delay: 0.8 + index * 0.1 }}
-                    className={cn(
-                      "flex items-center gap-2 p-3 rounded-lg border transition-all duration-500",
-                      isCompleted
-                        ? "border-green-500 bg-green-500/20"
-                        : isActive || isInProgress
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-muted/50"
-                    )}
-                  >
-                    <Icon
-                      className={cn(
-                        "h-4 w-4",
-                        isCompleted
-                          ? "text-green-500"
-                          : isActive || isInProgress
-                          ? "text-primary"
-                          : "text-muted-foreground"
-                      )}
-                    />
-                    <div className="text-left">
-                      <p
-                        className={cn(
-                          "text-xs font-medium",
-                          isCompleted
-                            ? "text-green-500"
-                            : isActive || isInProgress
-                            ? "text-primary"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        {asset.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {asset.count} {asset.count === 1 ? 'file' : 'files'}
-                      </p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-              </motion.div>
             </div>
           </div>
         </motion.div>
