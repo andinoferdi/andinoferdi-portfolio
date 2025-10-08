@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Spotlight } from "@/components/ui/spotlight-new";
 import { HoverBorderGradient } from "@/components/ui/hover-border-button";
-import { Download, Music, Image, FileText, Play, Building2 } from "lucide-react";
+import { Download, Music, Image as ImageIcon, FileText, Play, Building2 } from "lucide-react";
 import { getProjectsData } from "@/services/projects";
 import { getProfileData } from "@/services/profile";
 import { getOriginalTracks } from "@/services/music";
@@ -28,48 +28,38 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
     const experienceData = getExperienceData();
     const galleryData = getGalleryData();
 
+    const imageAssets = [
+      ...profileData.profiles.map(p => p.src),
+      ...projectsData.projects.map(p => p.image),
+      ...musicData.map(m => m.coverImage),
+      ...galleryData.items.map(g => g.src),
+      ...experienceData.experiences.filter(exp => exp.logo).map(exp => exp.logo!),
+    ];
+
+    const audioAssets = musicData.map(m => m.audioUrl);
+    const documentAssets = [profileData.cvDownload.url];
+
     return [
       { 
-        name: "Profile Images", 
-        icon: Image, 
-        count: profileData.profiles.length,
-        description: "Profile carousel images"
+        name: "Images", 
+        icon: ImageIcon, 
+        count: imageAssets.length,
+        description: "Loading images",
+        assets: imageAssets
       },
       { 
-        name: "Project Screenshots", 
-        icon: Image, 
-        count: projectsData.projects.length,
-        description: "Project showcase images"
-      },
-      { 
-        name: "Music Tracks", 
+        name: "Audio", 
         icon: Music, 
-        count: musicData.length,
-        description: "Audio files for mini player"
+        count: audioAssets.length,
+        description: "Loading audio files",
+        assets: audioAssets
       },
       { 
-        name: "Music Covers", 
-        icon: Image, 
-        count: musicData.length,
-        description: "Album cover images"
-      },
-      { 
-        name: "Gallery Images", 
-        icon: Image, 
-        count: galleryData.items.length,
-        description: "Gallery showcase images"
-      },
-      { 
-        name: "CV Document", 
+        name: "Documents", 
         icon: FileText, 
-        count: 1,
-        description: "Resume download file"
-      },
-      { 
-        name: "Journey Logos", 
-        icon: Building2, 
-        count: experienceData.experiences.filter(exp => exp.logo).length,
-        description: "Company and institution logos"
+        count: documentAssets.length,
+        description: "Loading documents",
+        assets: documentAssets
       },
     ];
   }, []);
@@ -77,35 +67,67 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   const totalAssets = assets.reduce((sum, asset) => sum + asset.count, 0);
 
   useEffect(() => {
-    let currentProgress = 0;
-    let assetIndex = 0;
+    const preloadAssets = async () => {
+      const allPromises: Promise<void>[] = [];
 
-    const interval = setInterval(() => {
-      if (currentProgress >= 100) {
-        clearInterval(interval);
+      for (const assetGroup of assets) {
+        for (const assetUrl of assetGroup.assets) {
+          if (assetGroup.name === "Images") {
+            const promise = new Promise<void>((resolve) => {
+              const img = new Image();
+              img.onload = () => resolve();
+              img.onerror = () => resolve();
+              img.src = assetUrl;
+            });
+            allPromises.push(promise);
+          } else if (assetGroup.name === "Audio") {
+            const promise = new Promise<void>((resolve) => {
+              const audio = new Audio();
+              audio.oncanplaythrough = () => resolve();
+              audio.onerror = () => resolve();
+              audio.preload = "metadata";
+              audio.src = assetUrl;
+            });
+            allPromises.push(promise);
+          } else if (assetGroup.name === "Documents") {
+            const promise = fetch(assetUrl, { method: "HEAD" })
+              .then(() => {})
+              .catch(() => {});
+            allPromises.push(promise);
+          }
+        }
+      }
+
+      const totalAssets = allPromises.length;
+      let loadedAssets = 0;
+
+      const updateProgress = () => {
+        loadedAssets++;
+        const progress = Math.floor((loadedAssets / totalAssets) * 100);
+        setProgress(progress);
+
+        const progressPerAsset = 100 / assets.length;
+        const currentAssetIndex = Math.floor(progress / progressPerAsset);
+        if (currentAssetIndex < assets.length) {
+          setCurrentAsset(assets[currentAssetIndex].name);
+        }
+      };
+
+      allPromises.forEach(promise => {
+        promise.then(updateProgress);
+      });
+
+      Promise.allSettled(allPromises).then(() => {
+        setProgress(100);
         setTimeout(() => {
           setIsLoading(false);
           setShowStartButton(true);
         }, 500);
-        return;
-      }
+      });
+    };
 
-      const increment = Math.random() * 2 + 0.5;
-      currentProgress = Math.min(currentProgress + increment, 100);
-      setProgress(Math.floor(currentProgress));
-
-      // Calculate which asset should be active based on progress
-      const progressPerAsset = 100 / assets.length;
-      const newAssetIndex = Math.floor(currentProgress / progressPerAsset);
-      
-      if (newAssetIndex !== assetIndex && newAssetIndex < assets.length) {
-        assetIndex = newAssetIndex;
-        setCurrentAsset(assets[assetIndex].name);
-      }
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, [assets, totalAssets]);
+    preloadAssets();
+  }, [assets]);
 
   const handleStart = () => {
     setShowStartButton(false);

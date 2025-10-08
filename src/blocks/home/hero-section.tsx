@@ -6,6 +6,7 @@ import { HoverBorderGradient } from "@/components/ui/hover-border-button";
 import { type HeroData } from "@/types/hero";
 import { getProfileData } from "@/services/profile";
 import { Download } from "lucide-react";
+import Link from "next/link";
 
 interface HeroSectionProps {
   data: HeroData;
@@ -35,17 +36,15 @@ export const HeroSection = ({ data }: HeroSectionProps) => {
           />
         </div>
         <div className="mt-12 flex justify-center">
-          <HoverBorderGradient
-            as="a"
-            href={profileData.cvDownload.url}
-            download={profileData.cvDownload.filename}
-            containerClassName="rounded-full"
-            className="flex items-center gap-2 px-6 py-3 text-white font-medium"
-            {...({} as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
-          >
-            <Download className="h-4 w-4" />
-            {profileData.cvDownload.label}
-          </HoverBorderGradient>
+          <Link href={profileData.cvDownload.url} download={profileData.cvDownload.filename}>
+            <HoverBorderGradient
+              containerClassName="rounded-full"
+              className="flex items-center gap-2 px-6 py-3 text-white font-medium"
+            >
+              <Download className="h-4 w-4" />
+              {profileData.cvDownload.label}
+            </HoverBorderGradient>
+          </Link>
         </div>
       </div>
     </section>

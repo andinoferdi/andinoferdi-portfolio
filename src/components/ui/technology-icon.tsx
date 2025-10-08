@@ -1,6 +1,28 @@
 "use client";
 
-import { IconBrandReact, IconBrandTypescript, IconBrandTailwind, IconBrandHtml5, IconBrandCss3, IconBrandJavascript, IconBrandSvelte, IconBrandThreejs, IconBrandLaravel, IconBrandPhp, IconBrandMysql, IconBrandNodejs, IconBrandMongodb, IconBrandGit, IconBrandBootstrap, IconBrandVue } from "@tabler/icons-react";
+import { 
+  IconBrandReact, 
+  IconBrandTypescript, 
+  IconBrandTailwind, 
+  IconBrandHtml5, 
+  IconBrandCss3, 
+  IconBrandJavascript, 
+  IconBrandSvelte, 
+  IconBrandThreejs, 
+  IconBrandLaravel, 
+  IconBrandPhp, 
+  IconBrandMysql, 
+  IconBrandNodejs, 
+  IconBrandMongodb, 
+  IconBrandGit, 
+  IconBrandBootstrap, 
+  IconBrandVue,
+  IconDatabase,
+  IconApi,
+  IconBolt,
+  IconCode,
+  IconTools
+} from "@tabler/icons-react";
 
 const technologyIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   "Next.js": () => <span className="text-black dark:text-white font-bold text-xs">N</span>,
@@ -20,12 +42,11 @@ const technologyIcons: Record<string, React.ComponentType<{ className?: string }
   "Vue.js": IconBrandVue,
   "MySQL": IconBrandMysql,
   "MongoDB": IconBrandMongodb,
-  "PostgreSQL": () => <span className="text-blue-600 dark:text-blue-400 font-bold text-xs">🐘</span>,
-  
+  "PostgreSQL": IconDatabase,
   "Git": IconBrandGit,
-  "REST APIs": () => <span className="text-green-600 dark:text-green-400 font-bold text-xs">🔗</span>,
-  "Agile": () => <span className="text-orange-600 dark:text-orange-400 font-bold text-xs">⚡</span>,
-  "Blade": () => <span className="text-red-600 dark:text-red-400 font-bold text-xs">🔪</span>,
+  "REST APIs": IconApi,
+  "Agile": IconBolt,
+  "Blade": IconCode,
 };
 
 interface TechnologyIconProps {
@@ -37,7 +58,7 @@ export const TechnologyIcon = ({ technology, className = "h-3 w-3" }: Technology
   const IconComponent = technologyIcons[technology];
   
   if (!IconComponent) {
-    return <span className="text-muted-foreground">🔧</span>;
+    return <IconTools className={`${className} text-muted-foreground`} />;
   }
   
   return <IconComponent className={className} />;

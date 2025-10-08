@@ -2,6 +2,7 @@
 
 import { FocusCards } from "@/components/ui/focus-cards";
 import { PageTitle } from "@/components/page-title";
+import { GalleryErrorBoundary } from "@/components/error-boundary";
 import { getGalleryData } from "@/services/gallery";
 import { type GalleryItem } from "@/types/gallery";
 
@@ -29,7 +30,9 @@ export const GalleryPage = () => {
             </p>
           </div>
 
-          <FocusCards cards={galleryItems} />
+          <GalleryErrorBoundary>
+            <FocusCards cards={galleryItems} />
+          </GalleryErrorBoundary>
         </div>
       </section>
     </>

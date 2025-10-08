@@ -3,7 +3,7 @@
 import { IconArrowLeft, IconArrowRight } from "@tabler/icons-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 type Profile = {
   quote: string;
@@ -12,6 +12,8 @@ type Profile = {
   src: string;
 };
 
+const TRANSITION_DURATION = 300;
+
 export const ProfileCarousel = ({
   profiles,
 }: {
@@ -19,23 +21,43 @@ export const ProfileCarousel = ({
 }) => {
   const [active, setActive] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const clearTransitionTimeout = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  const setTransitioning = useCallback((value: boolean) => {
+    setIsTransitioning(value);
+    if (value) {
+      clearTransitionTimeout();
+      timeoutRef.current = setTimeout(() => {
+        setIsTransitioning(false);
+        timeoutRef.current = null;
+      }, TRANSITION_DURATION);
+    }
+  }, [clearTransitionTimeout]);
 
   const handleNext = useCallback(() => {
     if (isTransitioning) return;
-    setIsTransitioning(true);
+    setTransitioning(true);
     setActive((prev) => (prev + 1) % profiles.length);
-    setTimeout(() => setIsTransitioning(false), 300);
-  }, [profiles.length, isTransitioning]);
+  }, [profiles.length, isTransitioning, setTransitioning]);
 
   const handlePrev = useCallback(() => {
     if (isTransitioning) return;
-    setIsTransitioning(true);
+    setTransitioning(true);
     setActive((prev) => (prev - 1 + profiles.length) % profiles.length);
-    setTimeout(() => setIsTransitioning(false), 300);
-  }, [profiles.length, isTransitioning]);
+  }, [profiles.length, isTransitioning, setTransitioning]);
 
-
-
+  useEffect(() => {
+    return () => {
+      clearTransitionTimeout();
+    };
+  }, [clearTransitionTimeout]);
 
   const currentProfile = profiles[active];
 
@@ -60,7 +82,7 @@ export const ProfileCarousel = ({
                   scale: 0.95,
                 }}
                 transition={{
-                  duration: 0.25,
+                  duration: TRANSITION_DURATION / 1000,
                   ease: [0.4, 0, 0.2, 1],
                 }}
                 className="absolute inset-0 fix-mobile-flicker gpu-accelerated"
@@ -75,7 +97,7 @@ export const ProfileCarousel = ({
                   draggable={false}
                   className="h-full w-full rounded-3xl object-cover object-center fix-mobile-flicker"
                   onError={() => {
-                    console.warn(`Failed to load profile image: ${currentProfile.src}`);
+                    // Silently handle image loading errors
                   }}
                 />
               </motion.div>
@@ -95,7 +117,7 @@ export const ProfileCarousel = ({
               opacity: 1,
             }}
             transition={{
-              duration: 0.25,
+              duration: TRANSITION_DURATION / 1000,
               ease: [0.4, 0, 0.2, 1],
             }}
             className="flex-1 fix-mobile-flicker"
@@ -116,6 +138,7 @@ export const ProfileCarousel = ({
               onClick={handlePrev}
               disabled={isTransitioning}
               className="group/button flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Previous profile"
             >
               <IconArrowLeft className="h-4 w-4 md:h-5 md:w-5 text-black transition-transform duration-200 group-hover/button:rotate-12 dark:text-neutral-400" />
             </button>
@@ -123,6 +146,7 @@ export const ProfileCarousel = ({
               onClick={handleNext}
               disabled={isTransitioning}
               className="group/button flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Next profile"
             >
               <IconArrowRight className="h-4 w-4 md:h-5 md:w-5 text-black transition-transform duration-200 group-hover/button:-rotate-12 dark:text-neutral-400" />
             </button>

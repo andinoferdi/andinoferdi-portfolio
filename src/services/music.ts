@@ -12,80 +12,18 @@ const shuffleArray = <T>(array: T[]): T[] => {
   return shuffled;
 };
 
-export const getMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
-  const originalTracks: Track[] = [
-    {
-      id: "every-breath-you-take",
-      title: "Every Breath You Take",
-      artist: "The Police",
-      album: "Synchronicity",
-      duration: 0,
-      audioUrl: "/music/Every Breath You Take.mp3",
-      coverImage: "/music/images/Every Breath You Take.jpg",
-      genre: "Rock",
-    },
-    {
-      id: "i-want-it-that-way",
-      title: "I Want It That Way",
-      artist: "Backstreet Boys",
-      album: "Millennium",
-      duration: 0,
-      audioUrl: "/music/I Want It That Way.mp3",
-      coverImage: "/music/images/I Want It That Way.jpg",
-      genre: "Pop",
-    },
-    {
-      id: "basket-case",
-      title: "Basket Case",
-      artist: "Green Day",
-      album: "Dookie",
-      duration: 0,
-      audioUrl: "/music/Basket Case.mp3",
-      coverImage: "/music/images/Basket Case.jpg",
-      genre: "Punk",
-    },
-    {
-      id: "Viva-La-Vida",
-      title: "Viva La Vida",
-      artist: "Coldplay",
-      album: "Viva La Vida or Death and All His Friends",
-      duration: 0,
-      audioUrl: "/music/Viva La Vida.mp3",
-      coverImage: "/music/images/Viva La Vida.jpg",
-      genre: "Alternative Rock",
-    },
-    {
-      id: "Terbuang-Dalam-Waktu",
-      title: "Terbuang Dalam Waktu",
-      artist: "Barasuara",
-      album: "Jalaran Sadrah",
-      duration: 0,
-      audioUrl: "/music/Terbuang Dalam Waktu.mp3",
-      coverImage: "/music/images/Terbuang Dalam Waktu.jpg",
-      genre: "Alternative Rock",
-    },
-    {
-      id: "supermassive-black-hole",
-      title: "Supermassive Black Hole",
-      artist: "Muse",
-      album: "Black Holes and Revelations",
-      duration: 0,
-      audioUrl: "/music/Supermassive Black Hole.mp3",
-      coverImage: "/music/images/Supermassive Black Hole.jpg",
-      genre: "Alternative Rock",
-    },
-  ];
-
-  const shuffledTracks = shuffleArray(originalTracks);
+export const getMusicData = (shuffled = true): { tracks: Track[]; playlists: Playlist[] } => {
+  const originalTracks = getOriginalTracks();
+  const tracks = shuffled ? shuffleArray(originalTracks) : originalTracks;
 
   return {
-    tracks: shuffledTracks,
+    tracks,
     playlists: [
       {
         id: "default-playlist",
         name: "My Playlist",
-        tracks: shuffledTracks,
-        coverImage: shuffledTracks[0]?.coverImage,
+        tracks,
+        coverImage: tracks[0]?.coverImage,
       },
     ],
   };
@@ -252,19 +190,3 @@ export const getOriginalTracks = (): Track[] => [
   },
 ];
 
-export const getShuffledMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
-  const originalTracks = getOriginalTracks();
-
-
-  return {
-    tracks: originalTracks,
-    playlists: [
-      {
-        id: "default-playlist",
-        name: "My Playlist",
-        tracks: originalTracks,
-        coverImage: originalTracks[0]?.coverImage || "/music/images/Every Breath You Take.jpg",
-      },
-    ],
-  };
-};

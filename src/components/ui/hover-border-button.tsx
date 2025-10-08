@@ -1,10 +1,30 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 type Direction = "TOP" | "LEFT" | "BOTTOM" | "RIGHT";
+
+const GRADIENT_CONFIG = {
+  light: {
+    moving: {
+      TOP: "radial-gradient(20.7% 50% at 50% 0%, hsl(0, 0%, 0%) 0%, rgba(0, 0, 0, 0) 100%)",
+      LEFT: "radial-gradient(16.6% 43.1% at 0% 50%, hsl(0, 0%, 0%) 0%, rgba(0, 0, 0, 0) 100%)",
+      BOTTOM: "radial-gradient(20.7% 50% at 50% 100%, hsl(0, 0%, 0%) 0%, rgba(0, 0, 0, 0) 100%)",
+      RIGHT: "radial-gradient(16.2% 41.2% at 100% 50%, hsl(0, 0%, 0%) 0%, rgba(0, 0, 0, 0) 100%)",
+    },
+    highlight: "radial-gradient(75% 181.16% at 50% 50%, #3275F8 0%, rgba(0, 0, 0, 0) 100%)",
+  },
+  dark: {
+    moving: {
+      TOP: "radial-gradient(20.7% 50% at 50% 0%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
+      LEFT: "radial-gradient(16.6% 43.1% at 0% 50%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
+      BOTTOM: "radial-gradient(20.7% 50% at 50% 100%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
+      RIGHT: "radial-gradient(16.2% 41.2% at 100% 50%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
+    },
+    highlight: "radial-gradient(75% 181.16% at 50% 50%, #3275F8 0%, rgba(255, 255, 255, 0) 100%)",
+  },
+};
 
 export function HoverBorderGradient({
   children,
@@ -35,30 +55,6 @@ export function HoverBorderGradient({
     return directions[nextIndex];
   }, [clockwise]);
 
-  const movingMapDark: Record<Direction, string> = {
-    TOP: "radial-gradient(20.7% 50% at 50% 0%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
-    LEFT: "radial-gradient(16.6% 43.1% at 0% 50%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
-    BOTTOM:
-      "radial-gradient(20.7% 50% at 50% 100%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
-    RIGHT:
-      "radial-gradient(16.2% 41.199999999999996% at 100% 50%, hsl(0, 0%, 100%) 0%, rgba(255, 255, 255, 0) 100%)",
-  };
-
-  const movingMapLight: Record<Direction, string> = {
-    TOP: "radial-gradient(20.7% 50% at 50% 0%, hsl(0, 0%, 0%) 0%, rgba(0, 0, 0, 0) 100%)",
-    LEFT: "radial-gradient(16.6% 43.1% at 0% 50%, hsl(0, 0%, 0%) 0%, rgba(0, 0, 0, 0) 100%)",
-    BOTTOM:
-      "radial-gradient(20.7% 50% at 50% 100%, hsl(0, 0%, 0%) 0%, rgba(0, 0, 0, 0) 100%)",
-    RIGHT:
-      "radial-gradient(16.2% 41.199999999999996% at 100% 50%, hsl(0, 0%, 0%) 0%, rgba(0, 0, 0, 0) 100%)",
-  };
-
-  const highlightDark =
-    "radial-gradient(75% 181.15942028985506% at 50% 50%, #3275F8 0%, rgba(255, 255, 255, 0) 100%)";
-  
-  const highlightLight =
-    "radial-gradient(75% 181.15942028985506% at 50% 50%, #3275F8 0%, rgba(0, 0, 0, 0) 100%)";
-
   useEffect(() => {
     if (!hovered) {
       const interval = setInterval(() => {
@@ -67,11 +63,10 @@ export function HoverBorderGradient({
       return () => clearInterval(interval);
     }
   }, [hovered, duration, rotateDirection]);
+
   return (
     <Tag
-      onMouseEnter={() => {
-        setHovered(true);
-      }}
+      onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={cn(
         "relative flex rounded-full border content-center bg-black/20 hover:bg-black/10 transition duration-500 dark:bg-white/20 dark:hover:bg-white/10 items-center flex-col flex-nowrap gap-10 h-min justify-center overflow-visible p-px decoration-clone w-fit",
@@ -87,42 +82,43 @@ export function HoverBorderGradient({
       >
         {children}
       </div>
+      
+      {/* Light mode gradient */}
       <motion.div
-        className={cn(
-          "flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit] dark:hidden"
-        )}
+        className="flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit] dark:hidden"
         style={{
           filter: "blur(2px)",
           position: "absolute",
           width: "100%",
           height: "100%",
         }}
-        initial={{ background: movingMapLight[direction] }}
+        initial={{ background: GRADIENT_CONFIG.light.moving[direction] }}
         animate={{
           background: hovered
-            ? [movingMapLight[direction], highlightLight]
-            : movingMapLight[direction],
+            ? [GRADIENT_CONFIG.light.moving[direction], GRADIENT_CONFIG.light.highlight]
+            : GRADIENT_CONFIG.light.moving[direction],
         }}
         transition={{ ease: "linear", duration: duration ?? 1 }}
       />
+      
+      {/* Dark mode gradient */}
       <motion.div
-        className={cn(
-          "flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit] hidden dark:block"
-        )}
+        className="flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit] hidden dark:block"
         style={{
           filter: "blur(2px)",
           position: "absolute",
           width: "100%",
           height: "100%",
         }}
-        initial={{ background: movingMapDark[direction] }}
+        initial={{ background: GRADIENT_CONFIG.dark.moving[direction] }}
         animate={{
           background: hovered
-            ? [movingMapDark[direction], highlightDark]
-            : movingMapDark[direction],
+            ? [GRADIENT_CONFIG.dark.moving[direction], GRADIENT_CONFIG.dark.highlight]
+            : GRADIENT_CONFIG.dark.moving[direction],
         }}
         transition={{ ease: "linear", duration: duration ?? 1 }}
       />
+      
       <div className="bg-black dark:bg-white absolute z-1 flex-none inset-[2px] rounded-[100px]" />
     </Tag>
   );

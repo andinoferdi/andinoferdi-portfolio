@@ -14,8 +14,7 @@ import {
   NavbarLogo,
 } from "@/components/ui/resizable-navbar";
 import { ModeToggle } from "@/components/ui/mode-toggle";
-import { Github } from "lucide-react";
-import { IconBrandWhatsapp } from "@tabler/icons-react";
+import { SocialLinks } from "@/components/ui/social-links";
 
 export const DemoNavbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -36,24 +35,7 @@ export const DemoNavbar = () => {
         <NavbarLogo logo={logo} brandName={brandName} />
         <NavItems items={menuItems} onItemClick={handleItemClick} />
         <div className="flex items-center gap-2 relative z-30">
-          <a
-            href={socialLinks.github.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 rounded-full bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-colors relative z-30"
-            aria-label="GitHub"
-          >
-            <Github className="h-4 w-4" />
-          </a>
-          <a
-            href={socialLinks.whatsapp.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 rounded-full bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-colors relative z-30"
-            aria-label="WhatsApp"
-          >
-            <IconBrandWhatsapp className="h-4 w-4" />
-          </a>
+          <SocialLinks socialLinks={socialLinks} />
           <ModeToggle />
         </div>
       </NavBody>
@@ -61,24 +43,7 @@ export const DemoNavbar = () => {
         <MobileNavHeader>
           <NavbarLogo logo={logo} brandName={brandName} />
           <div className="flex items-center gap-2 relative z-30">
-            <a
-              href={socialLinks.github.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-full bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-colors relative z-30"
-              aria-label="GitHub"
-            >
-              <Github className="h-4 w-4" />
-            </a>
-            <a
-              href={socialLinks.whatsapp.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-full bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-colors relative z-30"
-              aria-label="WhatsApp"
-            >
-              <IconBrandWhatsapp className="h-4 w-4" />
-            </a>
+            <SocialLinks socialLinks={socialLinks} />
             <ModeToggle />
             <MobileNavToggle isOpen={isOpen} onClick={toggleMobileMenu} />
           </div>

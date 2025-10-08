@@ -5,6 +5,7 @@ import { HeroSection } from "./hero-section";
 import { ProjectsSection } from "./projects-section";
 import { ExperienceSection } from "./journey-section";
 import { PageTitle } from "@/components/page-title";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 export default function Home() {
   const data = getHomePageData();
@@ -12,9 +13,54 @@ export default function Home() {
   return (
     <>
       <PageTitle title="Andino Ferdiansah | Developer" />
-      <HeroSection data={data.hero} />
-      <ProjectsSection />
-      <ExperienceSection />
+      <ErrorBoundary
+        fallback={
+          <div className="py-20 px-4">
+            <div className="max-w-7xl mx-auto text-center">
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Hero section temporarily unavailable
+              </h2>
+              <p className="text-muted-foreground">
+                We&apos;re having trouble loading the hero section. Please refresh the page.
+              </p>
+            </div>
+          </div>
+        }
+      >
+        <HeroSection data={data.hero} />
+      </ErrorBoundary>
+      <ErrorBoundary
+        fallback={
+          <div className="py-20 px-4">
+            <div className="max-w-7xl mx-auto text-center">
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Projects section temporarily unavailable
+              </h2>
+              <p className="text-muted-foreground">
+                We&apos;re having trouble loading the projects. Please refresh the page.
+              </p>
+            </div>
+          </div>
+        }
+      >
+        <ProjectsSection />
+      </ErrorBoundary>
+      <ErrorBoundary
+        fallback={
+          <div className="py-20 px-4">
+            <div className="max-w-7xl mx-auto text-center">
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Experience section temporarily unavailable
+              </h2>
+              <p className="text-muted-foreground">
+                We&apos;re having trouble loading the experience timeline. Please refresh the page.
+              </p>
+            </div>
+          </div>
+        }
+      >
+        <ExperienceSection />
+      </ErrorBoundary>
     </>
   );
 }

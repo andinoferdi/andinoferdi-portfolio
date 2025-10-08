@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useId } from "react";
-
+import React, { useState, useEffect, useId, useRef } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +12,8 @@ export interface ContainerTextFlipProps {
   animationDuration?: number;
 }
 
+const TEXT_PADDING = 30; // Padding for text width calculation
+
 export function ContainerTextFlip({
   words = ["better", "modern", "beautiful", "awesome"],
   interval = 3000,
@@ -23,12 +24,11 @@ export function ContainerTextFlip({
   const id = useId();
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [width, setWidth] = useState(100);
-  const textRef = React.useRef(null);
+  const textRef = useRef<HTMLDivElement>(null);
 
   const updateWidthForWord = () => {
     if (textRef.current) {
-      // @ts-expect-error - scrollWidth is not in the type definition
-      const textWidth = textRef.current.scrollWidth + 30;
+      const textWidth = textRef.current.scrollWidth + TEXT_PADDING;
       setWidth(textWidth);
     }
   };
@@ -45,6 +45,8 @@ export function ContainerTextFlip({
     return () => clearInterval(intervalId);
   }, [words, interval]);
 
+  const currentWord = words[currentWordIndex];
+
   return (
     <motion.div
       layout
@@ -59,7 +61,7 @@ export function ContainerTextFlip({
         "dark:shadow-[inset_0_-1px_#10171e,inset_0_0_0_1px_hsla(205,89%,46%,.24),_0_4px_8px_#00000052]",
         className,
       )}
-      key={words[currentWordIndex]}
+      key={currentWord}
     >
       <motion.div
         transition={{
@@ -68,12 +70,12 @@ export function ContainerTextFlip({
         }}
         className={cn("inline-block", textClassName)}
         ref={textRef}
-        layoutId={`word-div-${words[currentWordIndex]}-${id}`}
+        layoutId={`word-div-${currentWord}-${id}`}
       >
         <motion.div className="inline-block">
-          {words[currentWordIndex].split("").map((letter, index) => (
+          {currentWord.split("").map((letter, index) => (
             <motion.span
-              key={index}
+              key={`${currentWord}-${index}`}
               initial={{
                 opacity: 0,
                 filter: "blur(10px)",

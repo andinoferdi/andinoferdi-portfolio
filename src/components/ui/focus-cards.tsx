@@ -30,12 +30,18 @@ export const Card = React.memo(
   }) => {
     const handleClick = () => {
       if (!canHover) {
-        // Mobile tap behavior
         if (tapped === index) {
-          setTapped(null) // Hide title if already showing
+          setTapped(null)
         } else {
-          setTapped(index) // Show title
+          setTapped(index)
         }
+      }
+    }
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault()
+        handleClick()
       }
     }
 
@@ -46,9 +52,14 @@ export const Card = React.memo(
         onMouseEnter={canHover ? () => setHovered(index) : undefined}
         onMouseLeave={canHover ? () => setHovered(null) : undefined}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="button"
+        aria-label={`View details for ${card.title}`}
         className={cn(
-          "rounded-lg relative bg-muted overflow-hidden aspect-square w-full transition-all duration-300 ease-out cursor-pointer border border-border/60",
+          "rounded-lg relative bg-muted overflow-hidden aspect-square w-full transition-all duration-300 ease-out cursor-pointer border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
           canHover && hovered !== null && hovered !== index && "blur-sm scale-[0.98]",
+          !canHover && tapped === index && "ring-2 ring-primary ring-offset-2",
         )}
         style={{ willChange: "transform, opacity" }}
       >
@@ -73,6 +84,13 @@ export const Card = React.memo(
             {card.title}
           </div>
         </div>
+        
+        {/* Mobile tap indicator */}
+        {!canHover && (
+          <div className="absolute top-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+            Tap to {tapped === index ? "hide" : "show"}
+          </div>
+        )}
       </div>
     )
   },
@@ -94,7 +112,11 @@ export function FocusCards({ cards }: { cards: CardData[] }) {
   }, [])
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-5xl mx-auto md:px-8 w-full">
+    <div 
+      className="grid grid-cols-1 md:grid-cols-3 gap-10 max-w-5xl mx-auto md:px-8 w-full"
+      role="grid"
+      aria-label="Gallery of images"
+    >
       {cards.map((card, index) => (
         <Card 
           key={card.id} 
