@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef, useEffect, useMemo } from "react"
+import { useState, useRef, useEffect, useMemo, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Play, Pause, SkipBack, SkipForward, Volume2, ChevronUp, ChevronDown } from "lucide-react"
 import Image from "next/image"
@@ -35,7 +35,7 @@ export const MiniPlayer = () => {
   const shuffledPlaylist = useMemo(() => {
     const tracks = [...getOriginalTracks()]
     for (let i = tracks.length - 1; i > 0; i--) {
-      const j = (Math.random() * (i + 1)) | 0
+      const j = Math.floor(Math.random() * (i + 1))
       ;[tracks[i], tracks[j]] = [tracks[j], tracks[i]]
     }
     return tracks
@@ -91,13 +91,19 @@ export const MiniPlayer = () => {
     const a = audioRef.current
     if (!a || !currentTrack) return
 
-    pendingReadyRef.current = true
-
-    a.pause()
-    try {
+    // Clear any existing timeouts/intervals
+    const cleanup = () => {
+      a.pause()
       a.currentTime = 0
-    } catch {}
+      a.removeAttribute("src")
+      a.load()
+    }
 
+    // Force immediate cleanup for first track
+    cleanup()
+
+    // Set new source
+    a.src = currentTrack.audioUrl
     a.load()
 
     const ensureZeroThenPlay = () => {
@@ -129,19 +135,29 @@ export const MiniPlayer = () => {
       ensureZeroThenPlay()
     }
 
+    const onLoadedData = () => {
+      a.removeEventListener("loadeddata", onLoadedData)
+      if (a.duration && a.duration > 0) {
+        setPlayerState((prev) => ({ ...prev, duration: a.duration }))
+      }
+    }
+
     if (a.readyState >= 3) {
       onCanPlay()
     } else {
       a.addEventListener("canplay", onCanPlay, { once: true })
+      a.addEventListener("loadeddata", onLoadedData, { once: true })
     }
 
     return () => {
       a.removeEventListener("canplay", onCanPlay)
+      a.removeEventListener("loadeddata", onLoadedData)
+      cleanup()
     }
   }, [currentTrack])
 
   const [primed, setPrimed] = useState(false)
-  const handlePlayPause = () => {
+  const handlePlayPause = useCallback(() => {
     const a = audioRef.current
     if (!a) return
 
@@ -162,12 +178,20 @@ export const MiniPlayer = () => {
     }
 
     setPlayerState((prev) => ({ ...prev, isPlaying: !prev.isPlaying }))
-  }
+  }, [playerState.isPlaying, primed])
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     setPlayerState((prev) => {
       const nextIndex = (prev.currentTrackIndex + 1) % prev.playlist.length
       const nextTrack = prev.playlist[nextIndex]
+      
+      // Force audio cleanup
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
+        audioRef.current.load()
+      }
+      
       return {
         ...prev,
         currentTrackIndex: nextIndex,
@@ -177,10 +201,10 @@ export const MiniPlayer = () => {
         isPlaying: true,
       }
     })
-  }
+  }, [])
 
   const PREV_RESTART_THRESHOLD = 3
-  const handlePrevious = () => {
+  const handlePrevious = useCallback(() => {
     setPlayerState((prev) => {
       const t = prev.currentTime || 0
       if (t > PREV_RESTART_THRESHOLD) {
@@ -191,8 +215,17 @@ export const MiniPlayer = () => {
         }
         return { ...prev, currentTime: 0, isPlaying: true }
       }
+      
       const prevIndex = prev.currentTrackIndex === 0 ? prev.playlist.length - 1 : prev.currentTrackIndex - 1
       const prevTrack = prev.playlist[prevIndex]
+      
+      // Force audio cleanup
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
+        audioRef.current.load()
+      }
+      
       return {
         ...prev,
         currentTrackIndex: prevIndex,
@@ -202,7 +235,7 @@ export const MiniPlayer = () => {
         isPlaying: true,
       }
     })
-  }
+  }, [])
 
   const handleVolumeChange = (newVolume: number) => {
     const validatedVolume = validateVolume(newVolume)

@@ -4,8 +4,12 @@ const durationValueCache = new Map<string, number>();
 const durationPromiseCache = new Map<string, Promise<number>>(); 
 
 const shuffleArray = <T>(array: T[]): T[] => {
-
-  return [...array];
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 };
 
 export const getMusicData = (): { tracks: Track[]; playlists: Playlist[] } => {
