@@ -69,8 +69,8 @@ export const ProfileCarousel = ({
     () => profiles.map((p, i) => getJitter(p?.src || String(i), i)),
     [profiles]
   );
-  const amplitude = isNarrow ? 0.6 : 1;
-  const angleAmp = isNarrow ? 0.8 : 1;
+  const amplitude = isNarrow ? 0.4 : 1;
+  const angleAmp = isNarrow ? 0.6 : 1;
 
   const handleNext = useCallback(() => {
     setActive((prev) => (prev + 1) % profiles.length);
@@ -92,7 +92,7 @@ export const ProfileCarousel = ({
     <div className="mx-auto max-w-sm px-4 py-12 md:py-20 font-sans antialiased md:max-w-4xl md:px-8 lg:px-12">
       <div className="relative grid grid-cols-1 gap-10 md:grid-cols-2 md:gap-20">
         <div>
-          <div className="relative h-72 md:h-80 w-full max-w-[20rem] md:max-w-none mx-auto transform-gpu isolate overflow-visible">
+          <div className="relative h-72 md:h-80 w-full max-w-[18rem] md:max-w-none mx-auto transform-gpu isolate overflow-hidden">
             {profiles.map((profile, index) => {
               const j = jitters[index];
               const offX = index === active ? 0 : Math.round(j.x * amplitude);
@@ -124,7 +124,7 @@ export const ProfileCarousel = ({
                     alt={profile.name}
                     width={500}
                     height={500}
-                    sizes="(max-width: 768px) 90vw, 50vw"
+                    sizes="(max-width: 768px) 18rem, 50vw"
                     priority={index === active}
                     draggable={false}
                     className="h-full w-full rounded-3xl object-cover object-center"
