@@ -100,3 +100,32 @@
     @apply bg-background text-foreground min-h-screen;
   }
 }
+
+@layer utilities {
+  /* Mobile flickering prevention */
+  .fix-mobile-flicker {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-perspective: 1000px;
+    perspective: 1000px;
+    transform: translateZ(0);
+    will-change: transform, opacity;
+    contain: layout paint style;
+    isolation: isolate;
+  }
+  
+  /* GPU acceleration for animations */
+  .gpu-accelerated {
+    transform: translate3d(0, 0, 0);
+    -webkit-transform: translate3d(0, 0, 0);
+    will-change: transform, opacity;
+  }
+  
+  /* Smooth image transitions */
+  .image-container {
+    position: relative;
+    overflow: hidden;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+}
