@@ -262,9 +262,9 @@ export const MiniPlayer = () => {
         initial={{ x: 400, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40"
+        className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40 fix-mobile-flicker"
       >
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="popLayout">
           {!isExpanded ? (
             <motion.div
               key="mini"
@@ -272,11 +272,11 @@ export const MiniPlayer = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer"
+              className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer fix-mobile-flicker gpu-accelerated"
               onClick={toggleExpanded}
             >
                 <div className="flex items-center gap-1.5 sm:gap-2">
-                  <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden">
+                  <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden image-container">
                     <Image
                       src={currentTrack.coverImage || "/placeholder.svg"}
                       alt={currentTrack.title}
@@ -284,7 +284,7 @@ export const MiniPlayer = () => {
                       height={40}
                       sizes="(max-width: 640px) 32px, 40px"
                       priority={true}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover fix-mobile-flicker"
                       onError={() => {
                         console.warn(`Failed to load image: ${currentTrack.coverImage}`)
                       }}
@@ -333,7 +333,7 @@ export const MiniPlayer = () => {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56"
+                className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56 fix-mobile-flicker gpu-accelerated"
               >
                 <div className="flex items-center justify-between mb-2 sm:mb-3">
                   <h3 className="font-bold text-sm sm:text-base text-foreground">Now Playing</h3>
@@ -346,7 +346,7 @@ export const MiniPlayer = () => {
                 </div>
 
                 <div className="relative w-full h-36 sm:h-40 md:h-48 rounded-xl overflow-hidden mb-2 sm:mb-3">
-                  <div className="relative w-full h-full rounded-xl overflow-hidden">
+                  <div className="relative w-full h-full rounded-xl overflow-hidden image-container">
                     <Image
                       src={currentTrack.coverImage || "/placeholder.svg"}
                       alt={currentTrack.title}
@@ -354,7 +354,7 @@ export const MiniPlayer = () => {
                       height={192}
                       sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
                       priority={true}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-contain fix-mobile-flicker"
                       onError={() => {
                         console.warn(`Failed to load image: ${currentTrack.coverImage}`)
                       }}

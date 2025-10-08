@@ -3,7 +3,7 @@
 import { IconArrowLeft, IconArrowRight } from "@tabler/icons-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 
 type Profile = {
   quote: string;
