@@ -1,7 +1,9 @@
 "use client";
 
+import type React from "react";
+
 import { useState, useRef, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import {
   Play,
   Pause,
@@ -17,7 +19,27 @@ import {
   formatTime,
   getDefaultVolume,
 } from "@/services/music";
-import { type MusicPlayerState } from "@/types/music";
+import type { MusicPlayerState } from "@/types/music";
+
+// Utility functions for volume management
+const validateVolume = (volume: number): number => {
+  if (isNaN(volume) || volume < 0) return 0;
+  if (volume > 1) return 1;
+  return volume;
+};
+
+const getStoredVolume = (): number => {
+  try {
+    const saved = localStorage.getItem("mp_volume");
+    if (saved !== null) {
+      const volume = Number.parseFloat(saved);
+      return validateVolume(volume);
+    }
+  } catch (error) {
+    console.warn("Failed to load volume from localStorage:", error);
+  }
+  return getDefaultVolume();
+};
 
 export const MiniPlayer = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -36,7 +58,7 @@ export const MiniPlayer = () => {
     isPlaying: false,
     currentTime: 0,
     duration: 0,
-    volume: getDefaultVolume(),
+    volume: getStoredVolume(),
     isShuffled: true,
     repeatMode: "none",
     playlist: shuffledPlaylist,
@@ -47,21 +69,17 @@ export const MiniPlayer = () => {
   const { currentTrack, isPlaying, currentTime, duration, volume, isExpanded } =
     playerState;
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("mp_volume");
-      if (saved !== null) {
-        const v = parseFloat(saved);
-        if (!Number.isNaN(v)) setPlayerState((p) => ({ ...p, volume: v }));
-      }
-    } catch {}
-  }, []);
+  // Remove this useEffect as we now handle volume initialization in useState
 
   useEffect(() => {
     try {
       localStorage.setItem("mp_volume", String(volume));
-    } catch {}
-    if (audioRef.current) audioRef.current.volume = volume;
+    } catch (error) {
+      console.warn("Failed to save volume to localStorage:", error);
+    }
+    if (audioRef.current) {
+      audioRef.current.volume = validateVolume(volume);
+    }
   }, [volume]);
 
   const pendingReadyRef = useRef(false);
@@ -203,7 +221,8 @@ export const MiniPlayer = () => {
   };
 
   const handleVolumeChange = (newVolume: number) => {
-    setPlayerState((prev) => ({ ...prev, volume: newVolume }));
+    const validatedVolume = validateVolume(newVolume);
+    setPlayerState((prev) => ({ ...prev, volume: validatedVolume }));
   };
 
   const handleTimeUpdate = () => {
@@ -215,22 +234,16 @@ export const MiniPlayer = () => {
     }
   };
 
-  const [isLoadingDuration, setIsLoadingDuration] = useState(false);
   const handleLoadedMetadata = () => {
     if (!audioRef.current) return;
     const audioDuration = audioRef.current.duration;
     if (audioDuration && audioDuration > 0) {
       setPlayerState((prev) => ({ ...prev, duration: audioDuration }));
     }
-    setIsLoadingDuration(false);
   };
 
-  useEffect(() => {
-    setIsLoadingDuration(true);
-  }, [currentTrack]);
-
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = parseFloat(e.target.value);
+    const newTime = Number.parseFloat(e.target.value);
     if (audioRef.current) {
       try {
         audioRef.current.currentTime = newTime;
@@ -264,219 +277,232 @@ export const MiniPlayer = () => {
         onEnded={handleNext}
       />
 
-      <motion.div
-        initial={{ x: 400, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40"
-      >
-        <AnimatePresence mode="wait">
-          {!isExpanded ? (
-            <motion.div
-              key="mini"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer"
-              onClick={toggleExpanded}
-            >
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden">
-                  <Image
-                    src={currentTrack.coverImage}
-                    alt={currentTrack.title}
-                    width={40}
-                    height={40}
-                    sizes="(max-width: 640px) 32px, 40px"
-                    priority={true}
-                    className="w-full h-full object-cover"
-                    onError={() => {
-                      console.warn(
-                        `Failed to load image: ${currentTrack.coverImage}`
-                      );
-                    }}
-                  />
-                  {isPlaying && (
-                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                      <div className="flex items-center gap-0.5 audio-visualizer">
-                        <div
-                          className="w-0.5 h-2 bg-white rounded-full"
-                          style={{ animationDelay: "0ms" }}
-                        />
-                        <div
-                          className="w-0.5 h-3 bg-white rounded-full"
-                          style={{ animationDelay: "150ms" }}
-                        />
-                        <div
-                          className="w-0.5 h-1.5 bg-white rounded-full"
-                          style={{ animationDelay: "300ms" }}
-                        />
-                        <div
-                          className="w-0.5 h-2.5 bg-white rounded-full"
-                          style={{ animationDelay: "450ms" }}
-                        />
-                        <div
-                          className="w-0.5 h-1 bg-white rounded-full"
-                          style={{ animationDelay: "600ms" }}
-                        />
+      <LayoutGroup>
+        {/* Keep audio element unchanged */}
+        <motion.div
+          layout
+          initial={{ x: 400, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40 fixFlicker"
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {!isExpanded ? (
+              <motion.div
+                key="mini"
+                layout
+                layoutId="player-card"
+                initial={{ opacity: 0.001, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0.001, scale: 0.98 }}
+                transition={{
+                  layout: { duration: 0.25, ease: "easeInOut" },
+                  duration: 0.2,
+                }}
+                className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer fixFlicker"
+                onClick={toggleExpanded}
+              >
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  {/* Use shared layoutId for cover to avoid image remount/flicker */}
+                  <motion.div
+                    layoutId="cover"
+                    className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden fixFlicker"
+                  >
+                    <Image
+                      src={currentTrack.coverImage || "/placeholder.svg"}
+                      alt={currentTrack.title}
+                      width={40}
+                      height={40}
+                      sizes="(max-width: 640px) 32px, 40px"
+                      priority={true}
+                      className="w-full h-full object-cover"
+                      onError={() => {
+                        console.warn(
+                          `Failed to load image: ${currentTrack.coverImage}`
+                        );
+                      }}
+                    />
+                    {isPlaying && (
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                        <div className="flex items-center gap-0.5 audio-visualizer">
+                          <div
+                            className="w-0.5 h-2 bg-white rounded-full"
+                            style={{ animationDelay: "0ms" }}
+                          />
+                          <div
+                            className="w-0.5 h-3 bg-white rounded-full"
+                            style={{ animationDelay: "150ms" }}
+                          />
+                          <div
+                            className="w-0.5 h-1.5 bg-white rounded-full"
+                            style={{ animationDelay: "300ms" }}
+                          />
+                          <div
+                            className="w-0.5 h-2.5 bg-white rounded-full"
+                            style={{ animationDelay: "450ms" }}
+                          />
+                          <div
+                            className="w-0.5 h-1 bg-white rounded-full"
+                            style={{ animationDelay: "600ms" }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </motion.div>
+
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-xs text-foreground truncate">
+                      {currentTrack.title}
+                    </h4>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {currentTrack.artist}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayPause();
+                      }}
+                      className="p-2 rounded-full bg-foreground text-background hover:bg-foreground/80 transition-colors"
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-background" />
+                      ) : (
+                        <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-background" />
+                      )}
+                    </button>
+
+                    <ChevronUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-muted-foreground" />
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="expanded"
+                layout
+                layoutId="player-card"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56 fixFlicker"
+              >
+                <div className="flex items-center justify-between mb-2 sm:mb-3">
+                  <h3 className="font-bold text-sm sm:text-base text-foreground">
+                    Now Playing
+                  </h3>
+                  <button
+                    onClick={toggleExpanded}
+                    className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
+                  </button>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-xs text-foreground truncate">
+                <div className="relative w-full h-36 sm:h-40 md:h-48 rounded-xl overflow-hidden mb-2 sm:mb-3">
+                  <motion.div
+                    layoutId="cover"
+                    className="relative w-full h-full rounded-xl overflow-hidden fixFlicker"
+                  >
+                    <Image
+                      src={currentTrack.coverImage || "/placeholder.svg"}
+                      alt={currentTrack.title}
+                      width={224}
+                      height={192}
+                      sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
+                      priority={true}
+                      className="w-full h-full object-contain"
+                      onError={() => {
+                        console.warn(
+                          `Failed to load image: ${currentTrack.coverImage}`
+                        );
+                      }}
+                    />
+                  </motion.div>
+                </div>
+
+                <div className="text-center mb-2 sm:mb-3">
+                  <h4 className="font-bold text-sm sm:text-base text-foreground">
                     {currentTrack.title}
                   </h4>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-xs text-muted-foreground">
                     {currentTrack.artist}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePlayPause();
-                    }}
-                    className="p-2 rounded-full bg-foreground text-background hover:bg-foreground/80 transition-colors"
-                  >
-                    {isPlaying ? (
-                      <Pause className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-background" />
-                    ) : (
-                      <Play className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-background" />
-                    )}
-                  </button>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{formatTime(currentTime)}</span>
+                    <span>{formatTime(duration)}</span>
+                  </div>
 
-                  <ChevronUp className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-muted-foreground" />
-                </div>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="expanded"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56"
-            >
-              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <h3 className="font-bold text-sm sm:text-base text-foreground">
-                  Now Playing
-                </h3>
-                <button
-                  onClick={toggleExpanded}
-                  className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                >
-                  <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
-                </button>
-              </div>
-
-              <div className="relative w-full h-36 sm:h-40 md:h-48 rounded-xl overflow-hidden mb-2 sm:mb-3">
-                <Image
-                  src={currentTrack.coverImage}
-                  alt={currentTrack.title}
-                  width={224}
-                  height={192}
-                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
-                  priority={true}
-                  className="w-full h-full object-contain"
-                  onError={() => {
-                    console.warn(
-                      `Failed to load image: ${currentTrack.coverImage}`
-                    );
-                  }}
-                />
-              </div>
-
-              <div className="text-center mb-2 sm:mb-3">
-                <h4 className="font-bold text-sm sm:text-base text-foreground">
-                  {currentTrack.title}
-                </h4>
-                <p className="text-xs text-muted-foreground">
-                  {currentTrack.artist}
-                </p>
-              </div>
-
-              <div className="space-y-1.5 sm:space-y-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{formatTime(currentTime)}</span>
-                  <span>
-                    {isLoadingDuration ? (
-                      <span className="animate-pulse">--:--</span>
-                    ) : (
-                      formatTime(duration)
-                    )}
-                  </span>
-                </div>
-
-                <input
-                  type="range"
-                  min="0"
-                  max={duration || 0}
-                  value={currentTime}
-                  onChange={handleSeek}
-                  disabled={isLoadingDuration || duration === 0}
-                  className="w-full h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer progress-slider disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${progressPercent}%, rgba(150, 150, 150, 0.3) ${progressPercent}%, rgba(150, 150, 150, 0.3) 100%)`,
-                  }}
-                />
-
-                <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-                  <button
-                    onClick={handlePrevious}
-                    className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-foreground" />
-                  </button>
-
-                  <button
-                    onClick={handlePlayPause}
-                    className="p-1.5 sm:p-2 rounded-full bg-foreground hover:bg-foreground/90 transition-colors"
-                  >
-                    {isPlaying ? (
-                      <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-background" />
-                    ) : (
-                      <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-background ml-0.5" />
-                    )}
-                  </button>
-
-                  <button
-                    onClick={handleNext}
-                    className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-foreground" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <Volume2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
                   <input
                     type="range"
                     min="0"
-                    max="1"
-                    step="0.01"
-                    value={volume}
-                    onChange={(e) =>
-                      handleVolumeChange(parseFloat(e.target.value))
-                    }
-                    className="flex-1 h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer volume-slider"
+                    max={duration || 0}
+                    value={currentTime}
+                    onChange={handleSeek}
+                    className="w-full h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer progress-slider disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
-                      background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${volumePercent}%, rgba(150, 150, 150, 0.3) ${volumePercent}%, rgba(150, 150, 150, 0.3) 100%)`,
+                      background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${progressPercent}%, rgba(150, 150, 150, 0.3) ${progressPercent}%, rgba(150, 150, 150, 0.3) 100%)`,
                     }}
                   />
-                  <span className="text-xs text-muted-foreground w-6 sm:w-8">
-                    {Math.round(volume * 100)}%
-                  </span>
+
+                  <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                    <button
+                      onClick={handlePrevious}
+                      className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-foreground" />
+                    </button>
+
+                    <button
+                      onClick={handlePlayPause}
+                      className="p-1.5 sm:p-2 rounded-full bg-foreground hover:bg-foreground/90 transition-colors"
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-background" />
+                      ) : (
+                        <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-background ml-0.5" />
+                      )}
+                    </button>
+
+                    <button
+                      onClick={handleNext}
+                      className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-foreground" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1 sm:gap-1.5">
+                    <Volume2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={volume}
+                      onChange={(e) =>
+                        handleVolumeChange(Number.parseFloat(e.target.value))
+                      }
+                      className="flex-1 h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer volume-slider"
+                      style={{
+                        background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${volumePercent}%, rgba(150, 150, 150, 0.3) ${volumePercent}%, rgba(150, 150, 150, 0.3) 100%)`,
+                      }}
+                    />
+                    <span className="text-xs text-muted-foreground w-6 sm:w-8">
+                      {Math.round(volume * 100)}%
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </LayoutGroup>
 
       <style jsx>{`
         @keyframes audioWave {
@@ -531,6 +557,11 @@ export const MiniPlayer = () => {
         .progress-slider:disabled {
           opacity: 0.5;
           cursor: not-allowed;
+        }
+        .fixFlicker {
+          backface-visibility: hidden;
+          transform: translateZ(0);
+          will-change: transform, opacity;
         }
       `}</style>
     </>
