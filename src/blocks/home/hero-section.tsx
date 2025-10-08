@@ -1,11 +1,9 @@
 "use client";
 
-import type React from "react";
-
 import { ContainerTextFlip } from "@/components/ui/container-text-flip";
 import { ProfileCarousel } from "@/components/ui/profile-carousel";
 import { HoverBorderGradient } from "@/components/ui/hover-border-button";
-import type { HeroData } from "@/types/hero";
+import { type HeroData } from "@/types/hero";
 import { getProfileData } from "@/services/profile";
 import { Download } from "lucide-react";
 
@@ -32,7 +30,10 @@ export const HeroSection = ({ data }: HeroSectionProps) => {
           </div>
         </div>
         <div className="mt-16">
-          <ProfileCarousel profiles={profileData.profiles} />
+          <ProfileCarousel 
+            profiles={profileData.profiles}
+            autoplay={true}
+          />
         </div>
         <div className="mt-12 flex justify-center">
           <HoverBorderGradient

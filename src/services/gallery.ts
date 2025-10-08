@@ -197,4 +197,3 @@ export const searchGalleryItems = (query: string): GalleryItem[] => {
     item.title.toLowerCase().includes(lowercaseQuery) 
   );
 };
-

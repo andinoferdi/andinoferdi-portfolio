@@ -1,57 +1,45 @@
-"use client";
+"use client"
 
-import type React from "react";
+import type React from "react"
 
-import { useState, useRef, useEffect, useMemo } from "react";
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
-import {
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  Volume2,
-  ChevronUp,
-  ChevronDown,
-} from "lucide-react";
-import Image from "next/image";
-import {
-  getOriginalTracks,
-  formatTime,
-  getDefaultVolume,
-} from "@/services/music";
-import type { MusicPlayerState } from "@/types/music";
+import { useState, useRef, useEffect, useMemo } from "react"
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
+import { Play, Pause, SkipBack, SkipForward, Volume2, ChevronUp, ChevronDown } from "lucide-react"
+import Image from "next/image"
+import { getOriginalTracks, formatTime, getDefaultVolume } from "@/services/music"
+import type { MusicPlayerState } from "@/types/music"
 
 // Utility functions for volume management
 const validateVolume = (volume: number): number => {
-  if (isNaN(volume) || volume < 0) return 0;
-  if (volume > 1) return 1;
-  return volume;
-};
+  if (isNaN(volume) || volume < 0) return 0
+  if (volume > 1) return 1
+  return volume
+}
 
 const getStoredVolume = (): number => {
   try {
-    const saved = localStorage.getItem("mp_volume");
+    const saved = localStorage.getItem("mp_volume")
     if (saved !== null) {
-      const volume = Number.parseFloat(saved);
-      return validateVolume(volume);
+      const volume = Number.parseFloat(saved)
+      return validateVolume(volume)
     }
   } catch (error) {
-    console.warn("Failed to load volume from localStorage:", error);
+    console.warn("Failed to load volume from localStorage:", error)
   }
-  return getDefaultVolume();
-};
+  return getDefaultVolume()
+}
 
 export const MiniPlayer = () => {
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null)
 
   const shuffledPlaylist = useMemo(() => {
-    const tracks = [...getOriginalTracks()];
+    const tracks = [...getOriginalTracks()]
     for (let i = tracks.length - 1; i > 0; i--) {
-      const j = (Math.random() * (i + 1)) | 0;
-      [tracks[i], tracks[j]] = [tracks[j], tracks[i]];
+      const j = (Math.random() * (i + 1)) | 0
+      ;[tracks[i], tracks[j]] = [tracks[j], tracks[i]]
     }
-    return tracks;
-  }, []);
+    return tracks
+  }, [])
 
   const [playerState, setPlayerState] = useState<MusicPlayerState>(() => ({
     currentTrack: shuffledPlaylist[0] || null,
@@ -64,123 +52,122 @@ export const MiniPlayer = () => {
     playlist: shuffledPlaylist,
     currentTrackIndex: 0,
     isExpanded: false,
-  }));
+  }))
 
-  const { currentTrack, isPlaying, currentTime, duration, volume, isExpanded } =
-    playerState;
+  const { currentTrack, isPlaying, currentTime, duration, volume, isExpanded } = playerState
 
   // Remove this useEffect as we now handle volume initialization in useState
 
   useEffect(() => {
     try {
-      localStorage.setItem("mp_volume", String(volume));
+      localStorage.setItem("mp_volume", String(volume))
     } catch (error) {
-      console.warn("Failed to save volume to localStorage:", error);
+      console.warn("Failed to save volume to localStorage:", error)
     }
     if (audioRef.current) {
-      audioRef.current.volume = validateVolume(volume);
+      audioRef.current.volume = validateVolume(volume)
     }
-  }, [volume]);
+  }, [volume])
 
-  const pendingReadyRef = useRef(false);
-  const isPlayingRef = useRef(isPlaying);
-
-  useEffect(() => {
-    isPlayingRef.current = isPlaying;
-  }, [isPlaying]);
+  const pendingReadyRef = useRef(false)
+  const isPlayingRef = useRef(isPlaying)
 
   useEffect(() => {
-    const a = audioRef.current;
-    if (!a) return;
-    if (pendingReadyRef.current) return;
+    isPlayingRef.current = isPlaying
+  }, [isPlaying])
+
+  useEffect(() => {
+    const a = audioRef.current
+    if (!a) return
+    if (pendingReadyRef.current) return
     if (isPlayingRef.current) {
-      a.play().catch(() => {});
+      a.play().catch(() => {})
     } else {
-      a.pause();
+      a.pause()
     }
-  }, [isPlaying]);
+  }, [isPlaying])
 
   useEffect(() => {
-    const a = audioRef.current;
-    if (!a || !currentTrack) return;
+    const a = audioRef.current
+    if (!a || !currentTrack) return
 
-    pendingReadyRef.current = true;
+    pendingReadyRef.current = true
 
-    a.pause();
+    a.pause()
     try {
-      a.currentTime = 0;
+      a.currentTime = 0
     } catch {}
 
-    a.load();
+    a.load()
 
     const ensureZeroThenPlay = () => {
       const afterSeek = () => {
-        a.removeEventListener("seeked", afterSeek);
-        pendingReadyRef.current = false;
+        a.removeEventListener("seeked", afterSeek)
+        pendingReadyRef.current = false
         if (isPlayingRef.current) {
-          a.play().catch(() => {});
+          a.play().catch(() => {})
         }
-      };
+      }
 
       if (a.currentTime > 0.01) {
-        a.addEventListener("seeked", afterSeek, { once: true });
+        a.addEventListener("seeked", afterSeek, { once: true })
         try {
-          a.currentTime = 0;
+          a.currentTime = 0
         } catch {
-          afterSeek();
+          afterSeek()
         }
       } else {
-        afterSeek();
+        afterSeek()
       }
-    };
+    }
 
     const onCanPlay = () => {
-      a.removeEventListener("canplay", onCanPlay);
+      a.removeEventListener("canplay", onCanPlay)
       if (a.duration && a.duration > 0) {
-        setPlayerState((prev) => ({ ...prev, duration: a.duration }));
+        setPlayerState((prev) => ({ ...prev, duration: a.duration }))
       }
-      ensureZeroThenPlay();
-    };
+      ensureZeroThenPlay()
+    }
 
     if (a.readyState >= 3) {
-      onCanPlay();
+      onCanPlay()
     } else {
-      a.addEventListener("canplay", onCanPlay, { once: true });
+      a.addEventListener("canplay", onCanPlay, { once: true })
     }
 
     return () => {
-      a.removeEventListener("canplay", onCanPlay);
-    };
-  }, [currentTrack]);
+      a.removeEventListener("canplay", onCanPlay)
+    }
+  }, [currentTrack])
 
-  const [primed, setPrimed] = useState(false);
+  const [primed, setPrimed] = useState(false)
   const handlePlayPause = () => {
-    const a = audioRef.current;
-    if (!a) return;
+    const a = audioRef.current
+    if (!a) return
 
     if (!playerState.isPlaying && !primed) {
       a.play()
         .then(() => {
-          a.pause();
+          a.pause()
           try {
-            a.currentTime = 0;
+            a.currentTime = 0
           } catch {}
-          setPrimed(true);
-          setPlayerState((prev) => ({ ...prev, isPlaying: true }));
+          setPrimed(true)
+          setPlayerState((prev) => ({ ...prev, isPlaying: true }))
         })
         .catch(() => {
-          setPlayerState((prev) => ({ ...prev, isPlaying: true }));
-        });
-      return;
+          setPlayerState((prev) => ({ ...prev, isPlaying: true }))
+        })
+      return
     }
 
-    setPlayerState((prev) => ({ ...prev, isPlaying: !prev.isPlaying }));
-  };
+    setPlayerState((prev) => ({ ...prev, isPlaying: !prev.isPlaying }))
+  }
 
   const handleNext = () => {
     setPlayerState((prev) => {
-      const nextIndex = (prev.currentTrackIndex + 1) % prev.playlist.length;
-      const nextTrack = prev.playlist[nextIndex];
+      const nextIndex = (prev.currentTrackIndex + 1) % prev.playlist.length
+      const nextTrack = prev.playlist[nextIndex]
       return {
         ...prev,
         currentTrackIndex: nextIndex,
@@ -188,27 +175,24 @@ export const MiniPlayer = () => {
         currentTime: 0,
         duration: 0,
         isPlaying: true,
-      };
-    });
-  };
+      }
+    })
+  }
 
-  const PREV_RESTART_THRESHOLD = 3;
+  const PREV_RESTART_THRESHOLD = 3
   const handlePrevious = () => {
     setPlayerState((prev) => {
-      const t = prev.currentTime || 0;
+      const t = prev.currentTime || 0
       if (t > PREV_RESTART_THRESHOLD) {
         if (audioRef.current) {
           try {
-            audioRef.current.currentTime = 0;
+            audioRef.current.currentTime = 0
           } catch {}
         }
-        return { ...prev, currentTime: 0, isPlaying: true };
+        return { ...prev, currentTime: 0, isPlaying: true }
       }
-      const prevIndex =
-        prev.currentTrackIndex === 0
-          ? prev.playlist.length - 1
-          : prev.currentTrackIndex - 1;
-      const prevTrack = prev.playlist[prevIndex];
+      const prevIndex = prev.currentTrackIndex === 0 ? prev.playlist.length - 1 : prev.currentTrackIndex - 1
+      const prevTrack = prev.playlist[prevIndex]
       return {
         ...prev,
         currentTrackIndex: prevIndex,
@@ -216,53 +200,50 @@ export const MiniPlayer = () => {
         currentTime: 0,
         duration: 0,
         isPlaying: true,
-      };
-    });
-  };
+      }
+    })
+  }
 
   const handleVolumeChange = (newVolume: number) => {
-    const validatedVolume = validateVolume(newVolume);
-    setPlayerState((prev) => ({ ...prev, volume: validatedVolume }));
-  };
+    const validatedVolume = validateVolume(newVolume)
+    setPlayerState((prev) => ({ ...prev, volume: validatedVolume }))
+  }
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       setPlayerState((prev) => ({
         ...prev,
         currentTime: audioRef.current?.currentTime || 0,
-      }));
+      }))
     }
-  };
+  }
 
   const handleLoadedMetadata = () => {
-    if (!audioRef.current) return;
-    const audioDuration = audioRef.current.duration;
+    if (!audioRef.current) return
+    const audioDuration = audioRef.current.duration
     if (audioDuration && audioDuration > 0) {
-      setPlayerState((prev) => ({ ...prev, duration: audioDuration }));
+      setPlayerState((prev) => ({ ...prev, duration: audioDuration }))
     }
-  };
+  }
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = Number.parseFloat(e.target.value);
+    const newTime = Number.parseFloat(e.target.value)
     if (audioRef.current) {
       try {
-        audioRef.current.currentTime = newTime;
+        audioRef.current.currentTime = newTime
       } catch {}
-      setPlayerState((prev) => ({ ...prev, currentTime: newTime }));
+      setPlayerState((prev) => ({ ...prev, currentTime: newTime }))
     }
-  };
+  }
 
   const toggleExpanded = () => {
-    setPlayerState((prev) => ({ ...prev, isExpanded: !prev.isExpanded }));
-  };
+    setPlayerState((prev) => ({ ...prev, isExpanded: !prev.isExpanded }))
+  }
 
-  const progressPercent = useMemo(
-    () => (duration ? (currentTime / duration) * 100 : 0),
-    [currentTime, duration]
-  );
-  const volumePercent = useMemo(() => volume * 100, [volume]);
+  const progressPercent = useMemo(() => (duration ? (currentTime / duration) * 100 : 0), [currentTime, duration])
+  const volumePercent = useMemo(() => volume * 100, [volume])
 
-  if (!currentTrack) return null;
+  if (!currentTrack) return null
 
   return (
     <>
@@ -281,10 +262,9 @@ export const MiniPlayer = () => {
         {/* Keep audio element unchanged */}
         <motion.div
           layout
-          initial={false}
-          transition={{
-            layout: { type: "spring", stiffness: 400, damping: 34 },
-          }}
+          initial={{ x: 400, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
           className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40 fixFlicker transform-gpu"
         >
           <AnimatePresence mode="sync" initial={false}>
@@ -297,14 +277,9 @@ export const MiniPlayer = () => {
                 animate={{}}
                 exit={{}}
                 transition={{
-                  layout: {
-                    type: "spring",
-                    stiffness: 350,
-                    damping: 32,
-                    mass: 0.6,
-                  },
+                  layout: { type: "spring", stiffness: 350, damping: 32, mass: 0.6 },
                 }}
-                className="bg-background rounded-xl shadow-2xl border border-border p-2 w-56 md:w-64 cursor-pointer fixFlicker"
+                className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer fixFlicker"
                 onClick={toggleExpanded}
               >
                 <div className="flex items-center gap-1.5 sm:gap-2">
@@ -322,53 +297,32 @@ export const MiniPlayer = () => {
                       priority={true}
                       className="w-full h-full object-cover"
                       onError={() => {
-                        console.warn(
-                          `Failed to load image: ${currentTrack.coverImage}`
-                        );
+                        console.warn(`Failed to load image: ${currentTrack.coverImage}`)
                       }}
                     />
                     {isPlaying && (
                       <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                         <div className="flex items-center gap-0.5 audio-visualizer">
-                          <div
-                            className="w-0.5 h-2 bg-white rounded-full"
-                            style={{ animationDelay: "0ms" }}
-                          />
-                          <div
-                            className="w-0.5 h-3 bg-white rounded-full"
-                            style={{ animationDelay: "150ms" }}
-                          />
-                          <div
-                            className="w-0.5 h-1.5 bg-white rounded-full"
-                            style={{ animationDelay: "300ms" }}
-                          />
-                          <div
-                            className="w-0.5 h-2.5 bg-white rounded-full"
-                            style={{ animationDelay: "450ms" }}
-                          />
-                          <div
-                            className="w-0.5 h-1 bg-white rounded-full"
-                            style={{ animationDelay: "600ms" }}
-                          />
+                          <div className="w-0.5 h-2 bg-white rounded-full" style={{ animationDelay: "0ms" }} />
+                          <div className="w-0.5 h-3 bg-white rounded-full" style={{ animationDelay: "150ms" }} />
+                          <div className="w-0.5 h-1.5 bg-white rounded-full" style={{ animationDelay: "300ms" }} />
+                          <div className="w-0.5 h-2.5 bg-white rounded-full" style={{ animationDelay: "450ms" }} />
+                          <div className="w-0.5 h-1 bg-white rounded-full" style={{ animationDelay: "600ms" }} />
                         </div>
                       </div>
                     )}
                   </motion.div>
 
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-xs text-foreground truncate">
-                      {currentTrack.title}
-                    </h4>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {currentTrack.artist}
-                    </p>
+                    <h4 className="font-medium text-xs text-foreground truncate">{currentTrack.title}</h4>
+                    <p className="text-xs text-muted-foreground truncate">{currentTrack.artist}</p>
                   </div>
 
                   <div className="flex items-center gap-1">
                     <button
                       onClick={(e) => {
-                        e.stopPropagation();
-                        handlePlayPause();
+                        e.stopPropagation()
+                        handlePlayPause()
                       }}
                       className="p-2 rounded-full bg-foreground text-background hover:bg-foreground/80 transition-colors"
                     >
@@ -391,20 +345,11 @@ export const MiniPlayer = () => {
                 initial={false}
                 animate={{}}
                 exit={{}}
-                transition={{
-                  layout: {
-                    type: "spring",
-                    stiffness: 350,
-                    damping: 32,
-                    mass: 0.6,
-                  },
-                }}
-                className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-56 md:w-64 fixFlicker"
+                transition={{ duration: 0.3 }}
+                className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56 fixFlicker"
               >
                 <div className="flex items-center justify-between mb-2 sm:mb-3">
-                  <h3 className="font-bold text-sm sm:text-base text-foreground">
-                    Now Playing
-                  </h3>
+                  <h3 className="font-bold text-sm sm:text-base text-foreground">Now Playing</h3>
                   <button
                     onClick={toggleExpanded}
                     className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
@@ -414,10 +359,7 @@ export const MiniPlayer = () => {
                 </div>
 
                 <div className="relative w-full h-36 sm:h-40 md:h-48 rounded-xl overflow-hidden mb-2 sm:mb-3">
-                  <motion.div
-                    layoutId="cover"
-                    className="relative w-full h-full rounded-xl overflow-hidden fixFlicker"
-                  >
+                  <motion.div layoutId="cover" className="relative w-full h-full rounded-xl overflow-hidden fixFlicker">
                     <Image
                       src={currentTrack.coverImage || "/placeholder.svg"}
                       alt={currentTrack.title}
@@ -425,23 +367,17 @@ export const MiniPlayer = () => {
                       height={192}
                       sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
                       priority={true}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                       onError={() => {
-                        console.warn(
-                          `Failed to load image: ${currentTrack.coverImage}`
-                        );
+                        console.warn(`Failed to load image: ${currentTrack.coverImage}`)
                       }}
                     />
                   </motion.div>
                 </div>
 
                 <div className="text-center mb-2 sm:mb-3">
-                  <h4 className="font-bold text-sm sm:text-base text-foreground">
-                    {currentTrack.title}
-                  </h4>
-                  <p className="text-xs text-muted-foreground">
-                    {currentTrack.artist}
-                  </p>
+                  <h4 className="font-bold text-sm sm:text-base text-foreground">{currentTrack.title}</h4>
+                  <p className="text-xs text-muted-foreground">{currentTrack.artist}</p>
                 </div>
 
                 <div className="space-y-1.5 sm:space-y-2">
@@ -497,17 +433,13 @@ export const MiniPlayer = () => {
                       max="1"
                       step="0.01"
                       value={volume}
-                      onChange={(e) =>
-                        handleVolumeChange(Number.parseFloat(e.target.value))
-                      }
+                      onChange={(e) => handleVolumeChange(Number.parseFloat(e.target.value))}
                       className="flex-1 h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer volume-slider"
                       style={{
                         background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${volumePercent}%, rgba(150, 150, 150, 0.3) ${volumePercent}%, rgba(150, 150, 150, 0.3) 100%)`,
                       }}
                     />
-                    <span className="text-xs text-muted-foreground w-6 sm:w-8">
-                      {Math.round(volume * 100)}%
-                    </span>
+                    <span className="text-xs text-muted-foreground w-6 sm:w-8">{Math.round(volume * 100)}%</span>
                   </div>
                 </div>
               </motion.div>
@@ -580,5 +512,5 @@ export const MiniPlayer = () => {
         }
       `}</style>
     </>
-  );
-};
+  )
+}
