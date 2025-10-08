@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect, useMemo } from "react"
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { Play, Pause, SkipBack, SkipForward, Volume2, ChevronUp, ChevronDown } from "lucide-react"
 import Image from "next/image"
 import { getOriginalTracks, formatTime, getDefaultVolume } from "@/services/music"
@@ -258,36 +258,25 @@ export const MiniPlayer = () => {
         onEnded={handleNext}
       />
 
-      <LayoutGroup>
-        {/* Keep audio element unchanged */}
-        <motion.div
-          layout
-          initial={{ x: 400, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40 fixFlicker transform-gpu"
-        >
-          <AnimatePresence mode="sync" initial={false}>
-            {!isExpanded ? (
-              <motion.div
-                key="mini"
-                layout
-                layoutId="player-card"
-                initial={false}
-                animate={{}}
-                exit={{}}
-                transition={{
-                  layout: { type: "spring", stiffness: 350, damping: 32, mass: 0.6 },
-                }}
-                className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer fixFlicker"
-                onClick={toggleExpanded}
-              >
+      <motion.div
+        initial={{ x: 400, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40"
+      >
+        <AnimatePresence mode="wait">
+          {!isExpanded ? (
+            <motion.div
+              key="mini"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer"
+              onClick={toggleExpanded}
+            >
                 <div className="flex items-center gap-1.5 sm:gap-2">
-                  {/* Use shared layoutId for cover to avoid image remount/flicker */}
-                  <motion.div
-                    layoutId="cover"
-                    className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden fixFlicker"
-                  >
+                  <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-lg overflow-hidden">
                     <Image
                       src={currentTrack.coverImage || "/placeholder.svg"}
                       alt={currentTrack.title}
@@ -302,16 +291,16 @@ export const MiniPlayer = () => {
                     />
                     {isPlaying && (
                       <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                        <div className="flex items-center gap-0.5 audio-visualizer">
-                          <div className="w-0.5 h-2 bg-white rounded-full" style={{ animationDelay: "0ms" }} />
-                          <div className="w-0.5 h-3 bg-white rounded-full" style={{ animationDelay: "150ms" }} />
-                          <div className="w-0.5 h-1.5 bg-white rounded-full" style={{ animationDelay: "300ms" }} />
-                          <div className="w-0.5 h-2.5 bg-white rounded-full" style={{ animationDelay: "450ms" }} />
-                          <div className="w-0.5 h-1 bg-white rounded-full" style={{ animationDelay: "600ms" }} />
+                        <div className="flex items-center gap-0.5">
+                          <div className="w-0.5 h-2 bg-white rounded-full animate-pulse" style={{ animationDelay: "0ms" }} />
+                          <div className="w-0.5 h-3 bg-white rounded-full animate-pulse" style={{ animationDelay: "150ms" }} />
+                          <div className="w-0.5 h-1.5 bg-white rounded-full animate-pulse" style={{ animationDelay: "300ms" }} />
+                          <div className="w-0.5 h-2.5 bg-white rounded-full animate-pulse" style={{ animationDelay: "450ms" }} />
+                          <div className="w-0.5 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: "600ms" }} />
                         </div>
                       </div>
                     )}
-                  </motion.div>
+                  </div>
 
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium text-xs text-foreground truncate">{currentTrack.title}</h4>
@@ -340,13 +329,11 @@ export const MiniPlayer = () => {
             ) : (
               <motion.div
                 key="expanded"
-                layout
-                layoutId="player-card"
-                initial={false}
-                animate={{}}
-                exit={{}}
-                transition={{ duration: 0.3 }}
-                className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56 fixFlicker"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56"
               >
                 <div className="flex items-center justify-between mb-2 sm:mb-3">
                   <h3 className="font-bold text-sm sm:text-base text-foreground">Now Playing</h3>
@@ -359,7 +346,7 @@ export const MiniPlayer = () => {
                 </div>
 
                 <div className="relative w-full h-36 sm:h-40 md:h-48 rounded-xl overflow-hidden mb-2 sm:mb-3">
-                  <motion.div layoutId="cover" className="relative w-full h-full rounded-xl overflow-hidden fixFlicker">
+                  <div className="relative w-full h-full rounded-xl overflow-hidden">
                     <Image
                       src={currentTrack.coverImage || "/placeholder.svg"}
                       alt={currentTrack.title}
@@ -372,7 +359,7 @@ export const MiniPlayer = () => {
                         console.warn(`Failed to load image: ${currentTrack.coverImage}`)
                       }}
                     />
-                  </motion.div>
+                  </div>
                 </div>
 
                 <div className="text-center mb-2 sm:mb-3">
@@ -392,7 +379,7 @@ export const MiniPlayer = () => {
                     max={duration || 0}
                     value={currentTime}
                     onChange={handleSeek}
-                    className="w-full h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer progress-slider disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
                       background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${progressPercent}%, rgba(150, 150, 150, 0.3) ${progressPercent}%, rgba(150, 150, 150, 0.3) 100%)`,
                     }}
@@ -434,7 +421,7 @@ export const MiniPlayer = () => {
                       step="0.01"
                       value={volume}
                       onChange={(e) => handleVolumeChange(Number.parseFloat(e.target.value))}
-                      className="flex-1 h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer volume-slider"
+                      className="flex-1 h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer"
                       style={{
                         background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${volumePercent}%, rgba(150, 150, 150, 0.3) ${volumePercent}%, rgba(150, 150, 150, 0.3) 100%)`,
                       }}
@@ -446,71 +433,7 @@ export const MiniPlayer = () => {
             )}
           </AnimatePresence>
         </motion.div>
-      </LayoutGroup>
 
-      <style jsx>{`
-        @keyframes audioWave {
-          0%,
-          100% {
-            transform: scaleY(0.3);
-          }
-          50% {
-            transform: scaleY(1);
-          }
-        }
-        .audio-visualizer > div {
-          animation: audioWave 1.2s ease-in-out infinite;
-        }
-        .progress-slider::-webkit-slider-track,
-        .volume-slider::-webkit-slider-track {
-          background: transparent;
-        }
-        .progress-slider::-moz-range-track,
-        .volume-slider::-moz-range-track {
-          background: transparent;
-        }
-        .progress-slider::-webkit-slider-thumb,
-        .volume-slider::-webkit-slider-thumb {
-          appearance: none;
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: #3b82f6;
-          cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        .progress-slider::-moz-range-thumb,
-        .volume-slider::-moz-range-thumb {
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: #3b82f6;
-          cursor: pointer;
-          border: 2px solid white;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        .progress-slider:hover::-webkit-slider-thumb,
-        .volume-slider:hover::-webkit-slider-thumb {
-          background: #2563eb;
-        }
-        .progress-slider:hover::-moz-range-thumb,
-        .volume-slider:hover::-moz-range-thumb {
-          background: #2563eb;
-        }
-        .progress-slider:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        .fixFlicker {
-          backface-visibility: hidden;
-          -webkit-backface-visibility: hidden;
-          transform: translateZ(0);
-          will-change: transform, opacity;
-          contain: layout paint style;
-          isolation: isolate;
-        }
-      `}</style>
     </>
   )
 }

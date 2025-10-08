@@ -32,7 +32,6 @@ export const HeroSection = ({ data }: HeroSectionProps) => {
         <div className="mt-16">
           <ProfileCarousel 
             profiles={profileData.profiles}
-            autoplay={true}
           />
         </div>
         <div className="mt-12 flex justify-center">
