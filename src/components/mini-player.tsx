@@ -181,60 +181,66 @@ export const MiniPlayer = () => {
   }, [playerState.isPlaying, primed])
 
   const handleNext = useCallback(() => {
-    setPlayerState((prev) => {
-      const nextIndex = (prev.currentTrackIndex + 1) % prev.playlist.length
-      const nextTrack = prev.playlist[nextIndex]
-      
-      // Force audio cleanup
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.currentTime = 0
-        audioRef.current.load()
-      }
-      
-      return {
-        ...prev,
-        currentTrackIndex: nextIndex,
-        currentTrack: nextTrack,
-        currentTime: 0,
-        duration: 0,
-        isPlaying: true,
-      }
-    })
+    // Add 0.5 second delay before switching
+    setTimeout(() => {
+      setPlayerState((prev) => {
+        const nextIndex = (prev.currentTrackIndex + 1) % prev.playlist.length
+        const nextTrack = prev.playlist[nextIndex]
+        
+        // Force audio cleanup
+        if (audioRef.current) {
+          audioRef.current.pause()
+          audioRef.current.currentTime = 0
+          audioRef.current.load()
+        }
+        
+        return {
+          ...prev,
+          currentTrackIndex: nextIndex,
+          currentTrack: nextTrack,
+          currentTime: 0,
+          duration: 0,
+          isPlaying: true,
+        }
+      })
+    }, 500)
   }, [])
 
   const PREV_RESTART_THRESHOLD = 3
   const handlePrevious = useCallback(() => {
-    setPlayerState((prev) => {
-      const t = prev.currentTime || 0
-      if (t > PREV_RESTART_THRESHOLD) {
-        if (audioRef.current) {
-          try {
-            audioRef.current.currentTime = 0
-          } catch {}
+    // Add 0.5 second delay before switching
+    setTimeout(() => {
+      setPlayerState((prev) => {
+        const t = prev.currentTime || 0
+        if (t > PREV_RESTART_THRESHOLD) {
+          if (audioRef.current) {
+            try {
+              audioRef.current.currentTime = 0
+            } catch {}
+          }
+          return { ...prev, currentTime: 0, isPlaying: true }
         }
-        return { ...prev, currentTime: 0, isPlaying: true }
-      }
-      
-      const prevIndex = prev.currentTrackIndex === 0 ? prev.playlist.length - 1 : prev.currentTrackIndex - 1
-      const prevTrack = prev.playlist[prevIndex]
-      
-      // Force audio cleanup
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.currentTime = 0
-        audioRef.current.load()
-      }
-      
-      return {
-        ...prev,
-        currentTrackIndex: prevIndex,
-        currentTrack: prevTrack,
-        currentTime: 0,
-        duration: 0,
-        isPlaying: true,
-      }
-    })
+        
+        const prevIndex = prev.currentTrackIndex === 0 ? prev.playlist.length - 1 : prev.currentTrackIndex - 1
+        const prevTrack = prev.playlist[prevIndex]
+        
+        // Force audio cleanup
+        if (audioRef.current) {
+          audioRef.current.pause()
+          audioRef.current.currentTime = 0
+          audioRef.current.load()
+        }
+        
+        return {
+          ...prev,
+          currentTrackIndex: prevIndex,
+          currentTrack: prevTrack,
+          currentTime: 0,
+          duration: 0,
+          isPlaying: true,
+        }
+      })
+    }, 500)
   }, [])
 
   const handleVolumeChange = (newVolume: number) => {
@@ -269,9 +275,9 @@ export const MiniPlayer = () => {
     }
   }
 
-  const toggleExpanded = () => {
+  const toggleExpanded = useCallback(() => {
     setPlayerState((prev) => ({ ...prev, isExpanded: !prev.isExpanded }))
-  }
+  }, [])
 
   const progressPercent = useMemo(() => (duration ? (currentTime / duration) * 100 : 0), [currentTime, duration])
   const volumePercent = useMemo(() => volume * 100, [volume])
@@ -297,14 +303,14 @@ export const MiniPlayer = () => {
         transition={{ duration: 0.3, ease: "easeOut" }}
         className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40 fix-mobile-flicker"
       >
-        <AnimatePresence mode="popLayout">
+        <AnimatePresence mode="wait">
           {!isExpanded ? (
             <motion.div
               key="mini"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
               className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer fix-mobile-flicker gpu-accelerated"
               onClick={toggleExpanded}
             >
@@ -362,10 +368,10 @@ export const MiniPlayer = () => {
             ) : (
               <motion.div
                 key="expanded"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
                 className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56 fix-mobile-flicker gpu-accelerated"
               >
                 <div className="flex items-center justify-between mb-2 sm:mb-3">
