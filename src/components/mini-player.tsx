@@ -17,12 +17,23 @@ const loadStoredVolume = (): number => {
   return getDefaultVolume();
 };
 
+const detectMobileSafari = (): boolean => {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  const maxTouchPoints = (navigator as Navigator & { maxTouchPoints?: number }).maxTouchPoints;
+  const isIOS = /iP(ad|hone|od)/.test(ua) || (navigator.platform === "MacIntel" && maxTouchPoints && maxTouchPoints > 1);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(ua) && /Apple/i.test(navigator.vendor || "");
+  return Boolean(isIOS && isSafari);
+};
+
 export const MiniPlayer: React.FC = () => {
   // 1) Singleton audio element (detached from DOM)
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const changeTokenRef = useRef(0); // naik tiap ganti track → cegah overlap
   const transitioningRef = useRef(false); // guard transisi
   const isPlayingRef = useRef(false);
+  const primedRef = useRef(false); // iOS output warm-up
+  const isMobileSafariRef = useRef<boolean>(false);
 
   // 2) Playlist awal (shuffle sekali di mount)
   const shuffledPlaylist = useMemo(() => {
@@ -56,6 +67,13 @@ export const MiniPlayer: React.FC = () => {
     a.crossOrigin = "anonymous";
     (a as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
     a.volume = clampVolume(volume);
+    
+    // Mobile Safari specific settings
+    isMobileSafariRef.current = detectMobileSafari();
+    if (isMobileSafariRef.current) {
+      a.preload = "metadata"; // iOS prefers metadata preload
+      a.onloadstart = () => {}; // Prevent iOS audio context issues
+    }
 
     const onTimeUpdate = () => {
       setPlayerState(prev => ({ ...prev, currentTime: a.currentTime || 0 }));
@@ -127,15 +145,39 @@ export const MiniPlayer: React.FC = () => {
         setPlayerState(prev => ({ ...prev, duration: a.duration }));
       }
       if (autoplay && isPlayingRef.current) {
-        a.play().catch(() => {});
+        // Mobile Safari needs user gesture for first play
+        if (isMobileSafariRef.current && !primedRef.current) {
+          primedRef.current = true;
+          a.play().then(() => {
+            a.pause();
+            try { a.currentTime = 0; } catch {}
+            if (isPlayingRef.current) {
+              a.play().catch(() => {});
+            }
+          }).catch(() => {
+            if (isPlayingRef.current) {
+              a.play().catch(() => {});
+            }
+          });
+        } else {
+          a.play().catch(() => {});
+        }
       }
     };
 
-    if (a.readyState >= 3) {
-      // HAVE_FUTURE_DATA
-      ready();
+    // Mobile Safari needs different ready state handling
+    if (isMobileSafariRef.current) {
+      if (a.readyState >= 2) { // HAVE_CURRENT_DATA
+        ready();
+      } else {
+        a.addEventListener("canplay", ready, { once: true });
+      }
     } else {
-      a.addEventListener("canplaythrough", ready, { once: true });
+      if (a.readyState >= 3) { // HAVE_FUTURE_DATA
+        ready();
+      } else {
+        a.addEventListener("canplaythrough", ready, { once: true });
+      }
     }
   }, []);
 
@@ -149,7 +191,19 @@ export const MiniPlayer: React.FC = () => {
       if (nextPlaying) {
         // If still transitioning, defer; otherwise play
         if (!transitioningRef.current) {
-          a.play().catch(() => {});
+          // Mobile Safari needs user gesture for first play
+          if (isMobileSafariRef.current && !primedRef.current) {
+            primedRef.current = true;
+            a.play().then(() => {
+              a.pause();
+              try { a.currentTime = 0; } catch {}
+              a.play().catch(() => {});
+            }).catch(() => {
+              a.play().catch(() => {});
+            });
+          } else {
+            a.play().catch(() => {});
+          }
         }
       } else {
         a.pause();
