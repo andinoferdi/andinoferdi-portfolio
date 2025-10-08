@@ -281,25 +281,30 @@ export const MiniPlayer = () => {
         {/* Keep audio element unchanged */}
         <motion.div
           layout
-          initial={{ x: 400, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40 fixFlicker"
+          initial={false}
+          transition={{
+            layout: { type: "spring", stiffness: 400, damping: 34 },
+          }}
+          className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40 fixFlicker transform-gpu"
         >
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence mode="sync" initial={false}>
             {!isExpanded ? (
               <motion.div
                 key="mini"
                 layout
                 layoutId="player-card"
-                initial={{ opacity: 0.001, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0.001, scale: 0.98 }}
+                initial={false}
+                animate={{}}
+                exit={{}}
                 transition={{
-                  layout: { duration: 0.25, ease: "easeInOut" },
-                  duration: 0.2,
+                  layout: {
+                    type: "spring",
+                    stiffness: 350,
+                    damping: 32,
+                    mass: 0.6,
+                  },
                 }}
-                className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer fixFlicker"
+                className="bg-background rounded-xl shadow-2xl border border-border p-2 w-56 md:w-64 cursor-pointer fixFlicker"
                 onClick={toggleExpanded}
               >
                 <div className="flex items-center gap-1.5 sm:gap-2">
@@ -383,11 +388,18 @@ export const MiniPlayer = () => {
                 key="expanded"
                 layout
                 layoutId="player-card"
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.8, opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56 fixFlicker"
+                initial={false}
+                animate={{}}
+                exit={{}}
+                transition={{
+                  layout: {
+                    type: "spring",
+                    stiffness: 350,
+                    damping: 32,
+                    mass: 0.6,
+                  },
+                }}
+                className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-56 md:w-64 fixFlicker"
               >
                 <div className="flex items-center justify-between mb-2 sm:mb-3">
                   <h3 className="font-bold text-sm sm:text-base text-foreground">
@@ -413,7 +425,7 @@ export const MiniPlayer = () => {
                       height={192}
                       sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
                       priority={true}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover"
                       onError={() => {
                         console.warn(
                           `Failed to load image: ${currentTrack.coverImage}`
@@ -560,8 +572,11 @@ export const MiniPlayer = () => {
         }
         .fixFlicker {
           backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
           transform: translateZ(0);
           will-change: transform, opacity;
+          contain: layout paint style;
+          isolation: isolate;
         }
       `}</style>
     </>
