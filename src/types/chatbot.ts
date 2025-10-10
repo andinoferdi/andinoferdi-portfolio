@@ -1,30 +1,31 @@
-export type ChatRole = "system" | "user" | "assistant";
-
 export interface ChatMessage {
-	role: ChatRole;
-	content: string;
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: Date;
 }
 
-export interface ChatRequestBody {
-	messages: ChatMessage[];
-	model?: string;
+export interface ChatbotState {
+  messages: ChatMessage[];
+  isLoading: boolean;
+  error: string | null;
+  isTyping: boolean;
 }
 
-export interface ChatChoiceMessage {
-	role: ChatRole;
-	content: string;
+export interface ChatbotConfig {
+  model: string;
+  systemPrompt: string;
+  maxMessages: number;
+  temperature: number;
 }
 
-export interface ChatChoice {
-	index: number;
-	message: ChatChoiceMessage;
+export interface ChatbotResponse {
+  message: string;
+  success: boolean;
+  error?: string;
 }
 
-export interface ChatCompletionResponse {
-	id: string;
-	created: number;
-	model: string;
-	choices: ChatChoice[];
+export interface ChatbotData {
+  config: ChatbotConfig;
+  initialMessages: ChatMessage[];
 }
-
-
