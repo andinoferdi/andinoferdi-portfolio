@@ -1,31 +1,102 @@
-export interface ChatMessage {
+export interface Message {
   id: string;
-  role: "user" | "assistant";
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
+  model?: string;
+  isStreaming?: boolean;
 }
 
 export interface ChatbotState {
-  messages: ChatMessage[];
+  messages: Message[];
   isLoading: boolean;
+  currentModelIndex: number;
   error: string | null;
-  isTyping: boolean;
+  isStreaming: boolean;
 }
 
-export interface ChatbotConfig {
+export interface OpenRouterResponse {
+  id: string;
+  object: string;
+  created: number;
   model: string;
-  systemPrompt: string;
-  maxMessages: number;
-  temperature: number;
+  choices: {
+    index: number;
+    message: {
+      role: string;
+      content: string;
+    };
+    finish_reason: string;
+  }[];
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
 }
 
-export interface ChatbotResponse {
-  message: string;
-  success: boolean;
-  error?: string;
+export interface StreamChunk {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: {
+    index: number;
+    delta: {
+      role?: string;
+      content?: string;
+    };
+    finish_reason?: string;
+  }[];
 }
 
-export interface ChatbotData {
-  config: ChatbotConfig;
-  initialMessages: ChatMessage[];
+export interface ModelConfig {
+  id: string;
+  name: string;
+  displayName: string;
+  isFree: boolean;
+}
+
+export interface PortfolioContext {
+  projects: Array<{
+    id: string;
+    title: string;
+    description: string;
+    technologies: string[];
+    liveUrl?: string;
+    githubUrl?: string;
+  }>;
+  experiences: Array<{
+    id: string;
+    title: string;
+    company: string;
+    period: {
+      start: string;
+      end: string;
+    };
+    description: string;
+    technologies: string[];
+    current?: boolean;
+  }>;
+  profiles: Array<{
+    quote: string;
+    name: string;
+    designation: string;
+  }>;
+  cvDownload: {
+    url: string;
+    label: string;
+  };
+}
+
+export interface ChatHistory {
+  messages: Message[];
+  lastUpdated: number;
+}
+
+export interface SendMessageParams {
+  content: string;
+  onStream?: (chunk: string) => void;
+  onComplete?: () => void;
+  onError?: (error: string) => void;
 }

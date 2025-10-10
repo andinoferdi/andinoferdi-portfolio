@@ -1,78 +1,335 @@
-import { type ChatbotData, type ChatMessage } from "@/types/chatbot";
+import {
+  type Message,
+  type PortfolioContext,
+  type StreamChunk,
+  type ChatHistory,
+} from "@/types/chatbot";
+import { getProjectsData } from "./projects";
+import { getExperienceData } from "./journey";
+import { getProfileData } from "./profile";
 
-export const getChatbotData = (): ChatbotData => {
+if (typeof window === "undefined") {
+  console.log("🔍 Environment Variables Check:");
+  console.log("API_KEY exists:", !!process.env.NEXT_PUBLIC_OPENROUTER_API_KEY);
+  console.log(
+    "API_KEY length:",
+    process.env.NEXT_PUBLIC_OPENROUTER_API_KEY?.length || 0
+  );
+  console.log("SITE_URL:", process.env.NEXT_PUBLIC_SITE_URL);
+  console.log("SITE_NAME:", process.env.NEXT_PUBLIC_SITE_NAME);
+  console.log(
+    "All NEXT_PUBLIC_ vars:",
+    Object.keys(process.env).filter((k) => k.startsWith("NEXT_PUBLIC_"))
+  );
+}
+
+const API_KEY =
+  process.env.NEXT_PUBLIC_OPENROUTER_API_KEY ||
+  "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";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || "AndinoFerdi Portfolio";
+console.log(
+  "Using API_KEY from:",
+  process.env.NEXT_PUBLIC_OPENROUTER_API_KEY
+    ? ".env file"
+    : "hardcoded fallback"
+);
+
+export const MODELS = [
+  "openai/deepseek-chat-v3.1:free",
+  "openai/gpt-oss-20b:free",
+  "google/gemini-2.0-flash-exp:free",
+  "alibaba/tongyi-deepresearch-30b-a3b:free",
+  "qwen/qwen3-coder:free",
+];
+
+export const MODEL_DISPLAY_NAMES = [
+  "DeepSeek Chat",
+  "GPT-OSS",
+  "Gemini Flash",
+  "Tongyi Research",
+  "Qwen Coder",
+];
+
+const CHAT_HISTORY_KEY = "andinoferdi_chat_history";
+
+export const getPortfolioContext = (): PortfolioContext => {
+  const projectsData = getProjectsData();
+  const experienceData = getExperienceData();
+  const profileData = getProfileData();
+
   return {
-    config: {
-      model: "deepseek/deepseek-chat-v3.1:free",
-      systemPrompt: `You are Andino Ferdiansah's AI assistant. You are a helpful, friendly, and professional assistant that can answer questions about Andino's portfolio, projects, skills, and experience. 
-
-**IMPORTANT**: Always format your responses using Markdown syntax for better readability. Use:
-- **Bold text** for emphasis
-- *Italic text* for subtle emphasis
-- \`Code snippets\` for technical terms
-- ## Headers for sections
-- - Bullet points for lists
-- > Blockquotes for important information
-- [Links](url) for external references
-
-Key information about Andino:
-- **Full name**: Andino Ferdiansah
-- **Education**: Currently studying D4 Teknik Informatika at Universitas Airlangga
-- **Skills**: 
-  - Frontend: React, Next.js, Vue.js, TypeScript
-  - Backend: Laravel, Node.js, Python
-  - Mobile: Flutter, React Native
-  - Design: UI/UX Design
-- **Experience**: Software Development Intern at CV.MCFLYON TEKNOLOGI INDONESIA
-- **Projects**: FreshKo, Portfolio V2, Anro Studio, Pet Finder, and more
-
-Always be helpful, accurate, and maintain a professional yet friendly tone. Format your responses with proper Markdown to make them more readable and engaging. If you don't know something specific about Andino, politely say so and suggest they check his portfolio or contact him directly.`,
-      maxMessages: 50,
-      temperature: 0.7,
+    projects: projectsData.projects.map((project) => ({
+      id: project.id,
+      title: project.title,
+      description: project.description,
+      technologies: project.technologies,
+      liveUrl: project.liveUrl,
+      githubUrl: project.githubUrl,
+    })),
+    experiences: experienceData.experiences.map((exp) => ({
+      id: exp.id,
+      title: exp.title,
+      company: exp.company,
+      period: exp.period,
+      description: exp.description,
+      technologies: exp.technologies,
+      current: exp.current,
+    })),
+    profiles: profileData.profiles.map((profile) => ({
+      quote: profile.quote,
+      name: profile.name,
+      designation: profile.designation,
+    })),
+    cvDownload: {
+      url: profileData.cvDownload.url,
+      label: profileData.cvDownload.label,
     },
-    initialMessages: [
-      {
-        id: "welcome",
-        role: "assistant",
-        content:
-          "Hello! I'm **Andino's AI assistant**. I can help you learn more about his:\n\n-  **Projects** and portfolio\n-  **Skills** and technologies\n-  **Experience** and education\n-  **Design** work\n\nWhat would you like to know about Andino?",
-        timestamp: new Date(),
-      },
-    ],
   };
+};
+
+export const createSystemPrompt = (): Message => {
+  const context = getPortfolioContext();
+
+  const systemContent = `You are an AI assistant representing Andino Ferdiansah, a talented developer and designer. Here's information about him:
+
+PROFILE SUMMARY:
+${context.profiles.map((p) => `- ${p.name}: ${p.quote}`).join("\n")}
+
+PROJECTS:
+${context.projects
+  .map(
+    (p) => `
+- ${p.title}: ${p.description}
+  Technologies: ${p.technologies.join(", ")}
+  Live URL: ${p.liveUrl || "N/A"}
+  GitHub: ${p.githubUrl || "N/A"}
+`
+  )
+  .join("")}
+
+EXPERIENCE:
+${context.experiences
+  .map(
+    (exp) => `
+- ${exp.title} at ${exp.company} (${exp.period.start} - ${exp.period.end})${
+      exp.current ? " [CURRENT]" : ""
+    }
+  ${exp.description}
+  Technologies: ${exp.technologies.join(", ")}
+`
+  )
+  .join("")}
+
+CV DOWNLOAD: ${context.cvDownload.label} - ${context.cvDownload.url}
+
+INSTRUCTIONS:
+- Answer questions about Andino's projects, skills, and experience based on the information above
+- Be helpful, professional, and informative
+- If asked about general topics not related to the portfolio, you can still help
+- Always respond in the same language as the user's question
+- Keep responses concise but informative
+- If you don't know something specific, say so politely`;
+
+  return {
+    id: "system-prompt",
+    role: "system",
+    content: systemContent,
+    timestamp: new Date(),
+  };
+};
+
+export const parseStreamResponse = async (
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onChunk: (content: string) => void
+): Promise<void> => {
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const data = line.slice(6);
+
+          if (data === "[DONE]") {
+            return;
+          }
+
+          try {
+            const chunk: StreamChunk = JSON.parse(data);
+
+            if (chunk.choices && chunk.choices[0]?.delta?.content) {
+              onChunk(chunk.choices[0].delta.content);
+            }
+          } catch (error) {
+            console.warn("Failed to parse chunk:", error);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Stream reading error:", error);
+    throw error;
+  }
+};
+
+export const sendChatMessage = async (
+  messages: Message[],
+  modelIndex: number = 0,
+  onStream?: (chunk: string) => void
+): Promise<{ content: string; model: string }> => {
+  if (!API_KEY) {
+    throw new Error("OpenRouter API key not found");
+  }
+
+  const systemPrompt = createSystemPrompt();
+  const apiMessages = [
+    systemPrompt,
+    ...messages.filter((m) => m.role !== "system"),
+  ];
+
+  const response = await fetch(
+    "https://openrouter.ai/api/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "HTTP-Referer": SITE_URL,
+        "X-Title": SITE_NAME,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: MODELS[modelIndex],
+        messages: apiMessages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
+        stream: true,
+        temperature: 0.7,
+        max_tokens: 2000,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API Error (${response.status}): ${errorText}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error("Failed to get response reader");
+  }
+
+  let fullContent = "";
+
+  if (onStream) {
+    await parseStreamResponse(reader, (chunk) => {
+      fullContent += chunk;
+      onStream(chunk);
+    });
+  } else {
+    await parseStreamResponse(reader, (chunk) => {
+      fullContent += chunk;
+    });
+  }
+
+  return {
+    content: fullContent,
+    model: MODELS[modelIndex],
+  };
+};
+
+export const handleModelFallback = async (
+  messages: Message[],
+  currentIndex: number,
+  onStream?: (chunk: string) => void
+): Promise<{ content: string; model: string; finalIndex: number }> => {
+  let lastError: Error | null = null;
+
+  for (let i = currentIndex; i < MODELS.length; i++) {
+    try {
+      const result = await sendChatMessage(messages, i, onStream);
+      return {
+        ...result,
+        finalIndex: i,
+      };
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`Model ${MODELS[i]} failed:`, error);
+
+      if (i === MODELS.length - 1) {
+        throw new Error(`All models failed. Last error: ${lastError.message}`);
+      }
+    }
+  }
+
+  throw new Error(
+    `All models failed. Last error: ${lastError?.message || "Unknown error"}`
+  );
+};
+
+export const saveChatHistory = (messages: Message[]): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    const chatHistory: ChatHistory = {
+      messages,
+      lastUpdated: Date.now(),
+    };
+
+    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatHistory));
+  } catch (error) {
+    console.error("Failed to save chat history:", error);
+  }
+};
+
+export const loadChatHistory = (): Message[] => {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const stored = localStorage.getItem(CHAT_HISTORY_KEY);
+    if (!stored) return [];
+
+    const chatHistory: ChatHistory = JSON.parse(stored);
+
+    return chatHistory.messages.map((msg) => ({
+      ...msg,
+      timestamp: new Date(msg.timestamp),
+    }));
+  } catch (error) {
+    console.error("Failed to load chat history:", error);
+    return [];
+  }
+};
+
+export const clearChatHistory = (): void => {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.removeItem(CHAT_HISTORY_KEY);
+  } catch (error) {
+    console.error("Failed to clear chat history:", error);
+  }
 };
 
 export const generateMessageId = (): string => {
   return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
-export const formatMessagesForAPI = (messages: ChatMessage[], systemPrompt: string) => {
-  const apiMessages = [
-    {
-      role: "system",
-      content: systemPrompt,
-    },
-    ...messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-    })),
-  ];
-
-  return apiMessages;
-};
-
-export const validateMessage = (content: string): { isValid: boolean; error?: string } => {
-  if (!content || content.trim().length === 0) {
-    return { isValid: false, error: "Message cannot be empty" };
-  }
-
-  if (content.length > 2000) {
-    return { isValid: false, error: "Message is too long (max 2000 characters)" };
-  }
-
-  return { isValid: true };
-};
-
-export const sanitizeMessage = (content: string): string => {
-  return content.trim().slice(0, 2000);
+export const formatTimestamp = (date: Date): string => {
+  return date.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 };
