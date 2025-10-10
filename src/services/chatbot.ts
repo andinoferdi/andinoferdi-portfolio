@@ -23,16 +23,14 @@ if (typeof window === "undefined") {
   );
 }
 
-const API_KEY =
-  process.env.NEXT_PUBLIC_OPENROUTER_API_KEY ||
-  "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";
+const API_KEY = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || "AndinoFerdi Portfolio";
 console.log(
   "Using API_KEY from:",
   process.env.NEXT_PUBLIC_OPENROUTER_API_KEY
     ? ".env file"
-    : "hardcoded fallback"
+    : "NOT SET - Please configure NEXT_PUBLIC_OPENROUTER_API_KEY"
 );
 
 export const MODELS = [
@@ -188,7 +186,7 @@ export const sendChatMessage = async (
   onStream?: (chunk: string) => void
 ): Promise<{ content: string; model: string }> => {
   if (!API_KEY) {
-    throw new Error("OpenRouter API key not found");
+    throw new Error("OpenRouter API key not found. Please set NEXT_PUBLIC_OPENROUTER_API_KEY in your .env.local file");
   }
 
   const systemPrompt = createSystemPrompt();
@@ -222,7 +220,17 @@ export const sendChatMessage = async (
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`API Error (${response.status}): ${errorText}`);
+    let errorMessage = `API Error (${response.status}): ${errorText}`;
+    
+    if (response.status === 401) {
+      errorMessage = `Authentication failed (401): Please check your OpenRouter API key. ${errorText}`;
+    } else if (response.status === 429) {
+      errorMessage = `Rate limit exceeded (429): Please try again later. ${errorText}`;
+    } else if (response.status >= 500) {
+      errorMessage = `Server error (${response.status}): Please try again later. ${errorText}`;
+    }
+    
+    throw new Error(errorMessage);
   }
 
   const reader = response.body?.getReader();
