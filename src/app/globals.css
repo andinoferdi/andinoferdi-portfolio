@@ -102,6 +102,28 @@
 }
 
 @layer utilities {
+  .right-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.708 0 0 / 40%) transparent;
+  }
+  .right-scrollbar::-webkit-scrollbar {
+    width: 10px;
+  }
+  .right-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .right-scrollbar::-webkit-scrollbar-thumb {
+    background: oklch(0.708 0 0 / 40%);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  .right-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: oklch(0.708 0 0 / 55%);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+
   /* Mobile flickering prevention */
   .fix-mobile-flicker {
     -webkit-backface-visibility: hidden;
