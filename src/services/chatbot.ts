@@ -186,7 +186,9 @@ export const sendChatMessage = async (
   onStream?: (chunk: string) => void
 ): Promise<{ content: string; model: string }> => {
   if (!API_KEY) {
-    throw new Error("OpenRouter API key not found. Please set NEXT_PUBLIC_OPENROUTER_API_KEY in your .env.local file");
+    throw new Error(
+      "OpenRouter API key not found. Please set NEXT_PUBLIC_OPENROUTER_API_KEY in your .env.local file"
+    );
   }
 
   const systemPrompt = createSystemPrompt();
@@ -221,7 +223,7 @@ export const sendChatMessage = async (
   if (!response.ok) {
     const errorText = await response.text();
     let errorMessage = `API Error (${response.status}): ${errorText}`;
-    
+
     if (response.status === 401) {
       errorMessage = `Authentication failed (401): Please check your OpenRouter API key. ${errorText}`;
     } else if (response.status === 429) {
@@ -229,7 +231,7 @@ export const sendChatMessage = async (
     } else if (response.status >= 500) {
       errorMessage = `Server error (${response.status}): Please try again later. ${errorText}`;
     }
-    
+
     throw new Error(errorMessage);
   }
 
@@ -257,53 +259,47 @@ export const sendChatMessage = async (
   };
 };
 
+
 export const handleModelFallback = async (
   messages: Message[],
-  currentIndex: number,
+  startModelIndex: number = 0,
   onStream?: (chunk: string) => void
 ): Promise<{ content: string; model: string; finalIndex: number }> => {
   let lastError: Error | null = null;
   const rateLimitedModels: string[] = [];
 
-  for (let i = currentIndex; i < MODELS.length; i++) {
+  const order: number[] = [];
+  for (let i = startModelIndex; i < MODELS.length; i++) order.push(i);
+  for (let i = 0; i < startModelIndex; i++) order.push(i);
+
+  for (const i of order) {
     try {
       const result = await sendChatMessage(messages, i, onStream);
-      return {
-        ...result,
-        finalIndex: i,
-      };
-    } catch (error) {
-      lastError = error as Error;
+      return { content: result.content, model: result.model, finalIndex: i };
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
-      console.warn(`Model ${MODELS[i]} failed:`, error);
 
       if (errorMessage.includes("429") || errorMessage.includes("Rate limit")) {
+        console.warn(` ${MODEL_DISPLAY_NAMES[i]} rate limited, skipping...`);
         rateLimitedModels.push(MODEL_DISPLAY_NAMES[i]);
-        console.log(`Model ${MODEL_DISPLAY_NAMES[i]} is rate limited, trying next model...`);
-        
-        if (i < MODELS.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+
+        if (rateLimitedModels.length === MODELS.length) {
+          throw new Error(
+            "All free models have reached their daily limit. Please try again next time"
+          );
         }
+
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        continue;
       }
 
-      if (i === MODELS.length - 1) {
-        if (rateLimitedModels.length === MODELS.length) {
-          throw new Error(" The limit has been reached. Please try again later.");
-        } else {
-          throw new Error(`All models failed. Last error: ${lastError.message}`);
-        }
-      }
+      lastError = error instanceof Error ? error : new Error(errorMessage);
+      console.error(` ${MODEL_DISPLAY_NAMES[i]} Failed:`, errorMessage);
+      break;
     }
   }
 
-  if (rateLimitedModels.length === MODELS.length) {
-    throw new Error(" The limit has been reached. Please try again later.");
-  }
-
-  throw new Error(
-    `All models failed. Last error: ${lastError?.message || "Unknown error"}`
-  );
+  throw lastError || new Error("All models fail or reach their limits.");
 };
 
 export const saveChatHistory = (messages: Message[]): void => {
