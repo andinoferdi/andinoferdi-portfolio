@@ -34,19 +34,19 @@ console.log(
 );
 
 export const MODELS = [
-  "openai/deepseek-chat-v3.1:free",
   "openai/gpt-oss-20b:free",
   "google/gemini-2.0-flash-exp:free",
-  "alibaba/tongyi-deepresearch-30b-a3b:free",
   "qwen/qwen3-coder:free",
+  "alibaba/tongyi-deepresearch-30b-a3b:free",
+  "deepseek/deepseek-chat:free",
 ];
 
 export const MODEL_DISPLAY_NAMES = [
-  "DeepSeek Chat",
   "GPT-OSS",
   "Gemini Flash",
-  "Tongyi Research",
   "Qwen Coder",
+  "Tongyi Research",
+  "DeepSeek Chat",
 ];
 
 const CHAT_HISTORY_KEY = "andinoferdi_chat_history";
@@ -262,7 +262,7 @@ export const handleModelFallback = async (
   currentIndex: number,
   onStream?: (chunk: string) => void
 ): Promise<{ content: string; model: string; finalIndex: number }> => {
-  let lastError: Error | null = null;
+  const rateLimitedModels: string[] = [];
 
   for (let i = currentIndex; i < MODELS.length; i++) {
     try {
@@ -272,18 +272,36 @@ export const handleModelFallback = async (
         finalIndex: i,
       };
     } catch (error) {
-      lastError = error as Error;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
       console.warn(`Model ${MODELS[i]} failed:`, error);
 
+      if (errorMessage.includes("429") || errorMessage.includes("Rate limit")) {
+        rateLimitedModels.push(MODEL_DISPLAY_NAMES[i]);
+        console.log(`Model ${MODEL_DISPLAY_NAMES[i]} is rate limited, trying next model...`);
+        
+        if (i < MODELS.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
       if (i === MODELS.length - 1) {
-        throw new Error(`All models failed. Last error: ${lastError.message}`);
+        if (rateLimitedModels.length === MODELS.length) {
+          throw new Error(" You've reached your limit. Please try again later.");
+        } else {
+          throw new Error(
+            ` You've reached your limit. Please try again later.`
+          );
+        }
       }
     }
   }
 
-  throw new Error(
-    `All models failed. Last error: ${lastError?.message || "Unknown error"}`
-  );
+  if (rateLimitedModels.length === MODELS.length) {
+    throw new Error(" You've reached your limit. Please try again later.");
+  }
+
+  throw new Error(` You've reached your limit. Please try again later.}`);
 };
 
 export const saveChatHistory = (messages: Message[]): void => {
