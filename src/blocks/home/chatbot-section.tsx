@@ -38,11 +38,16 @@ export const ChatbotSection = () => {
     }
   };
 
+  // Auto scroll only when user sends a message, not during AI generation
   useEffect(() => {
-    if (messages.length > 0 || isStreaming) {
-      scrollToBottom("smooth");
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      // Only auto scroll if the last message is from user
+      if (lastMessage.role === "user") {
+        scrollToBottom("smooth");
+      }
     }
-  }, [messages, isStreaming]);
+  }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,31 +86,31 @@ export const ChatbotSection = () => {
         className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}
       >
         <div
-          className={`flex gap-3 max-w-[80%] ${
+          className={`flex gap-2 md:gap-3 max-w-[90%] md:max-w-[80%] ${
             isUser ? "flex-row-reverse" : "flex-row"
           }`}
         >
           <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+            className={`w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
               isUser
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground"
             }`}
           >
             {isUser ? (
-              <User className="h-4 w-4" />
+              <User className="h-3 w-3 md:h-4 md:w-4" />
             ) : (
-              <Bot className="h-4 w-4" />
+              <Bot className="h-3 w-3 md:h-4 md:w-4" />
             )}
           </div>
           <div
-            className={`rounded-lg px-4 py-2 ${
+            className={`rounded-lg px-3 py-2 md:px-4 ${
               isUser
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-foreground"
             }`}
           >
-            <div className="text-sm">
+            <div className="text-xs md:text-sm">
               {isUser ? (
                 <div className="whitespace-pre-wrap">{message.content}</div>
               ) : (
@@ -244,19 +249,19 @@ export const ChatbotSection = () => {
   };
 
   return (
-    <section className="py-20 px-4" id="chatbot-section">
+    <section className="py-10 md:py-20 px-2 md:px-4" id="chatbot-section">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
+        <div className="text-center mb-8 md:mb-16">
+          <h2 className="text-2xl md:text-4xl lg:text-6xl font-bold text-foreground mb-2 md:mb-4">
             Chat with AI
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-sm md:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
             Ask me anything about my projects, skills, or experience. I&apos;m
             here to help!
           </p>
         </div>
 
-        <Card className="h-[600px] flex flex-col">
+        <Card className="h-[500px] md:h-[600px] flex flex-col">
           <CardHeader className="flex-shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
@@ -300,7 +305,7 @@ export const ChatbotSection = () => {
           </CardHeader>
 
           <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
-            <RightScrollBar ref={scrollRef} className="flex-1 p-6">
+            <RightScrollBar ref={scrollRef} className="flex-1 p-3 md:p-6">
               <div className="space-y-4">
                 <AnimatePresence>
                   {messages.length === 0 && (
@@ -310,15 +315,15 @@ export const ChatbotSection = () => {
                       exit={{ opacity: 0 }}
                       className="flex gap-3 justify-start"
                     >
-                      <div className="flex gap-3 max-w-[80%] flex-row">
-                        <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center flex-shrink-0">
-                          <Bot className="h-4 w-4" />
+                      <div className="flex gap-2 md:gap-3 max-w-[90%] md:max-w-[80%] flex-row">
+                        <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center flex-shrink-0">
+                          <Bot className="h-3 w-3 md:h-4 md:w-4" />
                         </div>
-                        <div className="rounded-lg px-4 py-2 bg-muted text-foreground">
-                          <div className="text-sm">
+                        <div className="rounded-lg px-3 py-2 md:px-4 bg-muted text-foreground">
+                          <div className="text-xs md:text-sm">
                             <p className="mb-2">
-                              Hai, saya asisten AI. Tanyakan apa pun tentang
-                              proyek atau pengalaman saya.
+                              Hi, I&apos;m an AI assistant. Ask me anything about my
+                              projects or experience.
                             </p>
                           </div>
                           <p className="text-xs mt-1 text-muted-foreground">
@@ -340,9 +345,9 @@ export const ChatbotSection = () => {
                     animate={{ opacity: 1, scale: 1 }}
                     className="flex gap-3 justify-center"
                   >
-                    <div className="flex items-center gap-2 px-4 py-2 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
+                    <div className="flex items-center gap-2 px-3 py-2 md:px-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
                       <AlertCircle className="h-4 w-4" />
-                      <span className="text-sm">{error}</span>
+                      <span className="text-xs md:text-sm">{error}</span>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -357,14 +362,14 @@ export const ChatbotSection = () => {
               </div>
             </RightScrollBar>
 
-            <div className="flex-shrink-0 p-6 border-t">
+            <div className="flex-shrink-0 p-3 md:p-6 border-t">
               <form onSubmit={handleSubmit} className="flex gap-2">
                 <Input
                   ref={inputRef}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask me anything about my projects or experience..."
+                  placeholder="Ask me anything..."
                   className="flex-1"
                   disabled={isLoading}
                 />
