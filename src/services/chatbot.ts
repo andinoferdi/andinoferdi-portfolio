@@ -34,7 +34,6 @@ console.log(
 );
 
 export const MODELS = [
-  "openrouter/auto",
   "openai/gpt-oss-20b:free",
   "google/gemini-2.0-flash-exp:free",
   "qwen/qwen3-coder:free",
@@ -42,7 +41,6 @@ export const MODELS = [
 ];
 
 export const MODEL_DISPLAY_NAMES = [
-  "Auto Router",
   "GPT-OSS",
   "Gemini Flash",
   "Qwen Coder",
