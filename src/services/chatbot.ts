@@ -34,19 +34,19 @@ console.log(
 );
 
 export const MODELS = [
+  "openrouter/auto",
   "openai/gpt-oss-20b:free",
   "google/gemini-2.0-flash-exp:free",
   "qwen/qwen3-coder:free",
   "alibaba/tongyi-deepresearch-30b-a3b:free",
-  "deepseek/deepseek-chat:free",
 ];
 
 export const MODEL_DISPLAY_NAMES = [
+  "Auto Router",
   "GPT-OSS",
   "Gemini Flash",
   "Qwen Coder",
   "Tongyi Research",
-  "DeepSeek Chat",
 ];
 
 const CHAT_HISTORY_KEY = "andinoferdi_chat_history";
@@ -262,6 +262,7 @@ export const handleModelFallback = async (
   currentIndex: number,
   onStream?: (chunk: string) => void
 ): Promise<{ content: string; model: string; finalIndex: number }> => {
+  let lastError: Error | null = null;
   const rateLimitedModels: string[] = [];
 
   for (let i = currentIndex; i < MODELS.length; i++) {
@@ -272,6 +273,7 @@ export const handleModelFallback = async (
         finalIndex: i,
       };
     } catch (error) {
+      lastError = error as Error;
       const errorMessage = error instanceof Error ? error.message : String(error);
       
       console.warn(`Model ${MODELS[i]} failed:`, error);
@@ -287,21 +289,21 @@ export const handleModelFallback = async (
 
       if (i === MODELS.length - 1) {
         if (rateLimitedModels.length === MODELS.length) {
-          throw new Error(" You've reached your limit. Please try again later.");
+          throw new Error(" The limit has been reached. Please try again later.");
         } else {
-          throw new Error(
-            ` You've reached your limit. Please try again later.`
-          );
+          throw new Error(`All models failed. Last error: ${lastError.message}`);
         }
       }
     }
   }
 
   if (rateLimitedModels.length === MODELS.length) {
-    throw new Error(" You've reached your limit. Please try again later.");
+    throw new Error(" The limit has been reached. Please try again later.");
   }
 
-  throw new Error(` You've reached your limit. Please try again later.}`);
+  throw new Error(
+    `All models failed. Last error: ${lastError?.message || "Unknown error"}`
+  );
 };
 
 export const saveChatHistory = (messages: Message[]): void => {
