@@ -5,7 +5,6 @@ import { type Message, type ChatbotState, type SendMessageParams } from '@/types
 import {
   handleModelFallback,
   saveChatHistory,
-  loadChatHistory,
   clearChatHistory,
   generateMessageId,
   MODEL_DISPLAY_NAMES
@@ -23,13 +22,7 @@ export const useChatbot = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    const savedMessages = loadChatHistory();
-    if (savedMessages.length > 0) {
-      setState(prev => ({
-        ...prev,
-        messages: savedMessages
-      }));
-    }
+    clearChatHistory();
   }, []);
 
   useEffect(() => {
