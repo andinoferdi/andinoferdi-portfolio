@@ -38,15 +38,15 @@ export const ChatbotSection = () => {
     }
   };
 
-  // Auto scroll only when user sends a message, not during AI generation
+ 
   useEffect(() => {
-    if (messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      // Only auto scroll if the last message is from user
-      if (lastMessage.role === "user") {
-        scrollToBottom("smooth");
-      }
-    }
+    if (messages.length === 0) return;
+    const lastMessage = messages[messages.length - 1];
+    const behavior: ScrollBehavior =
+      lastMessage.role === "assistant" && lastMessage.isStreaming
+        ? "auto"
+        : "smooth";
+    scrollToBottom(behavior);
   }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
