@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, SkipBack, SkipForward, Volume2, ChevronUp, ChevronDown } from "lucide-react";
 import Image from "next/image";
@@ -18,18 +18,40 @@ function SmartImage({
   imgClass?: string;
   blurDataURL?: string;
 }) {
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  const handleLoad = () => {
+    setIsLoading(false);
+    setHasError(false);
+  };
+
+  const handleError = () => {
+    setIsLoading(false);
+    setHasError(true);
+  };
+
   return (
-    <Image
-      src={src || "/placeholder.svg"}
-      alt={alt}
-      fill
-      sizes="224px"
-      priority
-      className={imgClass}
-      placeholder={blurDataURL ? "blur" : undefined}
-      blurDataURL={blurDataURL}
-      fetchPriority="high"
-    />
+    <>
+      {isLoading && (
+        <div className="absolute inset-0 bg-muted animate-pulse flex items-center justify-center">
+          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+      <Image
+        src={hasError ? "/placeholder.svg" : (src || "/placeholder.svg")}
+        alt={alt}
+        fill
+        sizes="224px"
+        priority
+        className={imgClass}
+        placeholder={blurDataURL ? "blur" : undefined}
+        blurDataURL={blurDataURL}
+        fetchPriority="high"
+        onLoad={handleLoad}
+        onError={handleError}
+      />
+    </>
   );
 }
 
@@ -41,6 +63,7 @@ export const MiniPlayer: React.FC = () => {
     duration,
     volume,
     isExpanded,
+    isTrackLoading,
     progressPercent,
     volumePercent,
     handlePlayPause,
@@ -60,6 +83,14 @@ export const MiniPlayer: React.FC = () => {
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40"
     >
+      {isTrackLoading && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-xl flex items-center justify-center z-50">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            Loading track...
+          </div>
+        </div>
+      )}
       <AnimatePresence mode="wait">
         {!isExpanded ? (
           <MiniPlayerCollapsed

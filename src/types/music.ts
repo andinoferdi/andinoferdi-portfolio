@@ -27,6 +27,7 @@ export interface MusicPlayerState {
   playlist: Track[];
   currentTrackIndex: number;
   isExpanded: boolean;
+  isTrackLoading: boolean;
 }
 
 export interface MusicPlayerActions {

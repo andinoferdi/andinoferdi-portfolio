@@ -54,9 +54,10 @@ export const useAudioPlayer = () => {
     playlist: shuffledPlaylist,
     currentTrackIndex: 0,
     isExpanded: false,
+    isTrackLoading: false,
   }));
 
-  const { currentTrack, isPlaying, currentTime, duration, volume, isExpanded } =
+  const { currentTrack, isPlaying, currentTime, duration, volume, isExpanded, isTrackLoading } =
     playerState;
 
   useEffect(() => {
@@ -120,6 +121,7 @@ export const useAudioPlayer = () => {
     const audio = audioRef.current;
     if (!audio) return;
 
+    setPlayerState((prev) => ({ ...prev, isTrackLoading: true }));
     transitioningRef.current = true;
     const token = ++changeTokenRef.current;
 
@@ -137,6 +139,7 @@ export const useAudioPlayer = () => {
         audio.currentTime = 0;
       } catch {}
       transitioningRef.current = false;
+      setPlayerState((prev) => ({ ...prev, isTrackLoading: false }));
       if (Number.isFinite(audio.duration) && audio.duration > 0) {
         setPlayerState((prev) => ({ ...prev, duration: audio.duration }));
       }
@@ -257,6 +260,7 @@ export const useAudioPlayer = () => {
     duration,
     volume,
     isExpanded,
+    isTrackLoading,
     progressPercent,
     volumePercent,
     handlePlayPause,
