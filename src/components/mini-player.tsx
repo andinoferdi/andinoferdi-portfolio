@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, SkipBack, SkipForward, Volume2, ChevronUp, ChevronDown } from "lucide-react";
 import Image from "next/image";
@@ -74,11 +74,19 @@ export const MiniPlayer: React.FC = () => {
     toggleExpanded,
   } = useAudioPlayer();
 
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  useEffect(() => {
+    if (currentTrack && !hasAnimated) {
+      setHasAnimated(true);
+    }
+  }, [currentTrack, hasAnimated]);
+
   if (!currentTrack) return null;
 
   return (
     <motion.div
-      initial={{ x: 400, opacity: 0 }}
+      initial={hasAnimated ? { x: 0, opacity: 1 } : { x: 400, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40"
