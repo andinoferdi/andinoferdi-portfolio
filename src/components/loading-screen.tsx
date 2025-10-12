@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Spotlight } from "@/components/ui/spotlight-new";
 import { HoverBorderGradient } from "@/components/ui/hover-border-button";
-import { Download, Music, Image as ImageIcon, FileText, Play, Building2 } from "lucide-react";
+import { Download, Music, Image as ImageIcon, FileText, Play } from "lucide-react";
 import { getProjectsData } from "@/services/projects";
 import { getProfileData } from "@/services/profile";
 import { getOriginalTracks } from "@/services/music";

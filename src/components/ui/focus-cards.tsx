@@ -8,6 +8,7 @@ interface CardData {
   id: string
   title: string
   src: string
+  'data-aos'?: string
 }
 
 export const Card = React.memo(
@@ -49,20 +50,24 @@ export const Card = React.memo(
 
     return (
       <div
-        onMouseEnter={canHover ? () => setHovered(index) : undefined}
-        onMouseLeave={canHover ? () => setHovered(null) : undefined}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        tabIndex={0}
-        role="button"
-        aria-label={`View details for ${card.title}`}
-        className={cn(
-          "rounded-lg relative bg-muted overflow-hidden aspect-square w-full transition-all duration-300 ease-out cursor-pointer border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
-          canHover && hovered !== null && hovered !== index && "blur-sm scale-[0.98]",
-          !canHover && tapped === index && "ring-2 ring-primary ring-offset-2",
-        )}
-        style={{ willChange: "transform, opacity" }}
+        data-aos={card['data-aos']}
+        className="w-full"
       >
+        <div
+          onMouseEnter={canHover ? () => setHovered(index) : undefined}
+          onMouseLeave={canHover ? () => setHovered(null) : undefined}
+          onClick={handleClick}
+          onKeyDown={handleKeyDown}
+          tabIndex={0}
+          role="button"
+          aria-label={`View details for ${card.title}`}
+          className={cn(
+            "rounded-lg relative bg-muted overflow-hidden aspect-square w-full transition-all duration-300 ease-out cursor-pointer border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
+            canHover && hovered !== null && hovered !== index && "blur-sm scale-[0.98]",
+            !canHover && tapped === index && "ring-2 ring-primary ring-offset-2",
+          )}
+          style={{ willChange: "transform, opacity" }}
+        >
         <Image
           src={card.src || "/placeholder.svg"}
           alt={card.title}
@@ -91,6 +96,7 @@ export const Card = React.memo(
             Tap to {tapped === index ? "hide" : "show"}
           </div>
         )}
+        </div>
       </div>
     )
   },

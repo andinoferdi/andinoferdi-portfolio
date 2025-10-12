@@ -124,6 +124,20 @@
     background-clip: padding-box;
   }
 
+  /* AOS compatibility with hover effects */
+  [data-aos] {
+    pointer-events: auto;
+  }
+  
+  [data-aos].aos-animate {
+    pointer-events: auto;
+  }
+  
+  /* Prevent AOS reset on hover */
+  [data-aos]:hover {
+    transform: inherit !important;
+  }
+  
   /* Mobile flickering prevention */
   .fix-mobile-flicker {
     -webkit-backface-visibility: hidden;

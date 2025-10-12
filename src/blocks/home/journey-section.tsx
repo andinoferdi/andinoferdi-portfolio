@@ -175,7 +175,10 @@ export const ExperienceSection = () => {
   return (
     <section className="py-20 px-4" aria-label="Professional experience timeline">
       <div className="max-w-7xl mx-auto">
-        <header className="text-center mb-16">
+        <header 
+          className="text-center mb-16"
+          data-aos="fade-up"
+        >
           <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
             My Journey
           </h2>
@@ -184,7 +187,11 @@ export const ExperienceSection = () => {
           </p>
         </header>
 
-        <Timeline data={timelineData} />
+        <div 
+          data-aos="fade-up"
+        >
+          <Timeline data={timelineData} />
+        </div>
       </div>
     </section>
   );

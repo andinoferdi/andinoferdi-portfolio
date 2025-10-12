@@ -3,6 +3,7 @@
 import { Poppins } from "next/font/google";
 import { useState } from "react";
 import "./globals.css";
+import "aos/dist/aos.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TitleProvider } from "@/components/providers/title-provider";
 import { DemoNavbar } from "@/components/navbar";

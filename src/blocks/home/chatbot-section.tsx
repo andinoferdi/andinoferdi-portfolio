@@ -251,17 +251,22 @@ export const ChatbotSection = () => {
   return (
     <section className="py-10 md:py-20 px-2 md:px-4" id="chatbot-section">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8 md:mb-16">
-          <h2 className="text-2xl md:text-4xl lg:text-6xl font-bold text-foreground mb-2 md:mb-4">
+        <header 
+          className="text-center mb-16"
+          data-aos="fade-up"
+        >
+          <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
             Chat with AI
           </h2>
-          <p className="text-sm md:text-lg text-muted-foreground max-w-2xl mx-auto px-2">
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Ask me anything about my projects, skills, or experience. I&apos;m
             here to help!
           </p>
-        </div>
-
-        <Card className="h-[500px] md:h-[600px] flex flex-col">
+        </header>
+        <Card 
+          className="h-[500px] md:h-[600px] flex flex-col"
+          data-aos="fade-up"
+        >
           <CardHeader className="flex-shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
@@ -322,8 +327,8 @@ export const ChatbotSection = () => {
                         <div className="rounded-lg px-3 py-2 md:px-4 bg-muted text-foreground">
                           <div className="text-xs md:text-sm">
                             <p className="mb-2">
-                              Hi, I&apos;m an AI assistant. Ask me anything about my
-                              projects or experience.
+                              Hi, I&apos;m an AI assistant. Ask me anything
+                              about my projects or experience.
                             </p>
                           </div>
                           <p className="text-xs mt-1 text-muted-foreground">

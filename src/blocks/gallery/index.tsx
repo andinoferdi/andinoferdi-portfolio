@@ -5,14 +5,17 @@ import { PageTitle } from "@/components/page-title";
 import { GalleryErrorBoundary } from "@/components/error-boundary";
 import { getGalleryData } from "@/services/gallery";
 import { type GalleryItem } from "@/types/gallery";
+import { useAOS } from "@/hooks/useAOS";
 
 export const GalleryPage = () => {
   const galleryData = getGalleryData();
+  useAOS();
 
   const galleryItems = galleryData.items.map((item: GalleryItem) => ({
     id: item.id,
     title: item.title,
     src: item.src,
+    'data-aos': 'fade-up',
   }));
 
   return (
@@ -20,7 +23,10 @@ export const GalleryPage = () => {
       <PageTitle title="Gallery - AndinoFerdi" />
       <section className="py-20 px-4">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
+          <div 
+            className="text-center mb-16"
+            data-aos="fade-up"
+          >
             <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
               Gallery
             </h1>

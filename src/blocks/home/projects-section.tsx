@@ -12,22 +12,40 @@ export const ProjectsSection = () => {
   return (
     <section className="py-20 px-4">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
+        <header 
+          className="text-center mb-16"
+          data-aos="fade-up"
+        >
           <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
             My Projects
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Explore my portfolio of innovative projects and cutting-edge solutions.
+            Explore my portfolio of innovative projects and cutting-edge
+            solutions.
           </p>
-        </div>
+        </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div 
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          data-aos="fade-up"
+        >
           {projectsData.projects.slice(0, 3).map((project) => (
-            <ProjectCard key={project.id} project={project} showCodeButton={false} />
+            <div
+              key={project.id}
+              data-aos="fade-up"
+            >
+              <ProjectCard
+                project={project}
+                showCodeButton={false}
+              />
+            </div>
           ))}
         </div>
 
-        <div className="flex justify-center mt-12">
+        <div 
+          className="flex justify-center mt-12"
+          data-aos="fade-up"
+        >
           <HoverBorderGradient
             as={Link}
             href="/projects"

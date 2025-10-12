@@ -19,10 +19,16 @@ export const HeroSection = ({ data }: HeroSectionProps) => {
     <section className="min-h-screen flex items-start justify-center text-foreground px-4 pt-26">
       <div className="text-center space-y-8 max-w-4xl mx-auto">
         <div className="space-y-4">
-          <h1 className="text-4xl md:text-7xl font-bold font-sans">
+          <h1 
+            className="text-4xl md:text-7xl font-bold font-sans"
+            data-aos="fade-up"
+          >
             {data.greeting}
           </h1>
-          <div className="flex flex-col items-center space-y-4">
+          <div 
+            className="flex flex-col items-center space-y-4"
+            data-aos="fade-down"
+          >
             <ContainerTextFlip
               words={data.flipWords}
               interval={2000}
@@ -30,12 +36,18 @@ export const HeroSection = ({ data }: HeroSectionProps) => {
             />
           </div>
         </div>
-        <div className="mt-16">
+        <div 
+          className="mt-16"
+          data-aos="fade-left"
+        >
           <ProfileCarousel 
             profiles={profileData.profiles}
           />
         </div>
-        <div className="mt-12 flex justify-center">
+        <div 
+          className="mt-12 flex justify-center"
+          data-aos="fade-up"
+        >
           <Link href={profileData.cvDownload.url} download={profileData.cvDownload.filename}>
             <HoverBorderGradient
               containerClassName="rounded-full"

@@ -4,9 +4,11 @@ import { getProjectsData } from "@/services/projects";
 import { ProjectCard } from "@/components/project-card";
 import { PageTitle } from "@/components/page-title";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { useAOS } from "@/hooks/useAOS";
 
 export const ProjectsPage = () => {
   const projectsData = getProjectsData();
+  useAOS();
 
   return (
     <>
@@ -27,7 +29,10 @@ export const ProjectsPage = () => {
       >
         <section className="py-20 px-4">
           <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
+            <div 
+              className="text-center mb-16"
+              data-aos="fade-up"
+            >
               <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
                 All Projects
               </h1>
@@ -36,7 +41,10 @@ export const ProjectsPage = () => {
               </p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div 
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+              data-aos="fade-up"
+            >
               {projectsData.projects.map((project) => (
                 <ProjectCard key={project.id} project={project} showCodeButton={true} />
               ))}

@@ -7,9 +7,11 @@ import { ExperienceSection } from "./journey-section";
 import { ChatbotSection } from "./chatbot-section";
 import { PageTitle } from "@/components/page-title";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { useAOS } from "@/hooks/useAOS";
 
 export default function Home() {
   const data = getHomePageData();
+  useAOS();
 
   return (
     <>
