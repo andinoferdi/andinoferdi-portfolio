@@ -52,7 +52,7 @@ Chat dengan AI yang mengetahui tentang:
 - **Loading Screen** - Preloader dengan progress tracking
 - **Hover Effects** - Interactive hover animations
 
-## 🚀 Menjalankan Proyek
+## Menjalankan Proyek
 
 ```bash
 # Install dependencies
