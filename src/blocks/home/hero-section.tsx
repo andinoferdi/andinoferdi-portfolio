@@ -21,13 +21,13 @@ export const HeroSection = ({ data }: HeroSectionProps) => {
         <div className="space-y-4">
           <h1 
             className="text-4xl md:text-7xl font-bold font-sans"
-            data-aos="fade-up"
+            data-aos="fade-down"
           >
             {data.greeting}
           </h1>
           <div 
             className="flex flex-col items-center space-y-4"
-            data-aos="fade-down"
+            data-aos="fade-up"
           >
             <ContainerTextFlip
               words={data.flipWords}
