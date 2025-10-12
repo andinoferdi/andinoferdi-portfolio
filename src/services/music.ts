@@ -218,5 +218,15 @@ export const getOriginalTracks = (): Track[] => [
     coverImage: "/music/images/The Vanishing Race.jpg",
     genre: "Soft Rock",
   },
+  {
+    id: "Heaven",
+    title: "Heaven",
+    artist: "Bryan Adams",
+    album: "Reckless",
+    duration: 0,
+    audioUrl: "/music/Heaven.mp3",
+    coverImage: "/music/images/Reckless.jpg",
+    genre: "Soft Rock",
+  },
 ];
 
