@@ -87,6 +87,17 @@ export interface PortfolioContext {
     url: string;
     label: string;
   };
+  music?: Array<{
+    title: string;
+    artist: string;
+    album: string;
+    genre?: string;
+  }>;
+  gallery?: Array<{
+    title: string;
+    location: string;
+    date: string;
+  }>;
 }
 
 export interface ChatHistory {

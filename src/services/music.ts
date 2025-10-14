@@ -228,5 +228,25 @@ export const getOriginalTracks = (): Track[] => [
     coverImage: "/music/images/Reckless.jpg",
     genre: "Soft Rock",
   },
+  {
+    id: "Please-Forgive-Me",
+    title: "Please Forgive Me",
+    artist: "Bryan Adams",
+    album: "Classic",
+    duration: 0,
+    audioUrl: "/music/Please Forgive Me.mp3",
+    coverImage: "/music/images/Classic.jpg",
+    genre: "Soft Rock",
+  },
+  {
+    id: "Bohemian-Rhapsody",
+    title: "Bohemian Rhapsody",
+    artist: "Queen",
+    album: "A Night At The Opera",
+    duration: 0,
+    audioUrl: "/music/Bohemian Rhapsody.mp3",
+    coverImage: "/music/images/A Night At The Opera.jpg",
+    genre: "Alternative Rock",
+  },
 ];
 

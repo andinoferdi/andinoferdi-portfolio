@@ -140,7 +140,7 @@ export const ProfileCarousel = ({
               className="group/button flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Previous profile"
             >
-              <IconArrowLeft className="h-4 w-4 md:h-5 md:w-5 text-black transition-transform duration-200 group-hover/button:rotate-12 dark:text-neutral-400" />
+              <IconArrowLeft className="h-4 w-4 md:h-5 md:w-5 text-black transition-transform duration-200 group-hover/button:rotate-12 dark:text-neutral-400 cursor-pointer" />
             </button>
             <button
               onClick={handleNext}
@@ -148,7 +148,7 @@ export const ProfileCarousel = ({
               className="group/button flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full bg-gray-100 dark:bg-neutral-800 hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Next profile"
             >
-              <IconArrowRight className="h-4 w-4 md:h-5 md:w-5 text-black transition-transform duration-200 group-hover/button:-rotate-12 dark:text-neutral-400" />
+              <IconArrowRight className="h-4 w-4 md:h-5 md:w-5 text-black transition-transform duration-200 group-hover/button:-rotate-12 dark:text-neutral-400 cursor-pointer" />
             </button>
           </div>
         </div>

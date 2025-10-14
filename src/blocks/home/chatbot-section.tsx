@@ -271,7 +271,7 @@ export const ChatbotSection = () => {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Bot className="h-5 w-5 text-primary" />
-                AI Assistant
+                AndinoBot
                 {isLoading && (
                   <motion.div
                     animate={{ rotate: 360 }}
@@ -327,8 +327,8 @@ export const ChatbotSection = () => {
                         <div className="rounded-lg px-3 py-2 md:px-4 bg-muted text-foreground">
                           <div className="text-xs md:text-sm">
                             <p className="mb-2">
-                              Hi, I&apos;m an AI assistant. Ask me anything
-                              about my projects or experience.
+                              Hi, I&apos;m an AndinoBot. Ask me anything
+                              about Andino Ferdiansah&apos;s projects or experience.
                             </p>
                           </div>
                           <p className="text-xs mt-1 text-muted-foreground">

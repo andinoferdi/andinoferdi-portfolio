@@ -191,7 +191,7 @@ const MiniPlayerCollapsed: React.FC<MiniPlayerCollapsedProps> = ({
             e.stopPropagation(); 
             onPlayPause(); 
           }}
-          className="p-2 rounded-full bg-foreground text-background hover:bg-foreground/80 transition-colors"
+          className="p-2 rounded-full bg-foreground text-background hover:bg-foreground/80 transition-colors cursor-pointer"
           aria-label={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? (
@@ -252,7 +252,7 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
       <h3 className="font-bold text-sm sm:text-base text-foreground">Now Playing</h3>
       <button 
         onClick={onCollapse} 
-        className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+        className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
         aria-label="Collapse player"
       >
         <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
@@ -294,7 +294,7 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
       <div className="flex items-center justify-center gap-1.5 sm:gap-2">
         <button 
           onClick={onPrevious} 
-          className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+          className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
           aria-label="Previous track"
         >
           <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-foreground" />
@@ -302,7 +302,7 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
 
         <button 
           onClick={onPlayPause} 
-          className="p-1.5 sm:p-2 rounded-full bg-foreground hover:bg-foreground/90 transition-colors"
+          className="p-1.5 sm:p-2 rounded-full bg-foreground hover:bg-foreground/90 transition-colors cursor-pointer"
           aria-label={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? (
@@ -314,7 +314,7 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
 
         <button 
           onClick={onNext} 
-          className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+          className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
           aria-label="Next track"
         >
           <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-foreground" />
