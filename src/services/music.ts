@@ -245,7 +245,7 @@ export const getOriginalTracks = (): Track[] => [
     album: "A Night At The Opera",
     duration: 0,
     audioUrl: "/music/Bohemian Rhapsody.mp3",
-    coverImage: "/music/images/A Night At The Opera.jpg",
+    coverImage: "/music/images/A NIght At The Opera.jpg",
     genre: "Alternative Rock",
   },
 ];
