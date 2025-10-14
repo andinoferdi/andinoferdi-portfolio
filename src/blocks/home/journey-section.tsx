@@ -169,7 +169,13 @@ export const ExperienceSection = () => {
 
   const timelineData = experienceData.experiences.map((experience) => ({
     title: `${experience.period.start} - ${experience.period.end}`,
-    content: <ExperienceCard experience={experience} />,
+    content: (
+      <div 
+        data-aos="fade-up" 
+      >
+        <ExperienceCard experience={experience} />
+      </div>
+    ),
   }));
 
   return (
@@ -187,9 +193,7 @@ export const ExperienceSection = () => {
           </p>
         </header>
 
-        <div 
-          data-aos="fade-up"
-        >
+        <div>
           <Timeline data={timelineData} />
         </div>
       </div>
