@@ -50,6 +50,7 @@ function SmartImage({
         fetchPriority="high"
         onLoad={handleLoad}
         onError={handleError}
+        unoptimized={src?.includes('/music/')}
       />
     </>
   );
