@@ -88,17 +88,14 @@ export const TechStackCard = ({ category, index }: TechStackCardProps) => {
                     className="text-sm font-semibold truncate transition-colors duration-300"
                     style={{
                       color: tech.brandColor === "#000000" 
-                        ? "var(--foreground)" // Use theme-aware foreground color for black brands
+                        ? "var(--foreground)" 
                         : tech.brandColor === "#FFFFFF" || tech.brandColor === "#ffffff"
-                        ? "var(--foreground)" // Use theme-aware foreground color for white brands
+                        ? "var(--foreground)" 
                         : tech.brandColor || `rgb(${category.color[0]}, ${category.color[1]}, ${category.color[2]})`,
                     }}
                   >
                     {tech.name}
                   </h4>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {tech.yearsOfExperience}+ {tech.yearsOfExperience === 1 ? "year" : "years"}
-                  </span>
                 </div>
               </div>
             </div>

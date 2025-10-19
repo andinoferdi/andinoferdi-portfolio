@@ -2,7 +2,6 @@ export interface Technology {
   id: string;
   name: string;
   icon: string;
-  yearsOfExperience: number;
   description: string;
   brandColor?: string;
 }

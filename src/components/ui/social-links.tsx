@@ -1,7 +1,6 @@
 "use client";
 
 import { Github } from "lucide-react";
-import { IconBrandWhatsapp } from "@tabler/icons-react";
 
 interface SocialLink {
   name: string;
@@ -12,7 +11,6 @@ interface SocialLink {
 interface SocialLinksProps {
   socialLinks: {
     github: { href: string };
-    whatsapp: { href: string };
   };
   className?: string;
 }
@@ -23,11 +21,6 @@ const SOCIAL_LINKS: SocialLink[] = [
     href: "",
     icon: Github,
   },
-  {
-    name: "WhatsApp", 
-    href: "",
-    icon: IconBrandWhatsapp,
-  },
 ];
 
 export const SocialLinks: React.FC<SocialLinksProps> = ({ 
@@ -36,7 +29,6 @@ export const SocialLinks: React.FC<SocialLinksProps> = ({
 }) => {
   const links = [
     { ...SOCIAL_LINKS[0], href: socialLinks.github.href },
-    { ...SOCIAL_LINKS[1], href: socialLinks.whatsapp.href },
   ];
 
   return (

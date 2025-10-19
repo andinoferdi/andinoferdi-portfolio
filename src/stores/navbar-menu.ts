@@ -19,10 +19,6 @@ export interface NavbarConfig {
       href: string;
       icon: string;
     };
-    whatsapp: {
-      href: string;
-      icon: string;
-    };
   };
   brandName: string;
 }
@@ -57,10 +53,6 @@ export const defaultNavbarConfig: NavbarConfig = {
     github: {
       href: "https://github.com/andinoferdi",
       icon: "github",
-    },
-    whatsapp: {
-      href: "https://wa.me/6281359528944",
-      icon: "whatsapp",
     },
   },
   brandName: "AndinoFerdi",

@@ -26,23 +26,23 @@ const GRADIENT_CONFIG = {
   },
 };
 
-export function HoverBorderGradient({
+export function HoverBorderGradient<T extends React.ElementType = "button">({
   children,
   containerClassName,
   className,
-  as: Tag = "button",
+  as,
   duration = 1,
   clockwise = true,
   ...props
-}: React.PropsWithChildren<
-  {
-    as?: React.ElementType;
-    containerClassName?: string;
-    className?: string;
-    duration?: number;
-    clockwise?: boolean;
-  } & React.HTMLAttributes<HTMLElement>
->) {
+}: {
+  children: React.ReactNode;
+  containerClassName?: string;
+  className?: string;
+  as?: T;
+  duration?: number;
+  clockwise?: boolean;
+} & Omit<React.ComponentPropsWithoutRef<T>, "as" | "children" | "className">) {
+  const Tag = as || "button";
   const [hovered, setHovered] = useState<boolean>(false);
   const [direction, setDirection] = useState<Direction>("TOP");
 
@@ -64,62 +64,59 @@ export function HoverBorderGradient({
     }
   }, [hovered, duration, rotateDirection]);
 
-  return (
-    <Tag
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className={cn(
+  return React.createElement(
+    Tag,
+    {
+      onMouseEnter: () => setHovered(true),
+      onMouseLeave: () => setHovered(false),
+      className: cn(
         "relative flex rounded-full border content-center bg-black/20 hover:bg-black/10 transition duration-500 dark:bg-white/20 dark:hover:bg-white/10 items-center flex-col flex-nowrap gap-10 h-min justify-center overflow-visible p-px decoration-clone w-fit cursor-pointer",
         containerClassName
+      ),
+      ...props,
+    },
+    <div
+      className={cn(
+        "w-auto text-white dark:text-black z-10 bg-black dark:bg-white px-4 py-2 rounded-[inherit]",
+        className
       )}
-      {...props}
     >
-      <div
-        className={cn(
-          "w-auto text-white dark:text-black z-10 bg-black dark:bg-white px-4 py-2 rounded-[inherit]",
-          className
-        )}
-      >
-        {children}
-      </div>
-      
-      {/* Light mode gradient */}
-      <motion.div
-        className="flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit] dark:hidden"
-        style={{
-          filter: "blur(2px)",
-          position: "absolute",
-          width: "100%",
-          height: "100%",
-        }}
-        initial={{ background: GRADIENT_CONFIG.light.moving[direction] }}
-        animate={{
-          background: hovered
-            ? [GRADIENT_CONFIG.light.moving[direction], GRADIENT_CONFIG.light.highlight]
-            : GRADIENT_CONFIG.light.moving[direction],
-        }}
-        transition={{ ease: "linear", duration: duration ?? 1 }}
-      />
-      
-      {/* Dark mode gradient */}
-      <motion.div
-        className="flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit] hidden dark:block"
-        style={{
-          filter: "blur(2px)",
-          position: "absolute",
-          width: "100%",
-          height: "100%",
-        }}
-        initial={{ background: GRADIENT_CONFIG.dark.moving[direction] }}
-        animate={{
-          background: hovered
-            ? [GRADIENT_CONFIG.dark.moving[direction], GRADIENT_CONFIG.dark.highlight]
-            : GRADIENT_CONFIG.dark.moving[direction],
-        }}
-        transition={{ ease: "linear", duration: duration ?? 1 }}
-      />
-      
-      <div className="bg-black dark:bg-white absolute z-1 flex-none inset-[2px] rounded-[100px]" />
-    </Tag>
+      {children}
+    </div>,
+    <motion.div
+      key="light-gradient"
+      className="flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit] dark:hidden"
+      style={{
+        filter: "blur(2px)",
+        position: "absolute",
+        width: "100%",
+        height: "100%",
+      }}
+      initial={{ background: GRADIENT_CONFIG.light.moving[direction] }}
+      animate={{
+        background: hovered
+          ? [GRADIENT_CONFIG.light.moving[direction], GRADIENT_CONFIG.light.highlight]
+          : GRADIENT_CONFIG.light.moving[direction],
+      }}
+      transition={{ ease: "linear", duration: duration ?? 1 }}
+    />,
+    <motion.div
+      key="dark-gradient"
+      className="flex-none inset-0 overflow-hidden absolute z-0 rounded-[inherit] hidden dark:block"
+      style={{
+        filter: "blur(2px)",
+        position: "absolute",
+        width: "100%",
+        height: "100%",
+      }}
+      initial={{ background: GRADIENT_CONFIG.dark.moving[direction] }}
+      animate={{
+        background: hovered
+          ? [GRADIENT_CONFIG.dark.moving[direction], GRADIENT_CONFIG.dark.highlight]
+          : GRADIENT_CONFIG.dark.moving[direction],
+      }}
+      transition={{ ease: "linear", duration: duration ?? 1 }}
+    />,
+    <div key="bg-overlay" className="bg-black dark:bg-white absolute z-1 flex-none inset-[2px] rounded-[100px]" />
   );
 }
