@@ -50,7 +50,7 @@ export const ProjectsSection = () => {
             as={Link}
             href="/projects"
             containerClassName="rounded-full"
-            className="flex items-center gap-2 px-8 py-3 text-lg font-medium"
+            className="flex items-center gap-2 px-6 py-2.5 text-base font-medium sm:px-8 sm:py-3 sm:text-lg"
             {...({} as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
           >
             View All Projects

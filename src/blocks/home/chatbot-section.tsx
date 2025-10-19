@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/input";
 import { RightScrollBar } from "@/components/ui/right-scroll-bar";
 import { Bot, User, Send, X, RotateCcw, AlertCircle } from "lucide-react";
 import { useChatbot } from "@/hooks/useChatbot";
@@ -17,7 +17,7 @@ import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 export const ChatbotSection = () => {
   const [inputValue, setInputValue] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -71,6 +71,7 @@ export const ChatbotSection = () => {
       e.preventDefault();
       handleSubmit(e);
     }
+    // Shift+Enter allows new line in textarea
   };
 
   const renderMessage = (message: Message, index: number) => {
@@ -369,18 +370,22 @@ export const ChatbotSection = () => {
 
             <div className="flex-shrink-0 p-3 md:p-6 border-t">
               <form onSubmit={handleSubmit} className="flex gap-2">
-                <Input
+                <Textarea
                   ref={inputRef}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask me anything..."
-                  className="flex-1"
+                  className="flex-1 min-h-[2.5rem] max-h-32 resize-none right-scrollbar"
                   disabled={isLoading}
+                  autoResize={true}
+                  maxHeight={128}
+                  rows={1}
                 />
                 <Button
                   type="submit"
                   disabled={isLoading || !inputValue.trim()}
+                  className="self-end"
                 >
                   {isLoading && isStreaming ? (
                     <X className="h-4 w-4" onClick={cancelRequest} />

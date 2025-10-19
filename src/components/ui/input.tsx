@@ -4,7 +4,7 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
-const inputBase = "block w-full bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 border border-border";
+const inputBase = "block w-full bg-background text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:border-border disabled:cursor-not-allowed disabled:opacity-50 border border-border";
 
 const inputVariants = cva(inputBase, {
 	variants: {
@@ -85,7 +85,10 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 				ref={combinedRef}
 				rows={1}
 				className={cn("min-h-[2.5rem] py-2", inputVariants({ variant, uiSize, radius, className }))}
-				style={{ overflow: "hidden", ...style }}
+				style={{ 
+					overflow: autoResize && maxHeight ? "auto" : "hidden", 
+					...style 
+				}}
 				onChange={handleChange}
 				{...props}
 			/>

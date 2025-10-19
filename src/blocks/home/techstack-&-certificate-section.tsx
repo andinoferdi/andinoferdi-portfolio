@@ -66,16 +66,17 @@ export const TechStackCertificateSection = () => {
         </div>
 
         {/* Single CTA Button */}
-        <div className="flex justify-center" data-aos="fade-up">
-          <Link href="/techstack-&-certificate">
-            <HoverBorderGradient
-              containerClassName="rounded-full"
-              className="flex items-center gap-2 px-8 py-3 text-lg font-medium"
-            >
-              View All Tech Stack & Certificates
-              <ExternalLink className="h-5 w-5" />
-            </HoverBorderGradient>
-          </Link>
+        <div className="flex justify-center mt-12" data-aos="fade-up">
+          <HoverBorderGradient
+            as={Link}
+            href="/techstack-&-certificate"
+            containerClassName="rounded-full"
+            className="flex items-center gap-2 px-6 py-2.5 text-base font-medium sm:px-8 sm:py-3 sm:text-lg"
+            {...({} as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
+          >
+            View All Tech Stack & Certificates
+            <ExternalLink className="h-5 w-5" />
+          </HoverBorderGradient>
         </div>
       </div>
     </section>
