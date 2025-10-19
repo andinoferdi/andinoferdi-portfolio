@@ -248,5 +248,15 @@ export const getOriginalTracks = (): Track[] => [
     coverImage: "/music/images/A Night At The Opera - Remastered.jpg",
     genre: "Alternative Rock",
   },
+  {
+    id: "Right-Here-Waiting",
+    title: "Right Here Waiting",
+    artist: "Richard Marx",
+    album: "Repeat Offender",
+    duration: 0,
+    audioUrl: "/music/Right Here Waiting.mp3",
+    coverImage: "/music/images/Repeat Offender.jpg",
+    genre: "Soft Rock",
+  },
 ];
 

@@ -18,7 +18,7 @@ export const getProjectsData = (): ProjectsData => {
         description:
           "An unfinished personal portfolio website showcasing projects, skills, and professional experience with a modern design.",
         image: "/images/projects/portfolio-v2.png",
-        technologies: ["React", "Javascript", "Tailwind CSS"],
+        technologies: ["React.js", "JavaScript", "Tailwind CSS"],
         liveUrl: "https://andinoferdi-portfolio-v2.netlify.app/",
       },
       {
@@ -27,7 +27,7 @@ export const getProjectsData = (): ProjectsData => {
         description:
           "My workshop course assignment: a creative design studio website that showcases digital solutions, services, and portfolio with a modern UI/UX design and responsive layout.",
         image: "/images/projects/anro.png",
-        technologies: ["HTML", "CSS", "Javascript"],
+        technologies: ["HTML", "CSS", "JavaScript"],
         liveUrl: "https://anrostudio.netlify.app/",
       },
       {
@@ -45,7 +45,7 @@ export const getProjectsData = (): ProjectsData => {
         description:
           "My First Portfolio Website And i made it in 2023, it's not finished yet because i'm still learning and improving my skills.",
         image: "/images/projects/portfolio.jpg",
-        technologies: ["HTML", "Javascript", "CSS"],
+        technologies: ["HTML", "JavaScript", "CSS"],
         liveUrl: "https://andinoferdi-portfolio.netlify.app//",
       },
     ],

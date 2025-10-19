@@ -6,6 +6,7 @@ import {
   IconBrandHtml5, 
   IconBrandCss3, 
   IconBrandJavascript, 
+  IconBrandTypescript,
   IconBrandLaravel, 
   IconBrandPhp, 
   IconBrandMysql, 
@@ -15,8 +16,9 @@ import {
   IconBrandVue,
   IconBrandFigma,
   IconBrandFlutter,
-  IconDatabase,
+  IconBrandGolang,
   IconCode,
+  IconDatabase,
   IconTools,
   IconBrandPython,
   IconBrandFirebase,
@@ -26,7 +28,7 @@ import {
   IconBrandAdobePhotoshop,
   IconBrandAdobeIllustrator,
   IconBrandAdobePremier,
-  IconBrandAdobeXd
+  IconMusic
 } from "@tabler/icons-react";
 
 const technologyIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -48,6 +50,7 @@ const technologyIcons: Record<string, React.ComponentType<{ className?: string }
   "HTML": IconBrandHtml5,
   "CSS": IconBrandCss3,
   "JavaScript": IconBrandJavascript,
+  "TypeScript": IconBrandTypescript,
   "Sass": IconBrandSass,
   "jQuery": IconCode,
   "React.js": IconBrandReact,
@@ -58,7 +61,7 @@ const technologyIcons: Record<string, React.ComponentType<{ className?: string }
   "Python": IconBrandPython,
   "Java": IconCode,
   "Firebase": IconBrandFirebase,
-  "Golang": IconCode,
+  "Golang": IconBrandGolang,
   
   // Databases
   "MySQL": IconBrandMysql,
@@ -72,7 +75,7 @@ const technologyIcons: Record<string, React.ComponentType<{ className?: string }
   "Adobe Illustrator": IconBrandAdobeIllustrator,
   "Adobe Photoshop": IconBrandAdobePhotoshop,
   "Adobe Premiere Pro": IconBrandAdobePremier,
-  "Adobe Audition": IconBrandAdobeXd,
+  "Adobe Audition": IconMusic,
   
   // Others
   "Netlify": IconTools,
