@@ -4,6 +4,7 @@ import { getHomePageData } from "@/services/hero";
 import { HeroSection } from "./hero-section";
 import { ProjectsSection } from "./projects-section";
 import { ExperienceSection } from "./journey-section";
+import { TechStackCertificateSection } from "./techstack-&-certificate-section";
 import { ChatbotSection } from "./chatbot-section";
 import { PageTitle } from "@/components/page-title";
 import { ErrorBoundary } from "@/components/error-boundary";
@@ -63,6 +64,22 @@ export default function Home() {
         }
       >
         <ExperienceSection />
+      </ErrorBoundary>
+      <ErrorBoundary
+        fallback={
+          <div className="py-20 px-4">
+            <div className="max-w-7xl mx-auto text-center">
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Tech Stack & Certificates section temporarily unavailable
+              </h2>
+              <p className="text-muted-foreground">
+                We&apos;re having trouble loading the tech stack and certificates. Please refresh the page.
+              </p>
+            </div>
+          </div>
+        }
+      >
+        <TechStackCertificateSection />
       </ErrorBoundary>
       <ErrorBoundary
         fallback={

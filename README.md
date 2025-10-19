@@ -9,6 +9,8 @@ Portfolio website modern yang menampilkan proyek, pengalaman, dan kemampuan saya
 - **Music Player** - Mini player dengan playlist musik favorit
 - **AI Chatbot** - Chat dengan AI tentang proyek dan pengalaman saya
 - **Interactive Gallery** - Galeri foto perjalanan dan momen penting
+- **Tech Stack Showcase** - Tampilan interaktif tech stack dengan canvas effects
+- **Certificates** - Showcase sertifikat profesional dengan 3D cards
 - **Smooth Animations** - Animasi AOS (Animate On Scroll) yang halus
 - **Modern UI/UX** - Desain yang clean dan user-friendly
 
@@ -24,8 +26,9 @@ Portfolio website modern yang menampilkan proyek, pengalaman, dan kemampuan saya
 
 ## Halaman
 
-- **Home** - Hero section, proyek terbaru, journey timeline, AI chatbot
+- **Home** - Hero section, proyek terbaru, journey timeline, tech stack, certificates, AI chatbot
 - **Projects** - Portfolio lengkap semua proyek dengan detail teknologi
+- **Tech & Certs** - Daftar lengkap tech stack dan sertifikat profesional
 - **Gallery** - Koleksi foto perjalanan dan momen penting
 
 ## Music Player

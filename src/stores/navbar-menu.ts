@@ -38,6 +38,10 @@ export const defaultNavbarConfig: NavbarConfig = {
       link: "/projects",
     },
     {
+      name: "Tech & Certs",
+      link: "/techstack-&-certificate",
+    },
+    {
       name: "Gallery",
       link: "/gallery",
     },

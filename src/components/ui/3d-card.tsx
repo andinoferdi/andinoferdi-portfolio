@@ -86,14 +86,17 @@ export const CardContainer = ({
 export const CardBody = ({
   children,
   className,
+  dynamicSize = false,
 }: {
   children: React.ReactNode;
   className?: string;
+  dynamicSize?: boolean;
 }) => {
   return (
     <div
       className={cn(
-        "h-96 w-96 [transform-style:preserve-3d]  [&>*]:[transform-style:preserve-3d]",
+        dynamicSize ? "w-full h-auto" : "h-96 w-96",
+        "[transform-style:preserve-3d] [&>*]:[transform-style:preserve-3d]",
         className
       )}
     >
@@ -131,7 +134,6 @@ export const CardItem = ({
   const handleAnimations = useCallback(() => {
     if (!ref.current) return;
 
-    // Disable 3D transforms on mobile devices
     if (window.innerWidth < 768) {
       ref.current.style.transform = "none";
       return;
@@ -156,14 +158,14 @@ export const CardItem = ({
     handleAnimations();
   }, [handleAnimations]);
 
-  return (
-    <Tag
-      ref={ref}
-      className={cn("w-fit transition duration-200 ease-linear", className)}
-      {...rest}
-    >
-      {children}
-    </Tag>
+  return React.createElement(
+    Tag,
+    {
+      ref,
+      className: cn("w-fit transition duration-200 ease-linear", className),
+      ...rest,
+    },
+    children
   );
 };
 
