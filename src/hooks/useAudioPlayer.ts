@@ -6,6 +6,7 @@ import {
   normalizeTrackUrl,
   getDefaultVolume,
 } from "@/services/music";
+import { isAssetPreloaded } from "@/services/preload";
 import type { MusicPlayerState, Track } from "@/types/music";
 
 const clampVolume = (v: number) =>
@@ -103,6 +104,7 @@ export const useAudioPlayer = () => {
       audio.removeEventListener("ended", onEnded);
       audioRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -121,7 +123,10 @@ export const useAudioPlayer = () => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    setPlayerState((prev) => ({ ...prev, isTrackLoading: true }));
+    const normalizedUrl = normalizeTrackUrl(track.audioUrl);
+    const isCached = isAssetPreloaded(track.audioUrl);
+
+    setPlayerState((prev) => ({ ...prev, isTrackLoading: !isCached }));
     transitioningRef.current = true;
     const token = ++changeTokenRef.current;
 
@@ -130,7 +135,8 @@ export const useAudioPlayer = () => {
       audio.currentTime = 0;
     } catch {}
 
-    audio.src = normalizeTrackUrl(track.audioUrl);
+    audio.src = normalizedUrl;
+    audio.preload = "auto";
     audio.load();
 
     const ready = () => {
@@ -149,7 +155,9 @@ export const useAudioPlayer = () => {
       }
     };
 
-    if (audio.readyState >= 3) {
+    if (isCached && audio.readyState >= 3) {
+      ready();
+    } else if (audio.readyState >= 3) {
       ready();
     } else {
       audio.addEventListener("canplaythrough", ready, { once: true });

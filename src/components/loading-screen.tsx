@@ -10,6 +10,8 @@ import { getProfileData } from "@/services/profile";
 import { getOriginalTracks } from "@/services/music";
 import { getExperienceData } from "@/services/journey";
 import { getGalleryData } from "@/services/gallery";
+import { getCertificateData } from "@/services/certificate";
+import { preloadImage, preloadAudio, preloadDocument } from "@/services/preload";
 
 interface LoadingScreenProps {
   onComplete: () => void;
@@ -27,6 +29,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
     const musicData = getOriginalTracks();
     const experienceData = getExperienceData();
     const galleryData = getGalleryData();
+    const certificateData = getCertificateData();
 
     const imageAssets = [
       ...profileData.profiles.map(p => p.src),
@@ -34,6 +37,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
       ...musicData.map(m => m.coverImage),
       ...galleryData.items.map(g => g.src),
       ...experienceData.experiences.filter(exp => exp.logo).map(exp => exp.logo!),
+      ...certificateData.certificates.map(c => c.image),
     ];
 
     const audioAssets = musicData.map(m => m.audioUrl);
@@ -73,26 +77,17 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
       for (const assetGroup of assets) {
         for (const assetUrl of assetGroup.assets) {
           if (assetGroup.name === "Images") {
-            const promise = new Promise<void>((resolve) => {
-              const img = new Image();
-              img.onload = () => resolve();
-              img.onerror = () => resolve();
-              img.src = assetUrl;
-            });
-            allPromises.push(promise);
+            const criticalSizes = [640, 828, 1200, 1920];
+            
+            for (const size of criticalSizes) {
+              const promise = preloadImage(assetUrl, { width: size, quality: 75 });
+              allPromises.push(promise);
+            }
           } else if (assetGroup.name === "Audio") {
-            const promise = new Promise<void>((resolve) => {
-              const audio = new Audio();
-              audio.oncanplaythrough = () => resolve();
-              audio.onerror = () => resolve();
-              audio.preload = "metadata";
-              audio.src = assetUrl;
-            });
+            const promise = preloadAudio(assetUrl, { crossOrigin: true });
             allPromises.push(promise);
           } else if (assetGroup.name === "Documents") {
-            const promise = fetch(assetUrl, { method: "HEAD" })
-              .then(() => {})
-              .catch(() => {});
+            const promise = preloadDocument(assetUrl);
             allPromises.push(promise);
           }
         }

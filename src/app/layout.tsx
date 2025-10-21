@@ -31,6 +31,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <ThemeScript />
+        <link rel="preload" href="/images/self/1.jpg" as="image" />
+        <link rel="preload" href="/images/self/2.jpg" as="image" />
+        <link rel="preload" href="/images/self/3.jpg" as="image" />
+        <link rel="preload" href="/images/self/4.jpg" as="image" />
+        <link rel="preload" href="/music/Every Breath You Take.mp3" as="audio" />
+        <link rel="preload" href="/music/I Want It That Way.mp3" as="audio" />
+        <link rel="preload" href="/music/Basket Case.mp3" as="audio" />
+        <link rel="preload" href="/cv/ANDINO FERDIANSAH.pdf" as="document" />
+        <link rel="dns-prefetch" href="https://openrouter.ai" />
       </head>
       <body
         className={`${poppins.variable} font-sans antialiased`}
