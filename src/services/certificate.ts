@@ -7,6 +7,10 @@ export const getCertificateData = (): CertificateData => {
         id: "cert-1",
         image: "/images/certificates/1.jpg",
       },
+      {
+        id: "cert-2",
+        image: "/images/certificates/2.jpg",
+      },
     ],
   };
 };
