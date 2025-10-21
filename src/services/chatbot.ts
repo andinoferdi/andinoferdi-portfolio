@@ -263,6 +263,8 @@ export const sendChatMessage = async (
 
     if (response.status === 401) {
       errorMessage = `Authentication failed (401): Please check your OpenRouter API key. ${errorText}`;
+    } else if (response.status === 402) {
+      errorMessage = "Provider insufficient balance. Trying alternative model...";
     } else if (response.status === 429) {
       errorMessage = `Rate limit exceeded (429): Please try again later. ${errorText}`;
     } else if (response.status >= 500) {
@@ -322,7 +324,7 @@ export const handleModelFallback = async (
 
         if (rateLimitedModels.length === MODELS.length) {
           throw new Error(
-            "All free models have reached their daily limit. Please try again next time"
+            "Chatbot sedang tidak tersedia sementara. Silakan coba lagi nanti."
           );
         }
 
@@ -330,13 +332,27 @@ export const handleModelFallback = async (
         continue;
       }
 
+      if (errorMessage.includes("402") || errorMessage.includes("insufficient balance")) {
+        console.warn(`${MODEL_DISPLAY_NAMES[i]} insufficient balance, trying next model...`);
+        rateLimitedModels.push(MODEL_DISPLAY_NAMES[i]);
+        
+        if (rateLimitedModels.length === MODELS.length) {
+          throw new Error(
+            "Chatbot sedang tidak tersedia sementara. Silakan coba lagi nanti."
+          );
+        }
+        
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        continue;
+      }
+
       lastError = error instanceof Error ? error : new Error(errorMessage);
       console.error(` ${MODEL_DISPLAY_NAMES[i]} Failed:`, errorMessage);
-      break;
+      continue;
     }
   }
 
-  throw lastError || new Error("All models fail or reach their limits.");
+  throw lastError || new Error("Chatbot sedang tidak tersedia sementara. Silakan coba lagi nanti.");
 };
 
 export const saveChatHistory = (messages: Message[]): void => {
