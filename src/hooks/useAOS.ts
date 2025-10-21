@@ -7,7 +7,7 @@ export const useAOS = () => {
   useEffect(() => {
     AOS.init({
       once: true,
-      duration: 1000,
+      duration: window.innerWidth < 768 ? 400 : 800,
       offset: 10,
       easing: "ease",
       delay: 0,

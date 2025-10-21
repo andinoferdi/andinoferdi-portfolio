@@ -3,6 +3,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -311,10 +321,21 @@
   
   /* Reduce motion for accessibility and low-end devices */
   @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+    
     [data-aos] {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+      animation: none !important;
+      transition: none !important;
     }
   }
   
@@ -343,5 +364,21 @@
     overflow: hidden;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
+  }
+  
+  /* Mobile specific optimizations */
+  @media (max-width: 768px) {
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    [data-aos] {
+      animation-duration: 400ms !important;
+    }
+    
+    .gpu-accelerated {
+      transform: translateZ(0);
+      will-change: auto;
+    }
   }
 } 

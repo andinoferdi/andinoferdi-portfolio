@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CanvasRevealEffect } from "@/components/ui/canvas-reveal-effect";
 import { TechnologyIcon } from "@/components/ui/technology-icon";
@@ -13,11 +13,16 @@ interface TechStackCardProps {
 
 export const TechStackCard = ({ category, index }: TechStackCardProps) => {
   const [hovered, setHovered] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+  }, []);
 
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => !isMobile && setHovered(true)}
+      onMouseLeave={() => !isMobile && setHovered(false)}
       className="group/canvas-card relative mx-auto flex w-full max-w-sm items-start justify-start rounded-xl border border-border bg-card p-6 transition-all duration-300 hover:shadow-lg"
       data-aos="fade-up"
       data-aos-delay={index * 100}

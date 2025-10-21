@@ -71,7 +71,7 @@ export const Spotlight = ({
       <motion.div
         animate={{ x: [0, finalXOffset, 0] }}
         transition={{
-          duration,
+          duration: isMobile ? duration * 1.5 : duration,
           repeat: Infinity,
           repeatType: "reverse",
           ease: "easeInOut",
@@ -112,7 +112,7 @@ export const Spotlight = ({
       <motion.div
         animate={{ x: [0, -finalXOffset, 0] }}
         transition={{
-          duration,
+          duration: isMobile ? duration * 1.5 : duration,
           repeat: Infinity,
           repeatType: "reverse",
           ease: "easeInOut",
