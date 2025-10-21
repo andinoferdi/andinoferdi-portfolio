@@ -280,18 +280,42 @@
     scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
-  /* AOS compatibility with hover effects */
+  /* AOS GPU acceleration and optimization */
   [data-aos] {
     pointer-events: auto;
+    will-change: transform, opacity;
+    transform: translate3d(0, 0, 0);
+    -webkit-transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    perspective: 1000px;
+    -webkit-perspective: 1000px;
   }
   
   [data-aos].aos-animate {
     pointer-events: auto;
+    will-change: auto;
   }
   
   /* Prevent AOS reset on hover */
   [data-aos]:hover {
     transform: inherit !important;
+  }
+  
+  /* Mobile-specific AOS optimization */
+  @media (max-width: 768px) {
+    [data-aos] {
+      animation-duration: 400ms !important;
+    }
+  }
+  
+  /* Reduce motion for accessibility and low-end devices */
+  @media (prefers-reduced-motion: reduce) {
+    [data-aos] {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
   
   /* Mobile flickering prevention */

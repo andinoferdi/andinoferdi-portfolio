@@ -5,23 +5,30 @@ import AOS from "aos";
 
 export const useAOS = () => {
   useEffect(() => {
-    const initAOS = () => {
-      AOS.init({
-        once: true,
-        duration: 1000,
-        offset: 100,
-        easing: "ease-in-out",
-        delay: 0,
-      });
+    AOS.init({
+      once: true,
+      duration: 1000,
+      offset: 10,
+      easing: "ease",
+      delay: 0,
+      disable: false,
+      startEvent: 'DOMContentLoaded',
+      initClassName: 'aos-init',
+      animatedClassName: 'aos-animate',
+      useClassNames: false,
+      disableMutationObserver: false,
+      debounceDelay: 50,
+      throttleDelay: 99,
+    });
+
+    const handleLoad = () => {
+      AOS.refresh();
     };
 
-    initAOS();
-    
-    window.addEventListener("resize", initAOS);
+    window.addEventListener('load', handleLoad);
     
     return () => {
-      window.removeEventListener("resize", initAOS);
-      AOS.refresh();
+      window.removeEventListener('load', handleLoad);
     };
   }, []);
 };
