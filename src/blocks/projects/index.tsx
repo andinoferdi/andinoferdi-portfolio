@@ -43,10 +43,11 @@ export const ProjectsPage = () => {
             
             <div 
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-              data-aos="fade-up"
             >
               {projectsData.projects.map((project) => (
-                <ProjectCard key={project.id} project={project} showCodeButton={true} />
+                <div key={project.id} data-aos="fade-up">
+                  <ProjectCard project={project} showCodeButton={true} />
+                </div>
               ))}
             </div>
           </div>

@@ -45,6 +45,11 @@ export function HoverBorderGradient<T extends React.ElementType = "button">({
   const Tag = as || "button";
   const [hovered, setHovered] = useState<boolean>(false);
   const [direction, setDirection] = useState<Direction>("TOP");
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+  }, []);
 
   const rotateDirection = useCallback((currentDirection: Direction): Direction => {
     const directions: Direction[] = ["TOP", "LEFT", "BOTTOM", "RIGHT"];
@@ -56,13 +61,29 @@ export function HoverBorderGradient<T extends React.ElementType = "button">({
   }, [clockwise]);
 
   useEffect(() => {
-    if (!hovered) {
+    if (!hovered && !isMobile) {
       const interval = setInterval(() => {
         setDirection((prevState) => rotateDirection(prevState));
       }, duration * 1000);
       return () => clearInterval(interval);
     }
-  }, [hovered, duration, rotateDirection]);
+  }, [hovered, duration, rotateDirection, isMobile]);
+
+  if (isMobile) {
+    return React.createElement(
+      Tag,
+      {
+        className: cn(
+          "relative flex rounded-full border bg-black dark:bg-white items-center px-4 py-2 cursor-pointer",
+          containerClassName
+        ),
+        ...props,
+      },
+      <div className={cn("text-white dark:text-black", className)}>
+        {children}
+      </div>
+    );
+  }
 
   return React.createElement(
     Tag,

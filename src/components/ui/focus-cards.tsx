@@ -20,6 +20,7 @@ export const Card = React.memo(
     canHover,
     tapped,
     setTapped,
+    isMobile,
   }: {
     card: CardData
     index: number
@@ -28,6 +29,7 @@ export const Card = React.memo(
     canHover: boolean
     tapped: number | null
     setTapped: React.Dispatch<React.SetStateAction<number | null>>
+    isMobile: boolean
   }) => {
     const handleClick = () => {
       if (!canHover) {
@@ -63,10 +65,10 @@ export const Card = React.memo(
           aria-label={`View details for ${card.title}`}
           className={cn(
             "rounded-lg relative bg-muted overflow-hidden aspect-square w-full transition-all duration-300 ease-out cursor-pointer border border-border/60 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
-            canHover && hovered !== null && hovered !== index && "blur-sm scale-[0.98]",
+            canHover && hovered !== null && hovered !== index && !isMobile && "blur-sm scale-[0.98]",
             !canHover && tapped === index && "ring-2 ring-primary ring-offset-2",
           )}
-          style={{ willChange: "transform, opacity" }}
+          style={{ willChange: isMobile ? "auto" : "transform, opacity" }}
         >
         <Image
           src={card.src || "/placeholder.svg"}
@@ -108,8 +110,10 @@ export function FocusCards({ cards }: { cards: CardData[] }) {
   const [hovered, setHovered] = useState<number | null>(null)
   const [tapped, setTapped] = useState<number | null>(null)
   const [canHover, setCanHover] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
+    setIsMobile(window.innerWidth < 768)
     const mq = window.matchMedia("(hover: hover) and (pointer: fine)")
     const update = () => setCanHover(mq.matches)
     update()
@@ -133,6 +137,7 @@ export function FocusCards({ cards }: { cards: CardData[] }) {
           canHover={canHover}
           tapped={tapped}
           setTapped={setTapped}
+          isMobile={isMobile}
         />
       ))}
     </div>

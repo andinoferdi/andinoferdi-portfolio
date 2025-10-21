@@ -27,25 +27,27 @@ export const TechStackCard = ({ category, index }: TechStackCardProps) => {
       data-aos="fade-up"
       data-aos-delay={index * 100}
     >
-      <AnimatePresence>
-        {hovered && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 h-full w-full"
-          >
-            <CanvasRevealEffect
-              animationSpeed={3}
-              containerClassName="bg-transparent"
-              colors={[category.color]}
-              opacities={[0.2, 0.2, 0.2, 0.2, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4]}
-              dotSize={2}
-              showGradient={false}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {!isMobile && (
+        <AnimatePresence>
+          {hovered && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 h-full w-full"
+            >
+              <CanvasRevealEffect
+                animationSpeed={3}
+                containerClassName="bg-transparent"
+                colors={[category.color]}
+                opacities={[0.2, 0.2, 0.2, 0.2, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4]}
+                dotSize={2}
+                showGradient={false}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
 
       <div className="relative z-10 w-full">
         <div className="mb-4 flex items-center justify-between">

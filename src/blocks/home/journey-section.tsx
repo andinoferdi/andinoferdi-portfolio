@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useMemo } from "react";
 import { Timeline } from "@/components/ui/timeline";
 import { getExperienceData } from "@/services/journey";
 import { type Experience } from "@/types/journey";
@@ -11,20 +12,21 @@ interface ExperienceCardProps {
   experience: Experience;
 }
 
-const ExperienceCard = ({ experience }: ExperienceCardProps) => (
-  <article className="space-y-4 bg-background/90 backdrop-blur-md border border-border/60 rounded-xl p-6 shadow-lg">
+const ExperienceCard = React.memo(({ experience }: ExperienceCardProps) => (
+  <article className="space-y-4 bg-background/90 border border-border/60 rounded-xl p-6 shadow-lg md:backdrop-blur-md">
     <ExperienceHeader experience={experience} />
     <ExperienceDescription description={experience.description} />
     <ExperienceAchievements achievements={experience.achievements} />
     <ExperienceTechnologies technologies={experience.technologies} />
   </article>
-);
+));
+ExperienceCard.displayName = "ExperienceCard";
 
 interface ExperienceHeaderProps {
   experience: Experience;
 }
 
-const ExperienceHeader = ({ experience }: ExperienceHeaderProps) => (
+const ExperienceHeader = React.memo(({ experience }: ExperienceHeaderProps) => (
   <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
     <div className="flex items-start gap-3">
       <CompanyLogo logo={experience.logo} company={experience.company} />
@@ -58,15 +60,16 @@ const ExperienceHeader = ({ experience }: ExperienceHeaderProps) => (
       location={experience.location} 
     />
   </header>
-);
+));
+ExperienceHeader.displayName = "ExperienceHeader";
 
 interface CompanyLogoProps {
   logo?: string;
   company: string;
 }
 
-const CompanyLogo = ({ logo, company }: CompanyLogoProps) => (
-  <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-background/90 backdrop-blur-md border border-border/60 flex items-center justify-center flex-shrink-0">
+const CompanyLogo = React.memo(({ logo, company }: CompanyLogoProps) => (
+  <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-background/90 border border-border/60 flex items-center justify-center flex-shrink-0 md:backdrop-blur-md">
     {logo ? (
       <Image
         src={logo}
@@ -74,12 +77,14 @@ const CompanyLogo = ({ logo, company }: CompanyLogoProps) => (
         width={40}
         height={40}
         className="w-full h-full object-contain"
+        loading="lazy"
       />
     ) : (
       <Building2 className="h-5 w-5 text-primary" />
     )}
   </div>
-);
+));
+CompanyLogo.displayName = "CompanyLogo";
 
 interface ExperienceMetaProps {
   period: { start: string; end: string };
@@ -87,7 +92,7 @@ interface ExperienceMetaProps {
   location: string;
 }
 
-const ExperienceMeta = ({ period, current, location }: ExperienceMetaProps) => (
+const ExperienceMeta = React.memo(({ period, current, location }: ExperienceMetaProps) => (
   <div className="flex flex-col md:items-end gap-1">
     <div className="flex items-center gap-2 text-sm text-muted-foreground">
       <Calendar className="h-4 w-4" />
@@ -103,23 +108,25 @@ const ExperienceMeta = ({ period, current, location }: ExperienceMetaProps) => (
       <span>{location}</span>
     </div>
   </div>
-);
+));
+ExperienceMeta.displayName = "ExperienceMeta";
 
 interface ExperienceDescriptionProps {
   description: string;
 }
 
-const ExperienceDescription = ({ description }: ExperienceDescriptionProps) => (
+const ExperienceDescription = React.memo(({ description }: ExperienceDescriptionProps) => (
   <p className="text-muted-foreground leading-relaxed">
     {description}
   </p>
-);
+));
+ExperienceDescription.displayName = "ExperienceDescription";
 
 interface ExperienceAchievementsProps {
   achievements: string[];
 }
 
-const ExperienceAchievements = ({ achievements }: ExperienceAchievementsProps) => {
+const ExperienceAchievements = React.memo(({ achievements }: ExperienceAchievementsProps) => {
   if (achievements.length === 0) return null;
 
   return (
@@ -138,13 +145,14 @@ const ExperienceAchievements = ({ achievements }: ExperienceAchievementsProps) =
       </ul>
     </section>
   );
-};
+});
+ExperienceAchievements.displayName = "ExperienceAchievements";
 
 interface ExperienceTechnologiesProps {
   technologies: string[];
 }
 
-const ExperienceTechnologies = ({ technologies }: ExperienceTechnologiesProps) => {
+const ExperienceTechnologies = React.memo(({ technologies }: ExperienceTechnologiesProps) => {
   if (technologies.length === 0) return null;
 
   return (
@@ -153,7 +161,7 @@ const ExperienceTechnologies = ({ technologies }: ExperienceTechnologiesProps) =
         <span
           key={tech}
           role="listitem"
-          className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background/60 backdrop-blur-sm px-2 py-1 text-xs font-medium text-foreground hover:bg-background/80 transition-colors"
+          className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background/60 px-2 py-1 text-xs font-medium text-foreground hover:bg-background/80 transition-colors md:backdrop-blur-sm"
           aria-label={`Technology: ${tech}`}
         >
           <TechnologyIcon technology={tech} className="h-3 w-3" aria-hidden="true" />
@@ -162,21 +170,25 @@ const ExperienceTechnologies = ({ technologies }: ExperienceTechnologiesProps) =
       ))}
     </section>
   );
-};
+});
+ExperienceTechnologies.displayName = "ExperienceTechnologies";
 
 export const ExperienceSection = () => {
   const experienceData = getExperienceData();
 
-  const timelineData = experienceData.experiences.map((experience) => ({
-    title: `${experience.period.start} - ${experience.period.end}`,
-    content: (
-      <div 
-        data-aos="fade-up" 
-      >
-        <ExperienceCard experience={experience} />
-      </div>
-    ),
-  }));
+  const timelineData = useMemo(() => 
+    experienceData.experiences.map((experience) => ({
+      title: `${experience.period.start} - ${experience.period.end}`,
+      content: (
+        <div 
+          data-aos="fade-up" 
+        >
+          <ExperienceCard experience={experience} />
+        </div>
+      ),
+    })),
+    [experienceData.experiences]
+  );
 
   return (
     <section className="py-20 px-4" aria-label="Professional experience timeline">
