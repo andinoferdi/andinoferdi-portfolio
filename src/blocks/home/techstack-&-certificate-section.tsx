@@ -71,11 +71,12 @@ export const TechStackCertificateSection = () => {
             as={Link}
             href="/techstack-&-certificate"
             containerClassName="rounded-full"
-            className="flex items-center gap-2 px-6 py-2.5 text-base font-medium sm:px-8 sm:py-3 sm:text-lg"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium sm:px-6 sm:py-2.5 sm:text-base md:px-8 md:py-3 md:text-lg"
             {...({} as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
           >
-            View All Tech Stack & Certificates
-            <ExternalLink className="h-5 w-5" />
+            <span className="hidden sm:inline">View All Tech Stack & Certificates</span>
+            <span className="sm:hidden">View All</span>
+            <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5" />
           </HoverBorderGradient>
         </div>
       </div>
