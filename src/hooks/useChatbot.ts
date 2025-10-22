@@ -5,6 +5,7 @@ import {
   type Message,
   type ChatbotState,
   type SendMessageParams,
+  type MessageContent,
 } from "@/types/chatbot";
 import {
   handleModelFallback,
@@ -36,14 +37,31 @@ export const useChatbot = () => {
   }, [state.messages]);
 
   const sendMessage = useCallback(
-    async ({ content, onStream, onComplete, onError }: SendMessageParams) => {
-      if (!content.trim() || state.isLoading) return;
+    async ({ content, images = [], onStream, onComplete, onError }: SendMessageParams) => {
+      if ((!content.trim() && images.length === 0) || state.isLoading) return;
+
+      const messageContent: MessageContent[] = [];
+      
+      if (content.trim()) {
+        messageContent.push({
+          type: "text",
+          text: content.trim()
+        });
+      }
+      
+      images.forEach(imageUrl => {
+        messageContent.push({
+          type: "image_url",
+          image_url: { url: imageUrl }
+        });
+      });
 
       const userMessage: Message = {
         id: generateMessageId(),
         role: "user",
-        content: content.trim(),
+        content: messageContent,
         timestamp: new Date(),
+        images: images,
       };
 
       const assistantMessage: Message = {
@@ -151,7 +169,10 @@ export const useChatbot = () => {
     }));
 
     await sendMessage({
-      content: lastUserMessage.content,
+      content: typeof lastUserMessage.content === 'string' 
+        ? lastUserMessage.content 
+        : lastUserMessage.content.find(c => c.type === 'text')?.text || '',
+      images: lastUserMessage.images || [],
       onComplete: () => {
         setState((prev) => ({ ...prev, error: null }));
       },

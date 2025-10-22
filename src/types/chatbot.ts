@@ -1,10 +1,19 @@
+export interface MessageContent {
+  type: 'text' | 'image_url';
+  text?: string;
+  image_url?: {
+    url: string;
+  };
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
-  content: string;
+  content: string | MessageContent[];
   timestamp: Date;
   model?: string;
   isStreaming?: boolean;
+  images?: string[];
 }
 
 export interface ChatbotState {
@@ -107,6 +116,7 @@ export interface ChatHistory {
 
 export interface SendMessageParams {
   content: string;
+  images?: string[];
   onStream?: (chunk: string) => void;
   onComplete?: () => void;
   onError?: (error: string) => void;

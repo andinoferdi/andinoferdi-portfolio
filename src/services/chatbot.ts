@@ -36,17 +36,29 @@ console.log(
 );
 
 export const MODELS = [
-  "openai/gpt-oss-20b:free",
+  "meta-llama/llama-4-maverick:free",
+  "qwen/qwen2.5-vl-32b-instruct:free",
+  "meta-llama/llama-4-scout:free",
   "google/gemini-2.0-flash-exp:free",
-  "qwen/qwen3-coder:free",
-  "alibaba/tongyi-deepresearch-30b-a3b:free",
+  "google/gemma-3-27b-it:free",
+  "google/gemma-3-12b-it:free",
+  "google/gemma-3-4b-it:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "mistralai/mistral-small-3.2-24b-instruct:free",
+  "openrouter/andromeda-alpha",
 ];
 
 export const MODEL_DISPLAY_NAMES = [
-  "GPT-OSS",
-  "Gemini Flash",
-  "Qwen Coder",
-  "Tongyi Research",
+  "Llama 4 Maverick",
+  "Qwen 2.5 VL",
+  "Llama 4 Scout",
+  "Gemini 2.0 Flash",
+  "Gemma 3 27B",
+  "Gemma 3 12B",
+  "Gemma 3 4B",
+  "Mistral Small 3.1",
+  "Mistral Small 3.2",
+  "Andromeda Alpha",
 ];
 
 const CHAT_HISTORY_KEY = "andinoferdi_chat_history";
@@ -248,7 +260,7 @@ export const sendChatMessage = async (
         model: MODELS[modelIndex],
         messages: apiMessages.map((m) => ({
           role: m.role,
-          content: m.content,
+          content: Array.isArray(m.content) ? m.content : m.content,
         })),
         stream: true,
         temperature: 0.7,
@@ -346,8 +358,36 @@ export const handleModelFallback = async (
         continue;
       }
 
+      if (errorMessage.includes("403") || errorMessage.includes("moderation") || errorMessage.includes("flagged")) {
+        console.warn(`${MODEL_DISPLAY_NAMES[i]} content flagged by moderation, trying next model...`);
+        rateLimitedModels.push(MODEL_DISPLAY_NAMES[i]);
+        
+        if (rateLimitedModels.length === MODELS.length) {
+          throw new Error(
+            "Konten Anda tidak dapat diproses oleh AI. Silakan coba dengan konten yang berbeda."
+          );
+        }
+        
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        continue;
+      }
+
+      if (errorMessage.includes("400") || errorMessage.includes("Bad Request")) {
+        console.warn(`${MODEL_DISPLAY_NAMES[i]} bad request, trying next model...`);
+        rateLimitedModels.push(MODEL_DISPLAY_NAMES[i]);
+        
+        if (rateLimitedModels.length === MODELS.length) {
+          throw new Error(
+            "Permintaan tidak valid. Silakan coba lagi dengan format yang berbeda."
+          );
+        }
+        
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        continue;
+      }
+
       lastError = error instanceof Error ? error : new Error(errorMessage);
-      console.error(` ${MODEL_DISPLAY_NAMES[i]} Failed:`, errorMessage);
+      console.error(`${MODEL_DISPLAY_NAMES[i]} Failed:`, errorMessage);
       continue;
     }
   }
@@ -408,5 +448,14 @@ export const formatTimestamp = (date: Date): string => {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+  });
+};
+
+export const imageToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
 };
