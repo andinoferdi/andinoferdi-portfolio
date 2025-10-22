@@ -76,6 +76,11 @@ export const ChatbotSection = () => {
     const images = await Promise.all(imagePromises);
     const validImages = images.filter(img => img !== null) as string[];
     setSelectedImages(prev => [...prev, ...validImages]);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -461,7 +466,7 @@ export const ChatbotSection = () => {
                       />
                       <button
                         onClick={() => setSelectedImages(prev => prev.filter((_, i) => i !== idx))}
-                        className="absolute top-0 right-0 bg-destructive text-white rounded-bl p-1"
+                        className="absolute top-0 right-0 bg-gray-500/80 text-white rounded-full p-1 cursor-pointer hover:bg-gray-600/80"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -483,6 +488,7 @@ export const ChatbotSection = () => {
                   variant="ghost"
                   size="icon"
                   onClick={() => fileInputRef.current?.click()}
+                  className="cursor-pointer"
                 >
                   <ImageIcon className="h-4 w-4" />
                 </Button>
@@ -501,7 +507,7 @@ export const ChatbotSection = () => {
                 <Button
                   type="submit"
                   disabled={isLoading || (!inputValue.trim() && selectedImages.length === 0)}
-                  className="self-end"
+                  className="self-end cursor-pointer"
                 >
                   {isLoading && isStreaming ? (
                     <X className="h-4 w-4" onClick={cancelRequest} />
@@ -535,7 +541,7 @@ export const ChatbotSection = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute -top-12 right-0 text-white hover:bg-white/20"
+                className="absolute top-2 right-2 md:-top-12 md:right-0 text-white hover:bg-white/20 bg-black/50 md:bg-transparent"
                 onClick={() => setSelectedImageModal(null)}
               >
                 <X className="h-6 w-6" />
