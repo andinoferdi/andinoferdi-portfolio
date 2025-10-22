@@ -474,7 +474,7 @@ export const ChatbotSection = () => {
                   ))}
                 </div>
               )}
-              <form onSubmit={handleSubmit} className="flex gap-2">
+              <form onSubmit={handleSubmit} className="relative">
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -483,38 +483,40 @@ export const ChatbotSection = () => {
                   multiple
                   className="hidden"
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="cursor-pointer"
-                >
-                  <ImageIcon className="h-4 w-4" />
-                </Button>
-                <Textarea
-                  ref={inputRef}
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask me anything..."
-                  className="flex-1 min-h-[2.5rem] max-h-32 resize-none right-scrollbar"
-                  disabled={isLoading}
-                  autoResize={true}
-                  maxHeight={128}
-                  rows={1}
-                />
-                <Button
-                  type="submit"
-                  disabled={isLoading || (!inputValue.trim() && selectedImages.length === 0)}
-                  className="self-end cursor-pointer"
-                >
-                  {isLoading && isStreaming ? (
-                    <X className="h-4 w-4" onClick={cancelRequest} />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                </Button>
+                <div className="relative flex items-center">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full w-10 h-10 p-0 z-10"
+                  >
+                    <ImageIcon className="h-5 w-5" />
+                  </Button>
+                  <Textarea
+                    ref={inputRef}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask me anything..."
+                    className="flex-1 min-h-[3.5rem] max-h-32 resize-none right-scrollbar pl-18 pr-18 py-4"
+                    disabled={isLoading}
+                    autoResize={true}
+                    maxHeight={128}
+                    rows={1}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={isLoading || (!inputValue.trim() && selectedImages.length === 0)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer rounded-full w-9 h-9 p-0"
+                  >
+                    {isLoading && isStreaming ? (
+                      <X className="h-4 w-4" onClick={cancelRequest} />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </form>
             </div>
           </CardContent>

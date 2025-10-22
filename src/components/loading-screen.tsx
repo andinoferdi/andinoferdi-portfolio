@@ -71,6 +71,15 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   const totalAssets = assets.reduce((sum, asset) => sum + asset.count, 0);
 
   useEffect(() => {
+    // Lock body scroll when loading screen is active
+    document.body.style.overflow = 'hidden';
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
+
+  useEffect(() => {
     const preloadAssets = async () => {
       const allPromises: Promise<void>[] = [];
 
@@ -139,7 +148,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background overflow-hidden"
         >
           <Spotlight
             gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, .12) 0, hsla(210, 100%, 55%, .06) 50%, hsla(210, 100%, 45%, 0) 80%)"
@@ -221,7 +230,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background overflow-hidden"
         >
           <Spotlight
             gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, .12) 0, hsla(210, 100%, 55%, .06) 50%, hsla(210, 100%, 45%, 0) 80%)"
