@@ -25,9 +25,10 @@ export const getExperienceData = (): ExperienceData => {
         ],
         technologies: [
           "Next.js",
-          "React",
+          "React.js",
           "TypeScript",
           "Node.js",
+          "Golang",
           "PostgreSQL",
           "Tailwind CSS",
         ],
