@@ -6,6 +6,7 @@ import "./globals.css";
 import "aos/dist/aos.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TitleProvider } from "@/components/providers/title-provider";
+import { ToastProvider } from "@/components/providers/toast-provider";
 import { DemoNavbar } from "@/components/navbar";
 import { DemoFooter } from "@/components/footer";
 import { MiniPlayer } from "@/components/mini-player";
@@ -53,6 +54,7 @@ export default function RootLayout({
           storageKey="theme"
           enableColorScheme={false}
         >
+          <ToastProvider />
           <TitleProvider>
             {!isLoaded && <LoadingScreen onComplete={() => setIsLoaded(true)} />}
             {isLoaded && (

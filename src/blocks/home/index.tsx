@@ -6,6 +6,7 @@ import { ProjectsSection } from "./projects-section";
 import { ExperienceSection } from "./journey-section";
 import { TechStackCertificateSection } from "./techstack-&-certificate-section";
 import { ChatbotSection } from "./chatbot-section";
+import { ContactSection } from "./contact-section";
 import { PageTitle } from "@/components/page-title";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { useAOS } from "@/hooks/useAOS";
@@ -96,6 +97,22 @@ export default function Home() {
         }
       >
         <ChatbotSection />
+      </ErrorBoundary>
+      <ErrorBoundary
+        fallback={
+          <div className="py-20 px-4">
+            <div className="max-w-7xl mx-auto text-center">
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Contact section temporarily unavailable
+              </h2>
+              <p className="text-muted-foreground">
+                We&apos;re having trouble loading the contact form. Please refresh the page.
+              </p>
+            </div>
+          </div>
+        }
+      >
+        <ContactSection />
       </ErrorBoundary>
     </>
   );
