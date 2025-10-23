@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { getNavbarConfig } from "@/stores/navbar-menu";
 import {
   Navbar,
@@ -18,6 +19,7 @@ import { SocialLinks } from "@/components/ui/social-links";
 
 export const DemoNavbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const pathname = usePathname();
   const navbarConfig = getNavbarConfig();
   const { mainItems: menuItems, logo, socialLinks, brandName } = navbarConfig;
 
@@ -33,7 +35,7 @@ export const DemoNavbar = () => {
     <Navbar>
       <NavBody>
         <NavbarLogo logo={logo} brandName={brandName} />
-        <NavItems items={menuItems} onItemClick={handleItemClick} />
+        <NavItems items={menuItems} onItemClick={handleItemClick} currentPath={pathname} />
         <div className="flex items-center gap-2 relative z-30">
           <SocialLinks socialLinks={socialLinks} />
           <ModeToggle />
@@ -49,16 +51,23 @@ export const DemoNavbar = () => {
           </div>
         </MobileNavHeader>
         <MobileNavMenu isOpen={isOpen} onClose={() => setIsOpen(false)}>
-          {menuItems.map((item, index) => (
-            <Link
-              key={index}
-              href={item.link}
-              className="text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-100 transition-all duration-300 ease-out hover:scale-105 font-medium"
-              onClick={handleItemClick}
-            >
-              {item.name}
-            </Link>
-          ))}
+          {menuItems.map((item, index) => {
+            const isActive = pathname === item.link;
+            return (
+              <Link
+                key={index}
+                href={item.link}
+                 className={`transition-all duration-300 ease-out hover:scale-105 font-medium ${
+                   isActive
+                     ? "text-foreground font-semibold"
+                     : "text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-100"
+                 }`}
+                onClick={handleItemClick}
+              >
+                {item.name}
+              </Link>
+            );
+          })}
         </MobileNavMenu>
       </MobileNav>
     </Navbar>

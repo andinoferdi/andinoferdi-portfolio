@@ -32,6 +32,7 @@ interface NavItemsProps {
   }[];
   className?: string;
   onItemClick?: () => void;
+  currentPath?: string;
 }
 
 interface MobileNavProps {
@@ -125,7 +126,7 @@ export const NavBody = ({ children, className, visible, isMobile }: NavBodyProps
   );
 };
 
-export const NavItems = ({ items, className, onItemClick }: NavItemsProps) => {
+export const NavItems = ({ items, className, onItemClick, currentPath }: NavItemsProps) => {
   return (
     <motion.div
       className={cn(
@@ -133,16 +134,35 @@ export const NavItems = ({ items, className, onItemClick }: NavItemsProps) => {
         className,
       )}
     >
-      {items.map((item, idx) => (
-        <Link
-          onClick={onItemClick}
-          className="relative px-4 py-2 text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-100 transition-all duration-300 ease-out hover:scale-105"
-          key={`link-${idx}`}
-          href={item.link}
-        >
-          <span className="relative z-20 font-medium">{item.name}</span>
-        </Link>
-      ))}
+      {items.map((item, idx) => {
+        const isActive = currentPath === item.link;
+        return (
+          <Link
+            onClick={onItemClick}
+            className={cn(
+              "relative px-4 py-2 transition-all duration-300 ease-out hover:scale-105",
+              isActive
+                ? "text-foreground font-semibold"
+                : "text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-100"
+            )}
+            key={`link-${idx}`}
+            href={item.link}
+          >
+            <span className="relative z-20 font-medium">{item.name}</span>
+            {isActive && (
+              <motion.div
+                className="absolute inset-0 bg-foreground/10 dark:bg-foreground/20 rounded-md"
+                layoutId="activeTab"
+                transition={{
+                  type: "spring",
+                  stiffness: 500,
+                  damping: 30,
+                }}
+              />
+            )}
+          </Link>
+        );
+      })}
     </motion.div>
   );
 };
