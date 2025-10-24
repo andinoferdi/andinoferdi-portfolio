@@ -16,32 +16,8 @@ import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { toast } from "sonner";
+import { validateImageFileStrict } from "@/lib/file-validation";
 
-const ALLOWED_IMAGE_TYPES = [
-  'image/jpeg',
-  'image/jpg', 
-  'image/png',
-  'image/gif',
-  'image/bmp',
-  'image/tiff',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-  'image/x-canon-cr2',
-  'image/x-nikon-nef',
-  'image/x-sony-arw',
-  'image/svg+xml',
-  'image/vnd.adobe.photoshop',
-  'image/x-icon',
-  'image/avif'
-];
-
-const ALLOWED_IMAGE_EXTENSIONS = [
-  '.jpg', '.jpeg', '.png', '.gif', '.bmp', 
-  '.tiff', '.tif', '.webp', '.heic', '.heif',
-  '.raw', '.cr2', '.nef', '.arw', '.svg',
-  '.psd', '.ico', '.jfif', '.avif'
-];
 
 export const ChatbotSection = () => {
   const [inputValue, setInputValue] = useState("");
@@ -80,27 +56,30 @@ export const ChatbotSection = () => {
     scrollToBottom(behavior);
   }, [messages]);
 
+  const validateFileType = async (file: File): Promise<{ isValid: boolean; reason?: string }> => {
+    try {
+      const result = await validateImageFileStrict(file);
+      return result;
+    } catch (error) {
+      console.error('File validation error:', error);
+      return { isValid: false, reason: 'File validation failed' };
+    }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
     
-    // Check if adding new files would exceed 10 images limit
     if (selectedImages.length + files.length > 10) {
       toast.error('Maksimal 10 images yang bisa diupload');
       return;
     }
     
     const imagePromises = Array.from(files).map(async (file) => {
-      // Validasi extension
-      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-      const isValidExtension = ALLOWED_IMAGE_EXTENSIONS.includes(fileExtension);
-      
-      // Validasi MIME type
-      const isValidMimeType = ALLOWED_IMAGE_TYPES.includes(file.type);
-      
-      if (!isValidExtension || !isValidMimeType) {
-        const allowedFormats = ALLOWED_IMAGE_EXTENSIONS.join(', ');
-        toast.error(`File ${file.name} tidak didukung. Format yang diperbolehkan: ${allowedFormats}`);
+      // Enhanced validation with magic number detection
+      const validationResult = await validateFileType(file);
+      if (!validationResult.isValid) {
+        toast.error(`File ${file.name} tidak didukung: ${validationResult.reason}`);
         return null;
       }
       
@@ -117,7 +96,6 @@ export const ChatbotSection = () => {
     const validImages = images.filter(img => img !== null) as string[];
     setSelectedImages(prev => [...prev, ...validImages]);
     
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -519,7 +497,7 @@ export const ChatbotSection = () => {
                   type="file"
                   ref={fileInputRef}
                   onChange={handleImageUpload}
-                  accept={ALLOWED_IMAGE_EXTENSIONS.join(',')}
+                  accept="image/*,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp,.heic,.heif,.svg,.avif"
                   multiple
                   className="hidden"
                 />

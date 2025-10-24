@@ -3,6 +3,7 @@ import React, { useRef, useState } from "react";
 import { motion } from "motion/react";
 import { IconUpload } from "@tabler/icons-react";
 import { useDropzone } from "react-dropzone";
+import { validateImageFileStrict } from "@/lib/file-validation";
 
 const mainVariant = {
   initial: {
@@ -37,10 +38,39 @@ export const FileUpload = ({
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (newFiles: File[]) => {
-    setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+  const validateFileType = async (file: File): Promise<boolean> => {
+    try {
+      const result = await validateImageFileStrict(file);
+      return result.isValid;
+    } catch (error) {
+      console.error('File validation error:', error);
+      return false;
+    }
+  };
+
+  const handleFileChange = async (newFiles: File[]) => {
+    // Validate files asynchronously
+    const validationPromises = newFiles.map(async (file) => {
+      const isValid = await validateFileType(file);
+      return { file, isValid };
+    });
+    
+    const validationResults = await Promise.all(validationPromises);
+    const validFiles = validationResults
+      .filter(result => result.isValid)
+      .map(result => result.file);
+    
+    const invalidFiles = validationResults
+      .filter(result => !result.isValid)
+      .map(result => result.file);
+    
+    if (invalidFiles.length > 0) {
+      console.warn(`Files rejected: ${invalidFiles.map(f => f.name).join(', ')}`);
+    }
+    
+    setFiles((prevFiles) => [...prevFiles, ...validFiles]);
     if (onChange) {
-      onChange(newFiles);
+      onChange(validFiles);
     }
   };
 
@@ -51,10 +81,16 @@ export const FileUpload = ({
   const { getRootProps, isDragActive } = useDropzone({
     multiple: false,
     noClick: true,
-    accept: accept ? { [accept]: [] } : undefined,
+    accept: accept ? { 
+      'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp', '.heic', '.heif', '.svg', '.avif']
+    } : undefined,
     onDrop: handleFileChange,
-    onDropRejected: (error) => {
-      console.log(error);
+    onDropRejected: (rejectedFiles) => {
+      console.warn('Files rejected:', rejectedFiles);
+      if (rejectedFiles.length > 0) {
+        const fileNames = rejectedFiles.map(f => f.file.name).join(', ');
+        console.warn(`Files rejected: ${fileNames}. Only image files are allowed.`);
+      }
     },
   });
 
@@ -69,7 +105,7 @@ export const FileUpload = ({
           ref={fileInputRef}
           id="file-upload-handle"
           type="file"
-          accept={accept}
+          accept="image/*,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp,.heic,.heif,.svg,.avif"
           onChange={(e) => handleFileChange(Array.from(e.target.files || []))}
           className="hidden"
         />

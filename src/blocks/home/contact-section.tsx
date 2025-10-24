@@ -3,40 +3,16 @@
 import { useState, useEffect } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
+import { validateImageFileStrict } from "@/lib/file-validation";
 import { User, Mail, MessageSquare, Send, Loader2, Image as ImageIcon } from "lucide-react";
 import Image from "next/image";
 import { Input, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CommentCard } from "@/components/comment-card";
-import { FileUpload, type FileUploadProps } from "@/components/ui/file-upload";
+import { FileUpload } from "@/components/ui/file-upload";
 import { submitContactForm, getComments, addComment } from "@/services/contact";
 import { type ContactFormData, type CommentFormData, type Comment } from "@/types/contact";
 
-const ALLOWED_IMAGE_TYPES = [
-  'image/jpeg',
-  'image/jpg', 
-  'image/png',
-  'image/gif',
-  'image/bmp',
-  'image/tiff',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-  'image/x-canon-cr2',
-  'image/x-nikon-nef',
-  'image/x-sony-arw',
-  'image/svg+xml',
-  'image/vnd.adobe.photoshop',
-  'image/x-icon',
-  'image/avif'
-];
-
-const ALLOWED_IMAGE_EXTENSIONS = [
-  '.jpg', '.jpeg', '.png', '.gif', '.bmp', 
-  '.tiff', '.tif', '.webp', '.heic', '.heif',
-  '.raw', '.cr2', '.nef', '.arw', '.svg',
-  '.psd', '.ico', '.jfif', '.avif'
-];
 
 const contactSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -87,28 +63,33 @@ export const ContactSection = () => {
     loadComments();
   }, []);
 
-  const handleImageUpload = (files: File[]) => {
+  const validateFileType = async (file: File): Promise<{ isValid: boolean; reason?: string }> => {
+    try {
+      const result = await validateImageFileStrict(file);
+      return result;
+    } catch (error) {
+      console.error('File validation error:', error);
+      return { isValid: false, reason: 'File validation failed' };
+    }
+  };
+
+  const handleImageUpload = async (files: File[]) => {
     if (files.length > 0) {
       const file = files[0];
       
-      // Validasi extension
-      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-      const isValidExtension = ALLOWED_IMAGE_EXTENSIONS.includes(fileExtension);
-      
-      // Validasi MIME type
-      const isValidMimeType = ALLOWED_IMAGE_TYPES.includes(file.type);
-      
-      if (isValidExtension && isValidMimeType) {
-        // Create preview URL
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setImagePreview(e.target?.result as string);
-        };
-        reader.readAsDataURL(file);
-      } else {
-        const allowedFormats = ALLOWED_IMAGE_EXTENSIONS.join(', ');
-        toast.error(`Only image files are allowed. Supported formats: ${allowedFormats}`);
+      // Enhanced validation with magic number detection
+      const validationResult = await validateFileType(file);
+      if (!validationResult.isValid) {
+        toast.error(`File rejected: ${validationResult.reason}`);
+        return;
       }
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -337,7 +318,7 @@ export const ContactSection = () => {
                     <div className="border-2 border-dashed border-border rounded-lg p-4">
                       <FileUpload 
                         onChange={handleImageUpload} 
-                        {...({ accept: ALLOWED_IMAGE_EXTENSIONS.join(',') } as FileUploadProps)}
+                        accept="image/*,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp,.heic,.heif,.svg,.avif"
                       />
                     </div>
                   )}
