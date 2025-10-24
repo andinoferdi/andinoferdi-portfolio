@@ -72,10 +72,10 @@ export const preloadImage = (
   return Promise.race([
     promise,
     new Promise<void>((resolve) =>
-      setTimeout(() => {
-        console.warn(`Image preload timeout: ${src}`);
-        resolve();
-      }, 8000)
+        setTimeout(() => {
+          console.warn(`Image preload timeout: ${src}`);
+          resolve();
+        }, 15000)
     )
   ]);
 };
@@ -147,10 +147,10 @@ export const preloadAudio = (
   return Promise.race([
     promise,
     new Promise<void>((resolve) =>
-      setTimeout(() => {
-        console.warn(`Audio preload timeout: ${src}`);
-        resolve();
-      }, 10000)
+        setTimeout(() => {
+          console.warn(`Audio preload timeout: ${src}`);
+          resolve();
+        }, 20000)
     )
   ]);
 };
@@ -163,7 +163,7 @@ export const preloadDocument = (url: string): Promise<void> => {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     fetch(url, { 
       method: 'GET',

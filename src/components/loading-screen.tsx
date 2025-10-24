@@ -32,9 +32,9 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
 
     const imageAssets = [
       ...profileData.profiles.map(p => p.src),
-      ...projectsData.projects.slice(0, 3).map(p => p.image),
-      ...musicData.slice(0, 3).map(m => m.coverImage),
-      ...galleryData.items.slice(0, 9).map(g => g.src),
+      ...projectsData.projects.map(p => p.image),
+      ...musicData.map(m => m.coverImage),
+      ...galleryData.items.map(g => g.src),
       ...experienceData.experiences.filter(exp => exp.logo).map(exp => exp.logo!),
       ...certificateData.certificates.map(c => c.image),
     ];
@@ -67,7 +67,6 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
     ];
   }, []);
 
-  const totalAssets = assets.reduce((sum, asset) => sum + asset.count, 0);
 
   useEffect(() => {
     // Lock body scroll when loading screen is active
@@ -87,7 +86,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
       for (const assetGroup of assets) {
         for (const assetUrl of assetGroup.assets) {
           if (assetGroup.name === "Images") {
-            const criticalSizes = [640, 1200];
+            const criticalSizes = [1200];
             
             for (const size of criticalSizes) {
               totalCount++;
@@ -134,11 +133,11 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
       }
 
       const forceCompleteTimeout = setTimeout(() => {
-        console.warn('Force completing loading after 30s timeout');
+        console.warn('Force completing loading after 60s timeout');
         setProgress(100);
         setIsLoading(false);
         setShowStartButton(true);
-      }, 30000);
+      }, 60000);
 
       Promise.allSettled(allPromises).then(() => {
         clearTimeout(forceCompleteTimeout);
@@ -222,7 +221,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
                     {progress}%
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    {totalAssets} assets
+                    Loading assets...
                   </span>
                 </div>
               </motion.div>
