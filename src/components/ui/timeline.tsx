@@ -51,11 +51,11 @@ export const Timeline = ({ data }: { data: TimelineEntry[] }) => {
 
         {/* Timeline line */}
         <div 
-          className="absolute md:left-8 left-8 top-0 bottom-0 w-[2px] bg-gradient-to-b from-transparent via-border to-transparent"
+          className="absolute md:left-8 left-8 top-0 bottom-0 w-[2px] bg-linear-to-b from-transparent via-border to-transparent"
           role="presentation"
           aria-hidden="true"
         >
-          <div className="absolute inset-x-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-purple-500 via-blue-500 to-transparent opacity-60" />
+          <div className="absolute inset-x-0 top-0 bottom-0 w-[2px] bg-linear-to-b from-purple-500 via-blue-500 to-transparent opacity-60" />
         </div>
       </div>
     </div>

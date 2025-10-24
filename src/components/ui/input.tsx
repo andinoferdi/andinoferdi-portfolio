@@ -84,7 +84,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 			<textarea
 				ref={combinedRef}
 				rows={1}
-				className={cn("min-h-[2.5rem] py-2", inputVariants({ variant, uiSize, radius, className }))}
+				className={cn("min-h-10 py-2", inputVariants({ variant, uiSize, radius, className }))}
 				style={{ 
 					overflow: autoResize && maxHeight ? "auto" : "hidden", 
 					...style 

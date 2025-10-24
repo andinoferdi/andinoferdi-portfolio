@@ -88,7 +88,7 @@ export const Card = React.memo(
             isTitleVisible ? "opacity-100" : "opacity-0",
           )}
         >
-          <div className="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-neutral-200 dark:from-neutral-50 dark:to-neutral-300">
+          <div className="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-linear-to-b from-white to-neutral-200 dark:from-neutral-50 dark:to-neutral-300">
             {card.title}
           </div>
         </div>

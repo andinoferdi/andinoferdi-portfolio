@@ -55,7 +55,7 @@ export const FooterBody = ({ children, className }: FooterBodyProps) => {
   return (
     <div
       className={cn(
-        "relative z-[60] mx-auto w-full max-w-7xl bg-transparent px-4 py-8 dark:bg-transparent",
+        "relative z-60 mx-auto w-full max-w-7xl bg-transparent px-4 py-8 dark:bg-transparent",
         className,
       )}
     >

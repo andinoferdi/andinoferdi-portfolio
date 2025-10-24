@@ -15,6 +15,33 @@ import Image from "next/image";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { toast } from "sonner";
+
+const ALLOWED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/jpg', 
+  'image/png',
+  'image/gif',
+  'image/bmp',
+  'image/tiff',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/x-canon-cr2',
+  'image/x-nikon-nef',
+  'image/x-sony-arw',
+  'image/svg+xml',
+  'image/vnd.adobe.photoshop',
+  'image/x-icon',
+  'image/avif'
+];
+
+const ALLOWED_IMAGE_EXTENSIONS = [
+  '.jpg', '.jpeg', '.png', '.gif', '.bmp', 
+  '.tiff', '.tif', '.webp', '.heic', '.heif',
+  '.raw', '.cr2', '.nef', '.arw', '.svg',
+  '.psd', '.ico', '.jfif', '.avif'
+];
 
 export const ChatbotSection = () => {
   const [inputValue, setInputValue] = useState("");
@@ -59,13 +86,26 @@ export const ChatbotSection = () => {
     
     // Check if adding new files would exceed 10 images limit
     if (selectedImages.length + files.length > 10) {
-      alert('Maksimal 10 images yang bisa diupload');
+      toast.error('Maksimal 10 images yang bisa diupload');
       return;
     }
     
     const imagePromises = Array.from(files).map(async (file) => {
+      // Validasi extension
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      const isValidExtension = ALLOWED_IMAGE_EXTENSIONS.includes(fileExtension);
+      
+      // Validasi MIME type
+      const isValidMimeType = ALLOWED_IMAGE_TYPES.includes(file.type);
+      
+      if (!isValidExtension || !isValidMimeType) {
+        const allowedFormats = ALLOWED_IMAGE_EXTENSIONS.join(', ');
+        toast.error(`File ${file.name} tidak didukung. Format yang diperbolehkan: ${allowedFormats}`);
+        return null;
+      }
+      
       if (file.size > 5 * 1024 * 1024) {
-        console.error('File too large');
+        toast.error(`File ${file.name} terlalu besar. Maksimal 5MB`);
         return null;
       }
       
@@ -135,12 +175,12 @@ export const ChatbotSection = () => {
               className="flex gap-3 justify-end mb-2"
             >
               <div className="flex gap-2 md:gap-3 max-w-[90%] md:max-w-[80%] flex-row-reverse">
-                <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0">
+                <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
                   <User className="h-3 w-3 md:h-4 md:w-4" />
                 </div>
                 <div className="flex flex-col gap-2 md:flex-row md:gap-2 md:overflow-x-auto md:pb-2 md:scrollbar-thin md:scrollbar-thumb-gray-300 md:scrollbar-track-transparent">
                   {message.images?.map((img, idx) => (
-                    <div key={idx} className="relative group cursor-pointer flex-shrink-0" onClick={() => setSelectedImageModal(img)}>
+                    <div key={idx} className="relative group cursor-pointer shrink-0" onClick={() => setSelectedImageModal(img)}>
                       <Image 
                         src={img} 
                         alt="uploaded" 
@@ -167,7 +207,7 @@ export const ChatbotSection = () => {
               className="flex gap-3 justify-end"
             >
               <div className="flex gap-2 md:gap-3 max-w-[90%] md:max-w-[80%] flex-row-reverse">
-                <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0">
+                <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
                   <User className="h-3 w-3 md:h-4 md:w-4" />
                 </div>
                 <div className="rounded-lg px-3 py-2 md:px-4 bg-primary text-primary-foreground">
@@ -199,7 +239,7 @@ export const ChatbotSection = () => {
         className="flex gap-3 justify-start"
       >
         <div className="flex gap-2 md:gap-3 max-w-[90%] md:max-w-[80%] flex-row">
-          <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center flex-shrink-0">
+          <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center shrink-0">
             <Bot className="h-3 w-3 md:h-4 md:w-4" />
           </div>
           <div className="rounded-lg px-3 py-2 md:px-4 bg-muted text-foreground">
@@ -352,7 +392,7 @@ export const ChatbotSection = () => {
           className="h-[500px] md:h-[600px] flex flex-col"
           data-aos="fade-up"
         >
-          <CardHeader className="flex-shrink-0">
+          <CardHeader className="shrink-0">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Bot className="h-5 w-5 text-primary" />
@@ -406,7 +446,7 @@ export const ChatbotSection = () => {
                       className="flex gap-3 justify-start"
                     >
                       <div className="flex gap-2 md:gap-3 max-w-[90%] md:max-w-[80%] flex-row">
-                        <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center flex-shrink-0">
+                        <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center shrink-0">
                           <Bot className="h-3 w-3 md:h-4 md:w-4" />
                         </div>
                         <div className="rounded-lg px-3 py-2 md:px-4 bg-muted text-foreground">
@@ -452,11 +492,11 @@ export const ChatbotSection = () => {
               </div>
             </RightScrollBar>
 
-            <div className="flex-shrink-0 p-3 md:p-6 border-t">
+            <div className="shrink-0 p-3 md:p-6 border-t">
               {selectedImages.length > 0 && (
                 <div className="flex flex-col gap-2 mb-2 md:flex-row md:gap-2 md:overflow-x-auto md:pb-2 md:scrollbar-thin md:scrollbar-thumb-gray-300 md:scrollbar-track-transparent">
                   {selectedImages.map((img, idx) => (
-                    <div key={idx} className="relative w-20 h-20 rounded-md overflow-hidden border flex-shrink-0">
+                    <div key={idx} className="relative w-20 h-20 rounded-md overflow-hidden border shrink-0">
                       <Image 
                         src={img} 
                         alt="upload" 
@@ -479,7 +519,7 @@ export const ChatbotSection = () => {
                   type="file"
                   ref={fileInputRef}
                   onChange={handleImageUpload}
-                  accept="image/*"
+                  accept={ALLOWED_IMAGE_EXTENSIONS.join(',')}
                   multiple
                   className="hidden"
                 />
@@ -499,7 +539,7 @@ export const ChatbotSection = () => {
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask me anything..."
-                    className="flex-1 min-h-[3.5rem] max-h-32 resize-none right-scrollbar pl-18 pr-18 py-4"
+                    className="flex-1 min-h-14 max-h-32 resize-none right-scrollbar pl-18 pr-18 py-4"
                     disabled={isLoading}
                     autoResize={true}
                     maxHeight={128}

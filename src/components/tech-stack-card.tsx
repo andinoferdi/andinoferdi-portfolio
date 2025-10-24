@@ -86,7 +86,7 @@ export const TechStackCard = ({ category, index }: TechStackCardProps) => {
               key={tech.id}
               className="group/tech flex items-center gap-3 rounded-lg border border-border bg-background/50 p-3 backdrop-blur-sm transition-all duration-200 hover:border-primary/50 hover:bg-background/80"
             >
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-muted">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
                 <TechnologyIcon technology={tech.icon} className="h-5 w-5" />
               </div>
               <div className="flex-1 min-w-0">

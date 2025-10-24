@@ -96,7 +96,7 @@ export const CardBody = ({
     <div
       className={cn(
         dynamicSize ? "w-full h-auto" : "h-96 w-96",
-        "[transform-style:preserve-3d] [&>*]:[transform-style:preserve-3d]",
+        "transform-3d *:transform-3d",
         className
       )}
     >

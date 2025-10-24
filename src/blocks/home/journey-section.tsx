@@ -69,7 +69,7 @@ interface CompanyLogoProps {
 }
 
 const CompanyLogo = React.memo(({ logo, company }: CompanyLogoProps) => (
-  <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-background/90 border border-border/60 flex items-center justify-center flex-shrink-0 md:backdrop-blur-md">
+  <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-background/90 border border-border/60 flex items-center justify-center shrink-0 md:backdrop-blur-md">
     {logo ? (
       <Image
         src={logo}

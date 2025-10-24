@@ -8,9 +8,35 @@ import Image from "next/image";
 import { Input, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CommentCard } from "@/components/comment-card";
-import { FileUpload } from "@/components/ui/file-upload";
+import { FileUpload, type FileUploadProps } from "@/components/ui/file-upload";
 import { submitContactForm, getComments, addComment } from "@/services/contact";
 import { type ContactFormData, type CommentFormData, type Comment } from "@/types/contact";
+
+const ALLOWED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/jpg', 
+  'image/png',
+  'image/gif',
+  'image/bmp',
+  'image/tiff',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/x-canon-cr2',
+  'image/x-nikon-nef',
+  'image/x-sony-arw',
+  'image/svg+xml',
+  'image/vnd.adobe.photoshop',
+  'image/x-icon',
+  'image/avif'
+];
+
+const ALLOWED_IMAGE_EXTENSIONS = [
+  '.jpg', '.jpeg', '.png', '.gif', '.bmp', 
+  '.tiff', '.tif', '.webp', '.heic', '.heif',
+  '.raw', '.cr2', '.nef', '.arw', '.svg',
+  '.psd', '.ico', '.jfif', '.avif'
+];
 
 const contactSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -64,7 +90,15 @@ export const ContactSection = () => {
   const handleImageUpload = (files: File[]) => {
     if (files.length > 0) {
       const file = files[0];
-      if (file.type.startsWith('image/')) {
+      
+      // Validasi extension
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      const isValidExtension = ALLOWED_IMAGE_EXTENSIONS.includes(fileExtension);
+      
+      // Validasi MIME type
+      const isValidMimeType = ALLOWED_IMAGE_TYPES.includes(file.type);
+      
+      if (isValidExtension && isValidMimeType) {
         // Create preview URL
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -72,7 +106,8 @@ export const ContactSection = () => {
         };
         reader.readAsDataURL(file);
       } else {
-        toast.error("Only image files are allowed");
+        const allowedFormats = ALLOWED_IMAGE_EXTENSIONS.join(', ');
+        toast.error(`Only image files are allowed. Supported formats: ${allowedFormats}`);
       }
     }
   };
@@ -300,7 +335,10 @@ export const ContactSection = () => {
                     </div>
                   ) : (
                     <div className="border-2 border-dashed border-border rounded-lg p-4">
-                      <FileUpload onChange={handleImageUpload} />
+                      <FileUpload 
+                        onChange={handleImageUpload} 
+                        {...({ accept: ALLOWED_IMAGE_EXTENSIONS.join(',') } as FileUploadProps)}
+                      />
                     </div>
                   )}
                 </div>

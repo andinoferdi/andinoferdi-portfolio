@@ -203,13 +203,13 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
 
                 <div className="relative w-full h-3 bg-muted rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full"
+                    className="h-full bg-linear-to-r from-primary to-primary/80 rounded-full"
                     initial={{ width: "0%" }}
                     animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.1, ease: "easeOut" }}
                   />
                   <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                    className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent"
                     animate={{ x: ["-100%", "100%"] }}
                     transition={{
                       duration: 1.5,
@@ -253,7 +253,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
-                className="w-20 h-20 rounded-full bg-gradient-to-r from-primary to-primary/80 flex items-center justify-center"
+                className="w-20 h-20 rounded-full bg-linear-to-r from-primary to-primary/80 flex items-center justify-center"
               >
                 <Play className="h-8 w-8 text-primary-foreground ml-1" />
               </motion.div>

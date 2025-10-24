@@ -51,7 +51,7 @@ export const CommentCard = ({ comment }: CommentCardProps) => {
 
   return (
     <div className="flex gap-3 p-4 bg-background/90 border border-border/60 rounded-xl backdrop-blur-md">
-      <div className={`w-10 h-10 rounded-full ${avatarColor} flex items-center justify-center text-white font-semibold text-sm flex-shrink-0`}>
+      <div className={`w-10 h-10 rounded-full ${avatarColor} flex items-center justify-center text-white font-semibold text-sm shrink-0`}>
         {comment.profile_image ? (
           <Image 
             src={comment.profile_image} 
