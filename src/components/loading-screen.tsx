@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Spotlight } from "@/components/ui/spotlight-new";
 import { HoverBorderGradient } from "@/components/ui/hover-border-button";
 import { Download, Music, Image as ImageIcon, FileText, Play } from "lucide-react";
 import { getProjectsData } from "@/services/projects";
@@ -82,6 +81,8 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   useEffect(() => {
     const preloadAssets = async () => {
       const allPromises: Promise<void>[] = [];
+      let loadedCount = 0;
+      let totalCount = 0;
 
       for (const assetGroup of assets) {
         for (const assetUrl of assetGroup.assets) {
@@ -89,39 +90,58 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
             const criticalSizes = [640, 828, 1200, 1920];
             
             for (const size of criticalSizes) {
-              const promise = preloadImage(assetUrl, { width: size, quality: 75 });
+              totalCount++;
+              const promise = preloadImage(assetUrl, { width: size, quality: 75 })
+                .then(() => {
+                  loadedCount++;
+                  const progress = Math.floor((loadedCount / totalCount) * 100);
+                  setProgress(Math.min(progress, 99));
+                  
+                  if (assetGroup.name) {
+                    setCurrentAsset(assetGroup.name);
+                  }
+                });
               allPromises.push(promise);
             }
           } else if (assetGroup.name === "Audio") {
-            const promise = preloadAudio(assetUrl, { crossOrigin: true });
+            totalCount++;
+            const promise = preloadAudio(assetUrl, { crossOrigin: true })
+              .then(() => {
+                loadedCount++;
+                const progress = Math.floor((loadedCount / totalCount) * 100);
+                setProgress(Math.min(progress, 99));
+                
+                if (assetGroup.name) {
+                  setCurrentAsset(assetGroup.name);
+                }
+              });
             allPromises.push(promise);
           } else if (assetGroup.name === "Documents") {
-            const promise = preloadDocument(assetUrl);
+            totalCount++;
+            const promise = preloadDocument(assetUrl)
+              .then(() => {
+                loadedCount++;
+                const progress = Math.floor((loadedCount / totalCount) * 100);
+                setProgress(Math.min(progress, 99));
+                
+                if (assetGroup.name) {
+                  setCurrentAsset(assetGroup.name);
+                }
+              });
             allPromises.push(promise);
           }
         }
       }
 
-      const totalAssets = allPromises.length;
-      let loadedAssets = 0;
-
-      const updateProgress = () => {
-        loadedAssets++;
-        const progress = Math.floor((loadedAssets / totalAssets) * 100);
-        setProgress(progress);
-
-        const progressPerAsset = 100 / assets.length;
-        const currentAssetIndex = Math.floor(progress / progressPerAsset);
-        if (currentAssetIndex < assets.length) {
-          setCurrentAsset(assets[currentAssetIndex].name);
-        }
-      };
-
-      allPromises.forEach(promise => {
-        promise.then(updateProgress);
-      });
+      const forceCompleteTimeout = setTimeout(() => {
+        console.warn('Force completing loading after 30s timeout');
+        setProgress(100);
+        setIsLoading(false);
+        setShowStartButton(true);
+      }, 30000);
 
       Promise.allSettled(allPromises).then(() => {
+        clearTimeout(forceCompleteTimeout);
         setProgress(100);
         setTimeout(() => {
           setIsLoading(false);
@@ -150,18 +170,6 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           transition={{ duration: 0.3 }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-background overflow-hidden"
         >
-          <Spotlight
-            gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, .12) 0, hsla(210, 100%, 55%, .06) 50%, hsla(210, 100%, 45%, 0) 80%)"
-            gradientSecond="radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .08) 0, hsla(210, 100%, 55%, .04) 80%, transparent 100%)"
-            gradientThird="radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .06) 0, hsla(210, 100%, 45%, .03) 80%, transparent 100%)"
-            translateY={-200}
-            width={400}
-            height={800}
-            smallWidth={200}
-            duration={8}
-            xOffset={50}
-          />
-
           <div className="relative z-10 text-center max-w-md mx-auto px-6">
             <div className="flex flex-col items-center justify-center space-y-8">
               <motion.div
@@ -232,18 +240,6 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           transition={{ duration: 0.3 }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-background overflow-hidden"
         >
-          <Spotlight
-            gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, .12) 0, hsla(210, 100%, 55%, .06) 50%, hsla(210, 100%, 45%, 0) 80%)"
-            gradientSecond="radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .08) 0, hsla(210, 100%, 55%, .04) 80%, transparent 100%)"
-            gradientThird="radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .06) 0, hsla(210, 100%, 45%, .03) 80%, transparent 100%)"
-            translateY={-200}
-            width={400}
-            height={800}
-            smallWidth={200}
-            duration={8}
-            xOffset={50}
-          />
-
           <div className="relative z-10 text-center max-w-md mx-auto px-6">
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}

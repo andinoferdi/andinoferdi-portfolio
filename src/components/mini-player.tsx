@@ -75,6 +75,8 @@ export const MiniPlayer: React.FC = () => {
   } = useAudioPlayer();
 
   const [hasAnimated, setHasAnimated] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
     if (currentTrack && !hasAnimated) {
@@ -82,17 +84,52 @@ export const MiniPlayer: React.FC = () => {
     }
   }, [currentTrack, hasAnimated]);
 
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    const checkReducedMotion = () => {
+      setPrefersReducedMotion(
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      );
+    };
+    
+    checkMobile();
+    checkReducedMotion();
+    
+    window.addEventListener('resize', checkMobile);
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    mediaQuery.addEventListener('change', checkReducedMotion);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      mediaQuery.removeEventListener('change', checkReducedMotion);
+    };
+  }, []);
+
   if (!currentTrack) return null;
 
   return (
     <motion.div
-      initial={hasAnimated ? { x: 0, opacity: 1 } : { x: 400, opacity: 0 }}
+      initial={hasAnimated ? { x: 0, opacity: 1 } : (isMobile ? { opacity: 0 } : { x: 400, opacity: 0 })}
       animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      transition={{ 
+        duration: prefersReducedMotion ? 0 : (isMobile ? 0.15 : 0.3), 
+        ease: "easeOut" 
+      }}
+      style={{
+        willChange: 'transform, opacity',
+        transform: 'translateZ(0)'
+      }}
       className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40"
     >
       {isTrackLoading && (
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm rounded-xl flex items-center justify-center z-50">
+        <div className={`absolute inset-0 rounded-xl flex items-center justify-center z-50 ${
+          isMobile 
+            ? "bg-background/90" 
+            : "bg-background/80 backdrop-blur-sm"
+        }`}>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             Loading track...
@@ -106,6 +143,8 @@ export const MiniPlayer: React.FC = () => {
             isPlaying={isPlaying}
             onPlayPause={handlePlayPause}
             onExpand={toggleExpanded}
+            isMobile={isMobile}
+            prefersReducedMotion={prefersReducedMotion}
           />
         ) : (
           <MiniPlayerExpanded
@@ -122,6 +161,8 @@ export const MiniPlayer: React.FC = () => {
             onSeek={handleSeek}
             onVolumeChange={handleVolumeChange}
             onCollapse={toggleExpanded}
+            isMobile={isMobile}
+            prefersReducedMotion={prefersReducedMotion}
           />
         )}
       </AnimatePresence>
@@ -134,6 +175,8 @@ interface MiniPlayerCollapsedProps {
   isPlaying: boolean;
   onPlayPause: () => void;
   onExpand: () => void;
+  isMobile: boolean;
+  prefersReducedMotion: boolean;
 }
 
 const MiniPlayerCollapsed: React.FC<MiniPlayerCollapsedProps> = ({
@@ -141,13 +184,22 @@ const MiniPlayerCollapsed: React.FC<MiniPlayerCollapsedProps> = ({
   isPlaying,
   onPlayPause,
   onExpand,
+  isMobile,
+  prefersReducedMotion,
 }) => (
   <motion.div
     key="mini"
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
     exit={{ opacity: 0, scale: 0.95 }}
-    transition={{ duration: 0.5, ease: "easeOut" }}
+    transition={{ 
+      duration: prefersReducedMotion ? 0 : (isMobile ? 0.2 : 0.5), 
+      ease: "easeOut" 
+    }}
+    style={{
+      willChange: 'transform, opacity',
+      transform: 'translateZ(0)'
+    }}
     className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer"
     onClick={onExpand}
     role="button"
@@ -221,6 +273,8 @@ interface MiniPlayerExpandedProps {
   onSeek: (time: number) => void;
   onVolumeChange: (volume: number) => void;
   onCollapse: () => void;
+  isMobile: boolean;
+  prefersReducedMotion: boolean;
 }
 
 const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
@@ -237,13 +291,22 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
   onSeek,
   onVolumeChange,
   onCollapse,
+  isMobile,
+  prefersReducedMotion,
 }) => (
   <motion.div
     key="expanded"
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
     exit={{ opacity: 0, scale: 0.95 }}
-    transition={{ duration: 0.5, ease: "easeOut" }}
+    transition={{ 
+      duration: prefersReducedMotion ? 0 : (isMobile ? 0.2 : 0.5), 
+      ease: "easeOut" 
+    }}
+    style={{
+      willChange: 'transform, opacity',
+      transform: 'translateZ(0)'
+    }}
     className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56"
     role="dialog"
     aria-label="Music player controls"

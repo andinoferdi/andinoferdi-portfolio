@@ -129,7 +129,7 @@ export const clearDurationCache = (): void => {
 
 export const getOriginalTracks = (): Track[] => [
   {
-    id: "every-breath-you-take",
+    id: "Every-Breath-You-Take",
     title: "Every Breath You Take",
     artist: "The Police",
     album: "Synchronicity",
@@ -139,7 +139,7 @@ export const getOriginalTracks = (): Track[] => [
     genre: "Rock",
   },
   {
-    id: "i-want-it-that-way",
+    id: "I-Want-It-That-Way",
     title: "I Want It That Way",
     artist: "Backstreet Boys",
     album: "Millennium",
@@ -149,7 +149,7 @@ export const getOriginalTracks = (): Track[] => [
     genre: "Pop",
   },
   {
-    id: "basket-case",
+    id: "Basket-Case",
     title: "Basket Case",
     artist: "Green Day",
     album: "Dookie",
@@ -179,7 +179,7 @@ export const getOriginalTracks = (): Track[] => [
     genre: "Alternative Rock",
   },
   {
-    id: "supermassive-black-hole",
+    id: "Supermassive-Black-Hole",
     title: "Supermassive Black Hole",
     artist: "Muse",
     album: "Black Holes and Revelations",
@@ -257,6 +257,16 @@ export const getOriginalTracks = (): Track[] => [
     audioUrl: "/music/Right Here Waiting.mp3",
     coverImage: "/music/images/Repeat Offender.jpg",
     genre: "Soft Rock",
+  },
+  {
+    id: "Carrie",
+    title: "Carrie",
+    artist: "Europe",
+    album: "The Final Countdown",
+    duration: 0,
+    audioUrl: "/music/Carrie.mp3",
+    coverImage: "/music/images/The Final Countdown.jpg",
+    genre: "Glam Metal",
   },
 ];
 

@@ -43,7 +43,7 @@ export const preloadImage = (
   src: string,
   options: { width?: number; quality?: number } = {}
 ): Promise<void> => {
-  return new Promise((resolve) => {
+  const promise = new Promise<void>((resolve) => {
     if (preloadedAssets.has(src)) {
       resolve();
       return;
@@ -68,6 +68,16 @@ export const preloadImage = (
 
     img.src = imageUrl;
   });
+
+  return Promise.race([
+    promise,
+    new Promise<void>((resolve) =>
+      setTimeout(() => {
+        console.warn(`Image preload timeout: ${src}`);
+        resolve();
+      }, 8000)
+    )
+  ]);
 };
 
 export const preloadMultipleImageSizes = (
@@ -94,7 +104,7 @@ export const preloadAudio = (
   src: string,
   options: PreloadAudioOptions = {}
 ): Promise<void> => {
-  return new Promise((resolve) => {
+  const promise = new Promise<void>((resolve) => {
     if (preloadedAssets.has(src)) {
       resolve();
       return;
@@ -102,7 +112,7 @@ export const preloadAudio = (
 
     const audio = new Audio();
     
-    audio.preload = 'auto';
+    audio.preload = 'metadata';
     
     if (options.crossOrigin) {
       audio.crossOrigin = 'anonymous';
@@ -121,18 +131,28 @@ export const preloadAudio = (
     };
 
     const cleanup = () => {
-      audio.removeEventListener('loadeddata', handleLoad);
+      audio.removeEventListener('loadedmetadata', handleLoad);
       audio.removeEventListener('error', handleError);
       audio.src = '';
       audio.load();
     };
 
-    audio.addEventListener('loadeddata', handleLoad);
-    audio.addEventListener('error', handleError);
+    audio.addEventListener('loadedmetadata', handleLoad, { once: true });
+    audio.addEventListener('error', handleError, { once: true });
     
     audio.src = src;
     audio.load();
   });
+
+  return Promise.race([
+    promise,
+    new Promise<void>((resolve) =>
+      setTimeout(() => {
+        console.warn(`Audio preload timeout: ${src}`);
+        resolve();
+      }, 10000)
+    )
+  ]);
 };
 
 export const preloadDocument = (url: string): Promise<void> => {
@@ -142,17 +162,23 @@ export const preloadDocument = (url: string): Promise<void> => {
       return;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     fetch(url, { 
       method: 'GET',
-      cache: 'force-cache'
+      cache: 'force-cache',
+      signal: controller.signal
     })
       .then((response) => {
+        clearTimeout(timeoutId);
         if (response.ok) {
           preloadedAssets.add(url);
         }
         resolve();
       })
       .catch(() => {
+        clearTimeout(timeoutId);
         console.warn(`Failed to preload document: ${url}`);
         resolve();
       });
