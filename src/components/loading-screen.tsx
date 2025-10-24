@@ -3,14 +3,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HoverBorderGradient } from "@/components/ui/hover-border-button";
-import { Download, Music, Image as ImageIcon, FileText, Play } from "lucide-react";
+import { Download, Image as ImageIcon, FileText, Play } from "lucide-react";
 import { getProjectsData } from "@/services/projects";
 import { getProfileData } from "@/services/profile";
 import { getOriginalTracks } from "@/services/music";
 import { getExperienceData } from "@/services/journey";
 import { getGalleryData } from "@/services/gallery";
 import { getCertificateData } from "@/services/certificate";
-import { preloadImage, preloadAudio, preloadDocument } from "@/services/preload";
+import { preloadImage, preloadDocument } from "@/services/preload";
 
 interface LoadingScreenProps {
   onComplete: () => void;
@@ -30,39 +30,45 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
     const galleryData = getGalleryData();
     const certificateData = getCertificateData();
 
-    const imageAssets = [
+    const criticalImages = [
       ...profileData.profiles.map(p => p.src),
-      ...projectsData.projects.map(p => p.image),
+      ...projectsData.projects.slice(0, 3).map(p => p.image),
+    ];
+
+    const nonCriticalImages = [
+      ...projectsData.projects.slice(3).map(p => p.image),
       ...musicData.map(m => m.coverImage),
       ...galleryData.items.map(g => g.src),
       ...experienceData.experiences.filter(exp => exp.logo).map(exp => exp.logo!),
       ...certificateData.certificates.map(c => c.image),
     ];
 
-    const audioAssets = musicData.map(m => m.audioUrl);
     const documentAssets = [profileData.cvDownload.url];
 
     return [
       { 
-        name: "Images", 
+        name: "Critical Images", 
         icon: ImageIcon, 
-        count: imageAssets.length,
-        description: "Loading images",
-        assets: imageAssets
+        count: criticalImages.length,
+        description: "Loading essential images",
+        assets: criticalImages,
+        priority: "high"
       },
       { 
-        name: "Audio", 
-        icon: Music, 
-        count: audioAssets.length,
-        description: "Loading audio files",
-        assets: audioAssets
+        name: "Images", 
+        icon: ImageIcon, 
+        count: nonCriticalImages.length,
+        description: "Loading images",
+        assets: nonCriticalImages,
+        priority: "low"
       },
       { 
         name: "Documents", 
         icon: FileText, 
         count: documentAssets.length,
         description: "Loading documents",
-        assets: documentAssets
+        assets: documentAssets,
+        priority: "low"
       },
     ];
   }, []);
@@ -84,48 +90,45 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
       let totalCount = 0;
 
       for (const assetGroup of assets) {
-        for (const assetUrl of assetGroup.assets) {
-          if (assetGroup.name === "Images") {
-            const criticalSizes = [1200];
-            
-            for (const size of criticalSizes) {
-              totalCount++;
-              const promise = preloadImage(assetUrl, { width: size, quality: 75 })
-                .then(() => {
-                  loadedCount++;
-                  const progress = Math.floor((loadedCount / totalCount) * 100);
-                  setProgress(Math.min(progress, 99));
-                  
-                  if (assetGroup.name) {
-                    setCurrentAsset(assetGroup.name);
-                  }
-                });
-              allPromises.push(promise);
-            }
-          } else if (assetGroup.name === "Audio") {
-            totalCount++;
-            const promise = preloadAudio(assetUrl, { crossOrigin: true })
+        totalCount += assetGroup.assets.length;
+      }
+
+      for (const assetGroup of assets) {
+        if (assetGroup.name === "Critical Images") {
+          for (const assetUrl of assetGroup.assets) {
+            const promise = preloadImage(assetUrl)
               .then(() => {
                 loadedCount++;
                 const progress = Math.floor((loadedCount / totalCount) * 100);
                 setProgress(Math.min(progress, 99));
-                
-                if (assetGroup.name) {
-                  setCurrentAsset(assetGroup.name);
-                }
+                setCurrentAsset(assetGroup.name);
               });
             allPromises.push(promise);
-          } else if (assetGroup.name === "Documents") {
-            totalCount++;
+          }
+          await Promise.all(allPromises);
+          allPromises.length = 0;
+        } else if (assetGroup.name === "Images") {
+          const batchSize = 5;
+          for (let i = 0; i < assetGroup.assets.length; i += batchSize) {
+            const batch = assetGroup.assets.slice(i, i + batchSize);
+            const batchPromises = batch.map(assetUrl => 
+              preloadImage(assetUrl).then(() => {
+                loadedCount++;
+                const progress = Math.floor((loadedCount / totalCount) * 100);
+                setProgress(Math.min(progress, 99));
+                setCurrentAsset(assetGroup.name);
+              })
+            );
+            await Promise.all(batchPromises);
+          }
+        } else if (assetGroup.name === "Documents") {
+          for (const assetUrl of assetGroup.assets) {
             const promise = preloadDocument(assetUrl)
               .then(() => {
                 loadedCount++;
                 const progress = Math.floor((loadedCount / totalCount) * 100);
                 setProgress(Math.min(progress, 99));
-                
-                if (assetGroup.name) {
-                  setCurrentAsset(assetGroup.name);
-                }
+                setCurrentAsset(assetGroup.name);
               });
             allPromises.push(promise);
           }

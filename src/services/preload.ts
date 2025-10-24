@@ -13,46 +13,17 @@ export const IMAGE_SIZES = [16, 32, 48, 64, 96, 128, 256, 384];
 
 const preloadedAssets = new Set<string>();
 
-export const generateNextImageUrl = (
-  src: string,
-  width: number,
-  quality: number = 75
-): string => {
-  if (src.startsWith('http://') || src.startsWith('https://')) {
-    return src;
-  }
-
-  const params = new URLSearchParams({
-    url: src,
-    w: width.toString(),
-    q: quality.toString(),
-  });
-
-  return `/_next/image?${params.toString()}`;
-};
-
-export const generateNextImageUrls = (
-  src: string,
-  quality: number = 75
-): string[] => {
-  const sizes = DEVICE_SIZES;
-  return sizes.map(size => generateNextImageUrl(src, size, quality));
-};
+// Deprecated: These functions are no longer used for preloading
+// Next.js Image Optimization API should only be used for rendering, not preloading
 
 export const preloadImage = (
-  src: string,
-  options: { width?: number; quality?: number } = {}
+  src: string
 ): Promise<void> => {
   const promise = new Promise<void>((resolve) => {
     if (preloadedAssets.has(src)) {
       resolve();
       return;
     }
-
-    const width = options.width || 1920;
-    const quality = options.quality || 75;
-
-    const imageUrl = generateNextImageUrl(src, width, quality);
 
     const img = new Image();
     
@@ -62,44 +33,36 @@ export const preloadImage = (
     };
     
     img.onerror = () => {
-      console.warn(`Failed to preload image: ${src}`);
+      preloadedAssets.add(src);
       resolve();
     };
 
-    img.src = imageUrl;
+    img.src = src;
   });
 
   return Promise.race([
     promise,
     new Promise<void>((resolve) =>
         setTimeout(() => {
-          console.warn(`Image preload timeout: ${src}`);
+          preloadedAssets.add(src);
           resolve();
-        }, 15000)
+        }, 30000)
     )
   ]);
 };
 
-export const preloadMultipleImageSizes = (
-  src: string,
-  sizes: number[] = DEVICE_SIZES,
-  quality: number = 75
-): Promise<void[]> => {
-  const promises = sizes.map(size => {
-    return new Promise<void>((resolve) => {
-      const imageUrl = generateNextImageUrl(src, size, quality);
-      const img = new Image();
-      
-      img.onload = () => resolve();
-      img.onerror = () => resolve();
-      
-      img.src = imageUrl;
-    });
-  });
-
-  return Promise.all(promises);
+export const preloadImagesBatch = async (
+  images: string[],
+  batchSize: number = 5
+): Promise<void> => {
+  for (let i = 0; i < images.length; i += batchSize) {
+    const batch = images.slice(i, i + batchSize);
+    await Promise.all(batch.map(img => preloadImage(img)));
+  }
 };
 
+// Audio preload should only be used for specific use cases like autoplay
+// For user-initiated playback, lazy loading is more appropriate
 export const preloadAudio = (
   src: string,
   options: PreloadAudioOptions = {}
@@ -150,7 +113,7 @@ export const preloadAudio = (
         setTimeout(() => {
           console.warn(`Audio preload timeout: ${src}`);
           resolve();
-        }, 20000)
+        }, 30000)
     )
   ]);
 };
@@ -163,7 +126,7 @@ export const preloadDocument = (url: string): Promise<void> => {
     }
 
     const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20000);
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     fetch(url, { 
       method: 'GET',
