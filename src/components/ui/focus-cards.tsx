@@ -79,7 +79,8 @@ export const Card = React.memo(
           className="object-cover absolute inset-0"
           draggable={false}
           decoding="async"
-          loading="lazy"
+          loading={index < 9 ? "eager" : "lazy"}
+          priority={index < 3}
         />
         <div
           className={cn(

@@ -94,6 +94,7 @@ export const ProfileCarousel = ({
                   height={500}
                   sizes="(max-width: 768px) 100vw, 50vw"
                   priority={active === 0}
+                  loading="eager"
                   draggable={false}
                   className="h-full w-full rounded-3xl object-cover object-center fix-mobile-flicker"
                   onError={() => {

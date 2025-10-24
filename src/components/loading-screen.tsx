@@ -32,9 +32,9 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
 
     const imageAssets = [
       ...profileData.profiles.map(p => p.src),
-      ...projectsData.projects.map(p => p.image),
-      ...musicData.map(m => m.coverImage),
-      ...galleryData.items.map(g => g.src),
+      ...projectsData.projects.slice(0, 3).map(p => p.image),
+      ...musicData.slice(0, 3).map(m => m.coverImage),
+      ...galleryData.items.slice(0, 9).map(g => g.src),
       ...experienceData.experiences.filter(exp => exp.logo).map(exp => exp.logo!),
       ...certificateData.certificates.map(c => c.image),
     ];
@@ -87,7 +87,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
       for (const assetGroup of assets) {
         for (const assetUrl of assetGroup.assets) {
           if (assetGroup.name === "Images") {
-            const criticalSizes = [640, 828, 1200, 1920];
+            const criticalSizes = [640, 1200];
             
             for (const size of criticalSizes) {
               totalCount++;

@@ -27,6 +27,7 @@ export const CertificateCard = ({ certificate }: CertificateCardProps) => {
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="w-full h-auto object-contain"
                 priority
+                loading="eager"
                 unoptimized
               />
             </div>

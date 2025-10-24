@@ -44,6 +44,7 @@ function SmartImage({
         fill
         sizes="224px"
         priority
+        loading="eager"
         className={imgClass}
         placeholder={blurDataURL ? "blur" : undefined}
         blurDataURL={blurDataURL}
