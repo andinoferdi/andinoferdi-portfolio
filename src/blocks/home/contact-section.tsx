@@ -352,9 +352,19 @@ export const ContactSection = () => {
                     No comments yet. Be the first to comment!
                   </p>
                 ) : (
-                  comments.map((comment) => (
-                    <CommentCard key={comment.id} comment={comment} />
-                  ))
+                  comments.map((comment, index) => {
+                    const isLastPinned = comment.is_pinned && 
+                      (index === comments.length - 1 || !comments[index + 1]?.is_pinned);
+                    
+                    return (
+                      <div key={comment.id}>
+                        <CommentCard comment={comment} />
+                        {isLastPinned && (
+                          <div className="my-4 border-t border-border/40"></div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>

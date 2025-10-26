@@ -4,6 +4,7 @@ import { type Comment } from "@/types/contact";
 import { formatDistanceToNow } from "date-fns";
 import { id } from "date-fns/locale";
 import Image from "next/image";
+import { IconPinned } from "@tabler/icons-react";
 
 interface CommentCardProps {
   comment: Comment;
@@ -50,7 +51,11 @@ export const CommentCard = ({ comment }: CommentCardProps) => {
   };
 
   return (
-    <div className="flex gap-3 p-4 bg-background/90 border border-border/60 rounded-xl backdrop-blur-md">
+    <div className={`flex gap-3 p-4 rounded-xl backdrop-blur-md transition-all duration-200 cursor-pointer ${
+      comment.is_pinned 
+        ? 'bg-primary/5 border-2 border-primary/30 shadow-sm hover:bg-primary/10 hover:border-primary/40' 
+        : 'bg-background/90 border border-border/60 hover:bg-muted hover:border-border hover:shadow-md'
+    }`}>
       <div className={`w-10 h-10 rounded-full ${avatarColor} flex items-center justify-center text-white font-semibold text-sm shrink-0`}>
         {comment.profile_image ? (
           <Image 
@@ -70,6 +75,9 @@ export const CommentCard = ({ comment }: CommentCardProps) => {
           <h4 className="font-semibold text-foreground text-sm">
             {comment.user_name}
           </h4>
+          {comment.is_pinned && (
+            <IconPinned className="h-3.5 w-3.5 text-primary" stroke={2} />
+          )}
           <span className="text-xs text-muted-foreground">
             {formatDate(comment.created_at)}
           </span>

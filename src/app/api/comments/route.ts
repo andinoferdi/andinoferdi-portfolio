@@ -11,6 +11,7 @@ export async function GET() {
     const { data, error, count } = await supabase
       .from('portfolio_comments')
       .select('*', { count: 'exact' })
+      .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
           content,
           user_name,
           profile_image: profile_image || null,
+          is_pinned: false,
         },
       ])
       .select()

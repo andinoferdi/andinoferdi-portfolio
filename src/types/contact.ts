@@ -4,6 +4,7 @@ export interface Comment {
   user_name: string;
   profile_image?: string;
   created_at: string;
+  is_pinned: boolean;
 }
 
 export interface ContactFormData {
