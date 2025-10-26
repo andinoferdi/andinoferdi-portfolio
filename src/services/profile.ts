@@ -15,7 +15,7 @@ export const getProfileData = (): ProfileData => {
           "Experienced in Laravel, Golang, and Python, specializing in backend architecture, API services, and database optimization.",
         name: "Back End Developer",
         designation: "Server & Database Expert",
-        src: "/images/self/2.jpg",
+        src: "/images/gallery/34.jpg",
       },
       {
         quote:
