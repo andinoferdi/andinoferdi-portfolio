@@ -268,5 +268,15 @@ export const getOriginalTracks = (): Track[] => [
     coverImage: "/music/images/The Final Countdown.jpg",
     genre: "Glam Metal",
   },
+  {
+    id: "Bitter-Sweet-Symphony",
+    title: "Bitter Sweet Symphony",
+    artist: "The Verve",
+    album: "Urban Hymns",
+    duration: 0,
+    audioUrl: "/music/Bitter Sweet Symphony.mp3",
+    coverImage: "/music/images/Urban Hymns.jpg",
+    genre: "Alternative Rock",
+  },
 ];
 
