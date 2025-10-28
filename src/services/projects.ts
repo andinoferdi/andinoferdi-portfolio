@@ -13,6 +13,15 @@ export const getProjectsData = (): ProjectsData => {
         liveUrl: "https://freshko.vercel.app",
       },
       {
+        id: "Portfolio-V3",
+        title: "Portfolio V3",
+        description:
+          "The portfolio template I initially wanted to use, but ended up not using because it had too many effects. You can use it if you want. ",
+        image: "/images/projects/portfolio-v3.png",
+        technologies: ["Next.js", "TypeScript", "Tailwind CSS"],
+        liveUrl: "https://andinoferdi-portfolio-v3.vercel.app/",
+      },
+      {
         id: "portfolio-v2",
         title: "Portfolio V2",
         description:

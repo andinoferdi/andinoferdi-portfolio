@@ -40,7 +40,7 @@ export const TechStackCard = ({ category, index }: TechStackCardProps) => {
                 animationSpeed={3}
                 containerClassName="bg-transparent"
                 colors={[category.color]}
-                opacities={[0.2, 0.2, 0.2, 0.2, 0.2, 0.4, 0.4, 0.4, 0.4, 0.4]}
+                opacities={[0.6, 0.6, 0.6, 0.8, 0.8, 1, 1, 1, 1, 1]}
                 dotSize={2}
                 showGradient={false}
               />
@@ -51,7 +51,7 @@ export const TechStackCard = ({ category, index }: TechStackCardProps) => {
 
       <div className="relative z-10 w-full">
         <div className="mb-4 flex items-center justify-between">
-          <h3 
+          <h3
             className="text-xl font-bold transition-colors duration-300"
             style={{
               color: `rgb(${category.color[0]}, ${category.color[1]}, ${category.color[2]})`,
@@ -78,7 +78,9 @@ export const TechStackCard = ({ category, index }: TechStackCardProps) => {
           </div>
         </div>
 
-        <p className="mb-6 text-sm text-muted-foreground">{category.description}</p>
+        <p className="mb-6 text-sm text-muted-foreground">
+          {category.description}
+        </p>
 
         <div className="space-y-3">
           {category.technologies.map((tech) => (
@@ -91,14 +93,17 @@ export const TechStackCard = ({ category, index }: TechStackCardProps) => {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h4 
+                  <h4
                     className="text-sm font-semibold truncate transition-colors duration-300"
                     style={{
-                      color: tech.brandColor === "#000000" 
-                        ? "var(--foreground)" 
-                        : tech.brandColor === "#FFFFFF" || tech.brandColor === "#ffffff"
-                        ? "var(--foreground)" 
-                        : tech.brandColor || `rgb(${category.color[0]}, ${category.color[1]}, ${category.color[2]})`,
+                      color:
+                        tech.brandColor === "#000000"
+                          ? "var(--foreground)"
+                          : tech.brandColor === "#FFFFFF" ||
+                            tech.brandColor === "#ffffff"
+                          ? "var(--foreground)"
+                          : tech.brandColor ||
+                            `rgb(${category.color[0]}, ${category.color[1]}, ${category.color[2]})`,
                     }}
                   >
                     {tech.name}
@@ -112,4 +117,3 @@ export const TechStackCard = ({ category, index }: TechStackCardProps) => {
     </div>
   );
 };
-

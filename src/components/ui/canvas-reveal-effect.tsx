@@ -1,12 +1,18 @@
 "use client";
 import { cn } from "@/lib/utils";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import React, { useMemo, useRef, useCallback, useState, useEffect } from "react";
+import React, {
+  useMemo,
+  useRef,
+  useCallback,
+  useState,
+  useEffect,
+} from "react";
 import * as THREE from "three";
 
 export const CanvasRevealEffect = ({
   animationSpeed = 0.4,
-  opacities = [0.3, 0.3, 0.3, 0.5, 0.5, 0.5, 0.8, 0.8, 0.8, 1],
+  opacities = [0.6, 0.6, 0.6, 0.8, 0.8, 0.8, 1, 1, 1, 1],
   colors = [[0, 255, 255]],
   containerClassName,
   dotSize,
@@ -27,7 +33,9 @@ export const CanvasRevealEffect = ({
 
   if (isMobile) {
     return (
-      <div className={cn("h-full relative bg-white w-full", containerClassName)}>
+      <div
+        className={cn("h-full relative bg-white w-full", containerClassName)}
+      >
         {showGradient && (
           <div className="absolute inset-0 bg-linear-to-t from-gray-950 to-84%" />
         )}
@@ -41,9 +49,7 @@ export const CanvasRevealEffect = ({
         <DotMatrix
           colors={colors ?? [[0, 255, 255]]}
           dotSize={dotSize ?? 3}
-          opacities={
-            opacities ?? [0.3, 0.3, 0.3, 0.5, 0.5, 0.5, 0.8, 0.8, 0.8, 1]
-          }
+          opacities={opacities ?? [0.6, 0.6, 0.6, 0.8, 0.8, 0.8, 1, 1, 1, 1]}
           shader={`
               float animation_speed_factor = ${animationSpeed.toFixed(1)};
               float intro_offset = distance(u_resolution / 2.0 / u_total_size, st2) * 0.01 + (random(st2) * 0.15);
@@ -71,7 +77,7 @@ interface DotMatrixProps {
 
 const DotMatrix: React.FC<DotMatrixProps> = ({
   colors = [[0, 0, 0]],
-  opacities = [0.04, 0.04, 0.04, 0.04, 0.04, 0.08, 0.08, 0.08, 0.08, 0.14],
+  opacities = [0.08, 0.08, 0.08, 0.08, 0.08, 0.16, 0.16, 0.16, 0.16, 0.28],
   totalSize = 4,
   dotSize = 2,
   shader = "",
@@ -221,7 +227,8 @@ const ShaderMaterial = ({
   });
 
   const getUniforms = useCallback(() => {
-    const preparedUniforms: Record<string, { value: unknown; type?: string }> = {};
+    const preparedUniforms: Record<string, { value: unknown; type?: string }> =
+      {};
 
     for (const uniformName in uniforms) {
       const uniform = uniforms[uniformName];
