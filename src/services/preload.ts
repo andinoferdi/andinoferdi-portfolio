@@ -13,8 +13,9 @@ export const IMAGE_SIZES = [16, 32, 48, 64, 96, 128, 256, 384];
 
 const preloadedAssets = new Set<string>();
 
-// Deprecated: These functions are no longer used for preloading
-// Next.js Image Optimization API should only be used for rendering, not preloading
+// Note: These functions preload raw images, not Next.js optimized versions
+// For critical images, use <link rel="preload"> in HTML head instead
+// This is mainly for non-critical images that can be preloaded in background
 
 export const preloadImage = (
   src: string
@@ -38,6 +39,47 @@ export const preloadImage = (
     };
 
     img.src = src;
+  });
+
+  return Promise.race([
+    promise,
+    new Promise<void>((resolve) =>
+        setTimeout(() => {
+          preloadedAssets.add(src);
+          resolve();
+        }, 30000)
+    )
+  ]);
+};
+
+// Preload Next.js optimized images (for non-critical images)
+export const preloadOptimizedImage = (
+  src: string,
+  width: number = 800,
+  quality: number = 75
+): Promise<void> => {
+  const promise = new Promise<void>((resolve) => {
+    if (preloadedAssets.has(src)) {
+      resolve();
+      return;
+    }
+
+    // Create optimized image URL using Next.js image API
+    const optimizedSrc = `/_next/image?url=${encodeURIComponent(src)}&w=${width}&q=${quality}`;
+    
+    const img = new Image();
+    
+    img.onload = () => {
+      preloadedAssets.add(src);
+      resolve();
+    };
+    
+    img.onerror = () => {
+      preloadedAssets.add(src);
+      resolve();
+    };
+
+    img.src = optimizedSrc;
   });
 
   return Promise.race([

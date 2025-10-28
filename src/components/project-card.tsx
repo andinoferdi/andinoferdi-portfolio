@@ -35,6 +35,7 @@ export const ProjectCard = ({ project, showCodeButton = true }: ProjectCardProps
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="w-full h-full object-cover"
                 loading="eager"
+                priority={project.id === "freshko" || project.id === "portfolio-v2" || project.id === "anro-studio"}
               />
             </div>
           </CardItem>

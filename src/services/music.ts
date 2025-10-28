@@ -278,5 +278,15 @@ export const getOriginalTracks = (): Track[] => [
     coverImage: "/music/images/Urban Hymns.jpg",
     genre: "Alternative Rock",
   },
+  {
+    id: "Listen-To-Your-Heart",
+    title: "Listen To Your Heart",
+    artist: "Roxette",
+    album: "Look Sharp!",
+    duration: 0,
+    audioUrl: "/music/Listen To Your Heart.mp3",
+    coverImage: "/music/images/Look Sharp!.jpg",
+    genre: "Pop Rock",
+  },
 ];
 

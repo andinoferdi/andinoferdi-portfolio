@@ -30,10 +30,22 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
     const galleryData = getGalleryData();
     const certificateData = getCertificateData();
 
+    // Critical images that are already preloaded via <link rel="preload"> in layout.tsx
+    const preloadedImages = new Set([
+      "/images/self/1.jpg",
+      "/images/self/2.jpg", 
+      "/images/self/3.jpg",
+      "/images/self/4.jpg",
+      "/images/gallery/34.jpg",
+      "/images/projects/FreshKo.png",
+      "/images/projects/portfolio-v2.png",
+      "/images/projects/anro.png"
+    ]);
+
     const criticalImages = [
       ...profileData.profiles.map(p => p.src),
       ...projectsData.projects.slice(0, 3).map(p => p.image),
-    ];
+    ].filter(img => !preloadedImages.has(img)); // Skip already preloaded images
 
     const nonCriticalImages = [
       ...projectsData.projects.slice(3).map(p => p.image),
@@ -108,7 +120,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           await Promise.all(allPromises);
           allPromises.length = 0;
         } else if (assetGroup.name === "Images") {
-          const batchSize = 5;
+          const batchSize = 8; // Increased batch size for faster loading
           for (let i = 0; i < assetGroup.assets.length; i += batchSize) {
             const batch = assetGroup.assets.slice(i, i + batchSize);
             const batchPromises = batch.map(assetUrl => 

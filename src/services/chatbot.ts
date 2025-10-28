@@ -9,6 +9,8 @@ import { getExperienceData } from "./journey";
 import { getProfileData } from "./profile";
 import { getOriginalTracks } from "./music";
 import { getGalleryData } from "./gallery";
+import { getTechStackData } from "./techstack";
+import { getCertificateData } from "./certificate";
 
 if (typeof window === "undefined") {
   console.log("🔍 Environment Variables Check:");
@@ -69,6 +71,8 @@ export const getPortfolioContext = (): PortfolioContext => {
   const profileData = getProfileData();
   const musicData = getOriginalTracks();
   const galleryData = getGalleryData();
+  const techStackData = getTechStackData();
+  const certificateData = getCertificateData();
 
   return {
     projects: projectsData.projects.map((project) => ({
@@ -108,6 +112,18 @@ export const getPortfolioContext = (): PortfolioContext => {
       location: item.title.split(' - ')[0],
       date: item.title.split(' - ')[1],
     })),
+    techStack: {
+      totalCategories: techStackData.categories.length,
+      categories: techStackData.categories.map(cat => ({
+        name: cat.name,
+        description: cat.description,
+        technologiesCount: cat.technologies.length,
+        technologies: cat.technologies.map(tech => tech.name),
+      })),
+    },
+    certificates: {
+      totalCertificates: certificateData.certificates.length,
+    },
   };
 };
 
@@ -201,6 +217,16 @@ ${context.experiences.map((exp) => `
   ${exp.description}
   Technologies: ${exp.technologies.join(", ")}
 `).join("")}
+
+TECH STACK & SKILLS:
+Andino has expertise across ${context.techStack?.totalCategories || 0} technology categories:
+${context.techStack?.categories.map(cat => `
+- ${cat.name} (${cat.technologiesCount} technologies): ${cat.description}
+  Technologies: ${cat.technologies.join(", ")}
+`).join("") || "Tech stack data not available"}
+
+CERTIFICATIONS:
+Andino has earned ${context.certificates?.totalCertificates || 0} professional certificates, demonstrating commitment to continuous learning and skill development.
 
 HIS MUSIC TASTE:
 Andino enjoys listening to these tracks:
@@ -299,7 +325,8 @@ EXAMPLE RESPONSES:
 - "What is Next.js?" → "Next.js is a powerful React framework for building web applications with features like server-side rendering, static site generation, and API routes. Andino uses Next.js in several projects including his portfolio website you're on right now! It's great for SEO and performance."
 - "Why should I use TypeScript?" → "TypeScript adds static typing to JavaScript, catching errors during development and improving code quality. It's especially valuable in large projects. Andino uses TypeScript extensively in his projects - you can see it in his portfolio, FreshKo, and Pet Finder projects. It helps maintain code reliability and developer experience."
 - "Who is in this photo?" → "I can see it's a photo, but I can't identify specific people with certainty. Could you tell me more about what you'd like to know? If this is from Andino's gallery, most photos there are from his travels and outings with friends."
-- "What is Andino's age?" → "I don't have personal details like age in the portfolio. I can tell you about his experience and skills though! He's been working in tech with experience at Telkom Indonesia and various projects."`;
+- "What is Andino's age?" → "I don't have personal details like age in the portfolio. I can tell you about his experience and skills though! He's been working in tech with experience at Telkom Indonesia and various projects."
+- "What technologies does Andino know?" → "Andino has expertise across 6 technology categories! He works with modern frameworks like Next.js, Laravel, and Flutter. For frontend, he uses React.js, Vue.js, and Tailwind CSS. On the backend, he's skilled in PHP, Node.js, Python, and Golang. He also works with databases like MySQL, PostgreSQL, and MongoDB. Plus he has design skills with Figma and Adobe Creative Suite. He's got ${context.certificates?.totalCertificates} professional certificates too!"`;
 
   return {
     id: "system-prompt",
@@ -311,13 +338,19 @@ EXAMPLE RESPONSES:
 
 export const parseStreamResponse = async (
   reader: ReadableStreamDefaultReader<Uint8Array>,
-  onChunk: (content: string) => void
+  onChunk: (content: string) => void,
+  signal?: AbortSignal
 ): Promise<void> => {
   const decoder = new TextDecoder();
   let buffer = "";
 
   try {
     while (true) {
+      // Check if request was aborted
+      if (signal?.aborted) {
+        throw new DOMException('The operation was aborted.', 'AbortError');
+      }
+
       const { done, value } = await reader.read();
 
       if (done) break;
@@ -347,6 +380,10 @@ export const parseStreamResponse = async (
       }
     }
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      console.log("Stream reading aborted by user");
+      throw error;
+    }
     console.error("Stream reading error:", error);
     throw error;
   }
@@ -355,7 +392,8 @@ export const parseStreamResponse = async (
 export const sendChatMessage = async (
   messages: Message[],
   modelIndex: number = 0,
-  onStream?: (chunk: string) => void
+  onStream?: (chunk: string) => void,
+  signal?: AbortSignal
 ): Promise<{ content: string; model: string }> => {
   if (!API_KEY) {
     throw new Error(
@@ -389,6 +427,7 @@ export const sendChatMessage = async (
         temperature: 0.7,
         max_tokens: 2000,
       }),
+      signal,
     }
   );
 
@@ -420,11 +459,11 @@ export const sendChatMessage = async (
     await parseStreamResponse(reader, (chunk) => {
       fullContent += chunk;
       onStream(chunk);
-    });
+    }, signal);
   } else {
     await parseStreamResponse(reader, (chunk) => {
       fullContent += chunk;
-    });
+    }, signal);
   }
 
   return {
@@ -437,7 +476,8 @@ export const sendChatMessage = async (
 export const handleModelFallback = async (
   messages: Message[],
   startModelIndex: number = 0,
-  onStream?: (chunk: string) => void
+  onStream?: (chunk: string) => void,
+  signal?: AbortSignal
 ): Promise<{ content: string; model: string; finalIndex: number }> => {
   let lastError: Error | null = null;
   const rateLimitedModels: string[] = [];
@@ -448,9 +488,14 @@ export const handleModelFallback = async (
 
   for (const i of order) {
     try {
-      const result = await sendChatMessage(messages, i, onStream);
+      const result = await sendChatMessage(messages, i, onStream, signal);
       return { content: result.content, model: result.model, finalIndex: i };
     } catch (error: unknown) {
+      // Check if request was aborted
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw error;
+      }
+
       const errorMessage = error instanceof Error ? error.message : String(error);
 
       if (errorMessage.includes("429") || errorMessage.includes("Rate limit")) {

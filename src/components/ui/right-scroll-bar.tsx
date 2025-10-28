@@ -18,7 +18,7 @@ export const RightScrollBar = React.forwardRef<HTMLDivElement, RightScrollBarPro
 			<div
 				ref={ref}
 				className={cn(
-					"right-scrollbar overflow-y-auto",
+					"right-scrollbar overflow-y-auto relative",
 					className
 				)}
 				style={{ maxHeight: resolvedMax, ...style }}

@@ -93,7 +93,7 @@ export const ProfileCarousel = ({
                   width={500}
                   height={500}
                   sizes="(max-width: 768px) 100vw, 50vw"
-                  priority={active === 0}
+                  priority={true}
                   loading="eager"
                   draggable={false}
                   className="h-full w-full rounded-3xl object-cover object-center fix-mobile-flicker"

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { RightScrollBar } from "@/components/ui/right-scroll-bar";
-import { Bot, User, Send, X, RotateCcw, AlertCircle, Image as ImageIcon, ZoomIn } from "lucide-react";
+import { Bot, User, Send, X, RotateCcw, AlertCircle, Image as ImageIcon, ZoomIn, Pencil, Copy } from "lucide-react";
 import { useChatbot } from "@/hooks/useChatbot";
 import { formatTimestamp, MODELS, MODEL_DISPLAY_NAMES, imageToBase64 } from "@/services/chatbot";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,9 +23,12 @@ export const ChatbotSection = () => {
   const [inputValue, setInputValue] = useState("");
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [selectedImageModal, setSelectedImageModal] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState<string>("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
 
   const {
     messages,
@@ -36,6 +39,7 @@ export const ChatbotSection = () => {
     clearMessages,
     retryLastMessage,
     cancelRequest,
+    updateAndResendMessage,
   } = useChatbot();
 
   const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
@@ -124,6 +128,93 @@ export const ChatbotSection = () => {
     });
   };
 
+  const handleEditMessage = (messageId: string) => {
+    const message = messages.find(msg => msg.id === messageId);
+    if (message && message.role === 'user') {
+      const content = typeof message.content === 'string' 
+        ? message.content 
+        : message.content.find(c => c.type === 'text')?.text || '';
+      
+      setEditingMessageId(messageId);
+      setEditingContent(content);
+      
+      setTimeout(() => {
+        editInputRef.current?.focus();
+        editInputRef.current?.select();
+      }, 100);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingMessageId || !editingContent.trim()) return;
+    
+    const message = messages.find(msg => msg.id === editingMessageId);
+    if (!message) return;
+
+    const images = message.images || [];
+    const messageId = editingMessageId;
+    const content = editingContent.trim();
+    
+    // Close UI immediately
+    setEditingMessageId(null);
+    setEditingContent("");
+    
+    // Then send the update
+    await updateAndResendMessage(messageId, content, images, () => {
+      // Already closed, no need to do anything
+    }, (error) => {
+      console.error("Edit error:", error);
+      // Optionally: reopen edit UI on error
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditingContent("");
+  };
+
+  const handleKeyDownEdit = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSaveEdit();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      handleCancelEdit();
+    }
+  };
+
+  const handleCopyMessage = async (messageId: string) => {
+    const message = messages.find(msg => msg.id === messageId);
+    if (message) {
+      const content = typeof message.content === 'string' 
+        ? message.content 
+        : message.content.find(c => c.type === 'text')?.text || '';
+      
+      try {
+        await navigator.clipboard.writeText(content);
+        toast.success("Message copied to clipboard");
+      } catch (error) {
+        console.error("Failed to copy:", error);
+        toast.error("Failed to copy message");
+      }
+    }
+  };
+
+  const handleClearMessages = () => {
+    clearMessages();
+    setInputValue("");
+    setSelectedImages([]);
+    setEditingMessageId(null);
+    setEditingContent("");
+  };
+
+  const handleCancelRequest = () => {
+    cancelRequest();
+    if (editingMessageId) {
+      handleCancelEdit();
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -188,17 +279,93 @@ export const ChatbotSection = () => {
                 <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
                   <User className="h-3 w-3 md:h-4 md:w-4" />
                 </div>
-                <div className="rounded-lg px-3 py-2 md:px-4 bg-primary text-primary-foreground">
-                  <div className="text-xs md:text-sm">
-                    <div className="whitespace-pre-wrap">
-                      {typeof message.content === 'string' 
-                        ? message.content 
-                        : message.content.find(c => c.type === 'text')?.text}
+                <div className="relative group">
+                  {editingMessageId === message.id ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2 }}
+                      className="rounded-lg px-3 py-3 md:px-4 bg-primary/10 border border-primary/30"
+                    >
+                      <Textarea
+                        ref={editInputRef}
+                        value={editingContent}
+                        onChange={(e) => setEditingContent(e.target.value)}
+                        onKeyDown={handleKeyDownEdit}
+                        className="w-full min-h-[80px]! max-h-[200px] resize-none bg-transparent border-none p-2 text-xs md:text-sm focus:ring-0 focus:outline-none leading-relaxed py-2!"
+                        placeholder="Edit your message..."
+                        autoResize={true}
+                        maxHeight={200}
+                        style={{ 
+                          lineHeight: '1.6',
+                          minHeight: '80px',
+                          paddingTop: '12px',
+                          paddingBottom: '12px',
+                          boxSizing: 'border-box',
+                          overflow: 'hidden'
+                        }}
+                      />
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="text-xs text-muted-foreground">
+                          Press Enter to save, Esc to cancel
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleCancelEdit}
+                            className="h-6 px-2 text-xs"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleSaveEdit}
+                            disabled={!editingContent.trim()}
+                            className="h-6 px-2 text-xs"
+                          >
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <div className="group/message">
+                      <div className="rounded-lg px-3 py-2 md:px-4 bg-primary text-primary-foreground">
+                        <div className="text-xs md:text-sm">
+                          <div className="whitespace-pre-wrap">
+                            {typeof message.content === 'string' 
+                              ? message.content 
+                              : message.content.find(c => c.type === 'text')?.text}
+                          </div>
+                        </div>
+                        <div className="text-xs mt-1 text-primary-foreground/70">
+                          {timestamp}
+                        </div>
+                      </div>
+                      
+                      {/* Action Buttons - Separate from message background */}
+                      <div className="flex items-center gap-1 mt-2 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200">
+                        <button
+                          onClick={() => handleCopyMessage(message.id)}
+                          className="p-1.5 bg-muted hover:bg-muted/80 rounded-full transition-colors cursor-pointer"
+                          title="Copy message"
+                        >
+                          <Copy className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                        {!hasImages && (
+                          <button
+                            onClick={() => handleEditMessage(message.id)}
+                            className="p-1.5 bg-muted hover:bg-muted/80 rounded-full transition-colors cursor-pointer"
+                            title="Edit message"
+                          >
+                            <Pencil className="h-3 w-3 text-muted-foreground" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-xs mt-1 text-primary-foreground/70">
-                    {timestamp}
-                  </div>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -392,8 +559,13 @@ export const ChatbotSection = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={clearMessages}
-                    className="text-muted-foreground hover:text-foreground"
+                    onClick={handleClearMessages}
+                    disabled={isLoading || isStreaming}
+                    className={`text-muted-foreground hover:text-foreground cursor-pointer ${
+                      (isLoading || isStreaming) 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:bg-muted'
+                    }`}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -412,7 +584,7 @@ export const ChatbotSection = () => {
             </div>
           </CardHeader>
 
-          <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
+          <CardContent className="flex-1 flex flex-col p-0 overflow-hidden relative">
             <RightScrollBar ref={scrollRef} className="flex-1 p-3 md:p-6">
               <div className="space-y-4">
                 <AnimatePresence>
@@ -492,6 +664,8 @@ export const ChatbotSection = () => {
                   ))}
                 </div>
               )}
+              
+              
               <form onSubmit={handleSubmit} className="relative">
                 <input
                   type="file"
@@ -524,12 +698,19 @@ export const ChatbotSection = () => {
                     rows={1}
                   />
                   <Button
-                    type="submit"
-                    disabled={isLoading || (!inputValue.trim() && selectedImages.length === 0)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer rounded-full w-9 h-9 p-0"
+                    type={isLoading && isStreaming ? "button" : "submit"}
+                    disabled={!isLoading && (!inputValue.trim() && selectedImages.length === 0)}
+                    onClick={isLoading && isStreaming ? handleCancelRequest : undefined}
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-full w-9 h-9 p-0 ${
+                      isLoading && isStreaming 
+                        ? 'cursor-pointer' 
+                        : !isLoading && (!inputValue.trim() && selectedImages.length === 0)
+                        ? 'cursor-not-allowed'
+                        : 'cursor-pointer'
+                    }`}
                   >
                     {isLoading && isStreaming ? (
-                      <X className="h-4 w-4" onClick={cancelRequest} />
+                      <X className="h-4 w-4" />
                     ) : (
                       <Send className="h-4 w-4" />
                     )}

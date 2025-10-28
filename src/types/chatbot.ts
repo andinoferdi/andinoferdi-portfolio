@@ -22,6 +22,8 @@ export interface ChatbotState {
   currentModelIndex: number;
   error: string | null;
   isStreaming: boolean;
+  editingMessageId: string | null;
+  isEditing: boolean;
 }
 
 export interface OpenRouterResponse {
@@ -107,6 +109,18 @@ export interface PortfolioContext {
     location: string;
     date: string;
   }>;
+  techStack?: {
+    totalCategories: number;
+    categories: Array<{
+      name: string;
+      description: string;
+      technologiesCount: number;
+      technologies: string[];
+    }>;
+  };
+  certificates?: {
+    totalCertificates: number;
+  };
 }
 
 export interface ChatHistory {

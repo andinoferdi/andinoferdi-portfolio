@@ -132,6 +132,7 @@ html {
   .right-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) transparent;
+    position: relative; /* Ensure proper positioning for scroll offset calculation */
   }
   
   .right-scrollbar::-webkit-scrollbar {

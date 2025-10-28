@@ -342,7 +342,7 @@ export const ContactSection = () => {
               </form>
 
               {/* Comments List */}
-              <div className="space-y-4 max-h-96 overflow-y-auto right-scrollbar">
+              <div className="space-y-4 max-h-96 overflow-y-auto right-scrollbar relative">
                 {isLoadingComments ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
