@@ -1,6 +1,6 @@
 "use client";
 
-import { Github } from "lucide-react";
+import { Github, Linkedin } from "lucide-react";
 
 interface SocialLink {
   name: string;
@@ -11,6 +11,7 @@ interface SocialLink {
 interface SocialLinksProps {
   socialLinks: {
     github: { href: string };
+    linkedin: { href: string };
   };
   className?: string;
 }
@@ -21,14 +22,20 @@ const SOCIAL_LINKS: SocialLink[] = [
     href: "",
     icon: Github,
   },
+  {
+    name: "LinkedIn",
+    href: "",
+    icon: Linkedin,
+  },
 ];
 
-export const SocialLinks: React.FC<SocialLinksProps> = ({ 
-  socialLinks, 
-  className = "flex items-center gap-2 relative z-30" 
+export const SocialLinks: React.FC<SocialLinksProps> = ({
+  socialLinks,
+  className = "flex items-center gap-2 relative z-30",
 }) => {
   const links = [
     { ...SOCIAL_LINKS[0], href: socialLinks.github.href },
+    { ...SOCIAL_LINKS[1], href: socialLinks.linkedin.href },
   ];
 
   return (

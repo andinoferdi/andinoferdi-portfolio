@@ -31,10 +31,7 @@ export interface FileUploadProps {
   accept?: string;
 }
 
-export const FileUpload = ({
-  onChange,
-  accept,
-}: FileUploadProps) => {
+export const FileUpload = ({ onChange, accept }: FileUploadProps) => {
   const [files, setFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,7 +40,7 @@ export const FileUpload = ({
       const result = await validateImageFileStrict(file);
       return result.isValid;
     } catch (error) {
-      console.error('File validation error:', error);
+      console.error("File validation error:", error);
       return false;
     }
   };
@@ -54,20 +51,22 @@ export const FileUpload = ({
       const isValid = await validateFileType(file);
       return { file, isValid };
     });
-    
+
     const validationResults = await Promise.all(validationPromises);
     const validFiles = validationResults
-      .filter(result => result.isValid)
-      .map(result => result.file);
-    
+      .filter((result) => result.isValid)
+      .map((result) => result.file);
+
     const invalidFiles = validationResults
-      .filter(result => !result.isValid)
-      .map(result => result.file);
-    
+      .filter((result) => !result.isValid)
+      .map((result) => result.file);
+
     if (invalidFiles.length > 0) {
-      console.warn(`Files rejected: ${invalidFiles.map(f => f.name).join(', ')}`);
+      console.warn(
+        `Files rejected: ${invalidFiles.map((f) => f.name).join(", ")}`
+      );
     }
-    
+
     setFiles((prevFiles) => [...prevFiles, ...validFiles]);
     if (onChange) {
       onChange(validFiles);
@@ -81,15 +80,32 @@ export const FileUpload = ({
   const { getRootProps, isDragActive } = useDropzone({
     multiple: false,
     noClick: true,
-    accept: accept ? { 
-      'image/*': ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp', '.heic', '.heif', '.svg', '.avif']
-    } : undefined,
+    accept: accept
+      ? {
+          "image/*": [
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".gif",
+            ".bmp",
+            ".tiff",
+            ".tif",
+            ".webp",
+            ".heic",
+            ".heif",
+            ".svg",
+            ".avif",
+          ],
+        }
+      : undefined,
     onDrop: handleFileChange,
     onDropRejected: (rejectedFiles) => {
-      console.warn('Files rejected:', rejectedFiles);
+      console.warn("Files rejected:", rejectedFiles);
       if (rejectedFiles.length > 0) {
-        const fileNames = rejectedFiles.map(f => f.file.name).join(', ');
-        console.warn(`Files rejected: ${fileNames}. Only image files are allowed.`);
+        const fileNames = rejectedFiles.map((f) => f.file.name).join(", ");
+        console.warn(
+          `Files rejected: ${fileNames}. Only image files are allowed.`
+        );
       }
     },
   });
@@ -212,7 +228,7 @@ export const FileUpload = ({
   );
 };
 
-export function GridPattern() {
+export const GridPattern = () => {
   const columns = 41;
   const rows = 11;
   return (
@@ -223,15 +239,16 @@ export function GridPattern() {
           return (
             <div
               key={`${col}-${row}`}
-              className={`w-10 h-10 flex shrink-0 rounded-[2px] ${
+              className={cn(
+                "w-10 h-10 flex shrink-0 rounded-[2px]",
                 index % 2 === 0
                   ? "bg-gray-50 dark:bg-neutral-950"
                   : "bg-gray-50 dark:bg-neutral-950 shadow-[0px_0px_1px_3px_rgba(255,255,255,1)_inset] dark:shadow-[0px_0px_1px_3px_rgba(0,0,0,1)_inset]"
-              }`}
+              )}
             />
           );
         })
       )}
     </div>
   );
-}
+};

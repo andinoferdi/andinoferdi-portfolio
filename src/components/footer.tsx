@@ -2,9 +2,9 @@
 
 import { getFooterConfig } from "@/stores/footer-menu";
 
-export const DemoFooter = () => {
+export const MainFooter = () => {
   const footerConfig = getFooterConfig();
-  
+
   return (
     <footer className="relative z-40 w-full">
       <div className="relative z-60 mx-auto w-full max-w-7xl bg-transparent px-4 py-8 dark:bg-transparent">

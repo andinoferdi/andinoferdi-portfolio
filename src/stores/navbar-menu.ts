@@ -19,6 +19,10 @@ export interface NavbarConfig {
       href: string;
       icon: string;
     };
+    linkedin: {
+      href: string;
+      icon: string;
+    };
   };
   brandName: string;
 }
@@ -53,6 +57,10 @@ export const defaultNavbarConfig: NavbarConfig = {
     github: {
       href: "https://github.com/andinoferdi",
       icon: "github",
+    },
+    linkedin: {
+      href: "https://linkedin.com/in/andinoferdi",
+      icon: "linkedin",
     },
   },
   brandName: "AndinoFerdi",

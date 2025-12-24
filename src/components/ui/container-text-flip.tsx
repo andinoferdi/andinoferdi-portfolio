@@ -14,13 +14,13 @@ export interface ContainerTextFlipProps {
 
 const TEXT_PADDING = 30; // Padding for text width calculation
 
-export function ContainerTextFlip({
+export const ContainerTextFlip = ({
   words = ["better", "modern", "beautiful", "awesome"],
   interval = 3000,
   className,
   textClassName,
   animationDuration = 700,
-}: ContainerTextFlipProps) {
+}: ContainerTextFlipProps) => {
   const id = useId();
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [width, setWidth] = useState(100);
@@ -59,7 +59,7 @@ export function ContainerTextFlip({
         "shadow-[inset_0_-1px_#d1d5db,inset_0_0_0_1px_#d1d5db,0_4px_8px_#d1d5db]",
         "dark:[background:linear-gradient(to_bottom,#374151,#1f2937)]",
         "dark:shadow-[inset_0_-1px_#10171e,inset_0_0_0_1px_hsla(205,89%,46%,.24),0_4px_8px_#00000052]",
-        className,
+        className
       )}
       key={currentWord}
     >
@@ -95,4 +95,4 @@ export function ContainerTextFlip({
       </motion.div>
     </motion.div>
   );
-}
+};

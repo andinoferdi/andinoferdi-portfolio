@@ -4,15 +4,25 @@ import { useState, useEffect } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { validateImageFileStrict } from "@/lib/file-validation";
-import { User, Mail, MessageSquare, Send, Loader2, Image as ImageIcon } from "lucide-react";
+import {
+  User,
+  Mail,
+  MessageSquare,
+  Send,
+  Loader2,
+  Image as ImageIcon,
+} from "lucide-react";
 import Image from "next/image";
 import { Input, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CommentCard } from "@/components/comment-card";
 import { FileUpload } from "@/components/ui/file-upload";
 import { submitContactForm, getComments, addComment } from "@/services/contact";
-import { type ContactFormData, type CommentFormData, type Comment } from "@/types/contact";
-
+import {
+  type ContactFormData,
+  type CommentFormData,
+  type Comment,
+} from "@/types/contact";
 
 const contactSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -32,15 +42,15 @@ export const ContactSection = () => {
     email: "",
     message: "",
   });
-  
+
   const [commentForm, setCommentForm] = useState<CommentFormData>({
     user_name: "",
     content: "",
     profile_image: "",
   });
-  
+
   const [imagePreview, setImagePreview] = useState<string>("");
-  
+
   const [comments, setComments] = useState<Comment[]>([]);
   const [isSubmittingContact, setIsSubmittingContact] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -63,27 +73,29 @@ export const ContactSection = () => {
     loadComments();
   }, []);
 
-  const validateFileType = async (file: File): Promise<{ isValid: boolean; reason?: string }> => {
+  const validateFileType = async (
+    file: File
+  ): Promise<{ isValid: boolean; reason?: string }> => {
     try {
       const result = await validateImageFileStrict(file);
       return result;
     } catch (error) {
-      console.error('File validation error:', error);
-      return { isValid: false, reason: 'File validation failed' };
+      console.error("File validation error:", error);
+      return { isValid: false, reason: "File validation failed" };
     }
   };
 
   const handleImageUpload = async (files: File[]) => {
     if (files.length > 0) {
       const file = files[0];
-      
+
       // Enhanced validation with magic number detection
       const validationResult = await validateFileType(file);
       if (!validationResult.isValid) {
         toast.error(`File rejected: ${validationResult.reason}`);
         return;
       }
-      
+
       // Create preview URL
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -99,13 +111,13 @@ export const ContactSection = () => {
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const validatedData = contactSchema.parse(contactForm);
       setIsSubmittingContact(true);
-      
+
       const response = await submitContactForm(validatedData);
-      
+
       if (response.success) {
         toast.success(response.message);
         setContactForm({ name: "", email: "", message: "" });
@@ -127,17 +139,17 @@ export const ContactSection = () => {
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       const validatedData = commentSchema.parse({
         ...commentForm,
         profile_image: imagePreview || undefined,
       });
-      
+
       setIsSubmittingComment(true);
-      
+
       const response = await addComment(validatedData);
-      
+
       if (response.success) {
         toast.success(response.message);
         setCommentForm({ user_name: "", content: "", profile_image: "" });
@@ -316,8 +328,8 @@ export const ContactSection = () => {
                     </div>
                   ) : (
                     <div className="border-2 border-dashed border-border rounded-lg p-4">
-                      <FileUpload 
-                        onChange={handleImageUpload} 
+                      <FileUpload
+                        onChange={handleImageUpload}
                         accept="image/*,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp,.heic,.heif,.svg,.avif"
                       />
                     </div>
@@ -353,9 +365,11 @@ export const ContactSection = () => {
                   </p>
                 ) : (
                   comments.map((comment, index) => {
-                    const isLastPinned = comment.is_pinned && 
-                      (index === comments.length - 1 || !comments[index + 1]?.is_pinned);
-                    
+                    const isLastPinned =
+                      comment.is_pinned &&
+                      (index === comments.length - 1 ||
+                        !comments[index + 1]?.is_pinned);
+
                     return (
                       <div key={comment.id}>
                         <CommentCard comment={comment} />

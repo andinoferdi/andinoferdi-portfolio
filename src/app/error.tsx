@@ -1,10 +1,16 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import Link from 'next/link';
+import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import Link from "next/link";
 
 export default function Error({
   error,
@@ -14,7 +20,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('Error boundary caught:', error);
+    console.error("Error boundary caught:", error);
   }, [error]);
 
   return (
@@ -24,13 +30,16 @@ export default function Error({
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
             <AlertTriangle className="h-6 w-6 text-destructive" />
           </div>
-          <CardTitle className="text-2xl font-bold">Oops! Something went wrong</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            Oops! Something went wrong
+          </CardTitle>
           <CardDescription>
-            We encountered an unexpected error. Don&apos;t worry, it&apos;s not your fault.
+            We encountered an unexpected error. Don&apos;t worry, it&apos;s not
+            your fault.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {process.env.NODE_ENV === 'development' && (
+          {process.env.NODE_ENV === "development" && (
             <div className="rounded-md bg-muted p-3 text-left text-sm">
               <p className="font-medium text-destructive">Error Details:</p>
               <p className="mt-1 text-muted-foreground">{error.message}</p>

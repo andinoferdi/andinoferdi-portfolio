@@ -2,8 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Play, Pause, SkipBack, SkipForward, Volume2, ChevronUp, ChevronDown } from "lucide-react";
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 import { formatTime } from "@/services/music";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 
@@ -39,7 +48,7 @@ function SmartImage({
         </div>
       )}
       <Image
-        src={hasError ? "/placeholder.svg" : (src || "/placeholder.svg")}
+        src={hasError ? "/placeholder.svg" : src || "/placeholder.svg"}
         alt={alt}
         fill
         sizes="224px"
@@ -89,23 +98,23 @@ export const MiniPlayer: React.FC = () => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     const checkReducedMotion = () => {
       setPrefersReducedMotion(
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
       );
     };
-    
+
     checkMobile();
     checkReducedMotion();
-    
-    window.addEventListener('resize', checkMobile);
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    mediaQuery.addEventListener('change', checkReducedMotion);
-    
+
+    window.addEventListener("resize", checkMobile);
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    mediaQuery.addEventListener("change", checkReducedMotion);
+
     return () => {
-      window.removeEventListener('resize', checkMobile);
-      mediaQuery.removeEventListener('change', checkReducedMotion);
+      window.removeEventListener("resize", checkMobile);
+      mediaQuery.removeEventListener("change", checkReducedMotion);
     };
   }, []);
 
@@ -113,24 +122,31 @@ export const MiniPlayer: React.FC = () => {
 
   return (
     <motion.div
-      initial={hasAnimated ? { x: 0, opacity: 1 } : (isMobile ? { opacity: 0 } : { x: 400, opacity: 0 })}
+      initial={
+        hasAnimated
+          ? { x: 0, opacity: 1 }
+          : isMobile
+          ? { opacity: 0 }
+          : { x: 400, opacity: 0 }
+      }
       animate={{ x: 0, opacity: 1 }}
-      transition={{ 
-        duration: prefersReducedMotion ? 0 : (isMobile ? 0.15 : 0.3), 
-        ease: "easeOut" 
+      transition={{
+        duration: prefersReducedMotion ? 0 : isMobile ? 0.15 : 0.3,
+        ease: "easeOut",
       }}
       style={{
-        willChange: 'transform, opacity',
-        transform: 'translateZ(0)'
+        willChange: "transform, opacity",
+        transform: "translateZ(0)",
       }}
       className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40"
     >
       {isTrackLoading && (
-        <div className={`absolute inset-0 rounded-xl flex items-center justify-center z-50 ${
-          isMobile 
-            ? "bg-background/90" 
-            : "bg-background/80 backdrop-blur-sm"
-        }`}>
+        <div
+          className={cn(
+            "absolute inset-0 rounded-xl flex items-center justify-center z-50",
+            isMobile ? "bg-background/90" : "bg-background/80 backdrop-blur-sm"
+          )}
+        >
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             Loading track...
@@ -193,13 +209,13 @@ const MiniPlayerCollapsed: React.FC<MiniPlayerCollapsedProps> = ({
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
     exit={{ opacity: 0, scale: 0.95 }}
-    transition={{ 
-      duration: prefersReducedMotion ? 0 : (isMobile ? 0.2 : 0.5), 
-      ease: "easeOut" 
+    transition={{
+      duration: prefersReducedMotion ? 0 : isMobile ? 0.2 : 0.5,
+      ease: "easeOut",
     }}
     style={{
-      willChange: 'transform, opacity',
-      transform: 'translateZ(0)'
+      willChange: "transform, opacity",
+      transform: "translateZ(0)",
     }}
     className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer"
     onClick={onExpand}
@@ -223,26 +239,45 @@ const MiniPlayerCollapsed: React.FC<MiniPlayerCollapsedProps> = ({
         {isPlaying && (
           <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
             <div className="flex items-center gap-0.5">
-              <div className="w-0.5 h-2 bg-white rounded-full animate-pulse" style={{ animationDelay: "0ms" }} />
-              <div className="w-0.5 h-3 bg-white rounded-full animate-pulse" style={{ animationDelay: "150ms" }} />
-              <div className="w-0.5 h-1.5 bg-white rounded-full animate-pulse" style={{ animationDelay: "300ms" }} />
-              <div className="w-0.5 h-2.5 bg-white rounded-full animate-pulse" style={{ animationDelay: "450ms" }} />
-              <div className="w-0.5 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: "600ms" }} />
+              <div
+                className="w-0.5 h-2 bg-white rounded-full animate-pulse"
+                style={{ animationDelay: "0ms" }}
+              />
+              <div
+                className="w-0.5 h-3 bg-white rounded-full animate-pulse"
+                style={{ animationDelay: "150ms" }}
+              />
+              <div
+                className="w-0.5 h-1.5 bg-white rounded-full animate-pulse"
+                style={{ animationDelay: "300ms" }}
+              />
+              <div
+                className="w-0.5 h-2.5 bg-white rounded-full animate-pulse"
+                style={{ animationDelay: "450ms" }}
+              />
+              <div
+                className="w-0.5 h-1 bg-white rounded-full animate-pulse"
+                style={{ animationDelay: "600ms" }}
+              />
             </div>
           </div>
         )}
       </div>
 
       <div className="flex-1 min-w-0">
-        <h4 className="font-medium text-xs text-foreground truncate">{currentTrack.title}</h4>
-        <p className="text-xs text-muted-foreground truncate">{currentTrack.artist}</p>
+        <h4 className="font-medium text-xs text-foreground truncate">
+          {currentTrack.title}
+        </h4>
+        <p className="text-xs text-muted-foreground truncate">
+          {currentTrack.artist}
+        </p>
       </div>
 
       <div className="flex items-center gap-1">
         <button
-          onClick={(e) => { 
-            e.stopPropagation(); 
-            onPlayPause(); 
+          onClick={(e) => {
+            e.stopPropagation();
+            onPlayPause();
           }}
           className="p-2 rounded-full bg-foreground text-background hover:bg-foreground/80 transition-colors cursor-pointer"
           aria-label={isPlaying ? "Pause" : "Play"}
@@ -300,22 +335,24 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
     initial={{ opacity: 0, scale: 0.95 }}
     animate={{ opacity: 1, scale: 1 }}
     exit={{ opacity: 0, scale: 0.95 }}
-    transition={{ 
-      duration: prefersReducedMotion ? 0 : (isMobile ? 0.2 : 0.5), 
-      ease: "easeOut" 
+    transition={{
+      duration: prefersReducedMotion ? 0 : isMobile ? 0.2 : 0.5,
+      ease: "easeOut",
     }}
     style={{
-      willChange: 'transform, opacity',
-      transform: 'translateZ(0)'
+      willChange: "transform, opacity",
+      transform: "translateZ(0)",
     }}
     className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56"
     role="dialog"
     aria-label="Music player controls"
   >
     <div className="flex items-center justify-between mb-2 sm:mb-3">
-      <h3 className="font-bold text-sm sm:text-base text-foreground">Now Playing</h3>
-      <button 
-        onClick={onCollapse} 
+      <h3 className="font-bold text-sm sm:text-base text-foreground">
+        Now Playing
+      </h3>
+      <button
+        onClick={onCollapse}
         className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
         aria-label="Collapse player"
       >
@@ -332,7 +369,9 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
     </div>
 
     <div className="text-center mb-2 sm:mb-3">
-      <h4 className="font-bold text-sm sm:text-base text-foreground">{currentTrack.title}</h4>
+      <h4 className="font-bold text-sm sm:text-base text-foreground">
+        {currentTrack.title}
+      </h4>
       <p className="text-xs text-muted-foreground">{currentTrack.artist}</p>
     </div>
 
@@ -356,16 +395,16 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
       />
 
       <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-        <button 
-          onClick={onPrevious} 
+        <button
+          onClick={onPrevious}
           className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
           aria-label="Previous track"
         >
           <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-foreground" />
         </button>
 
-        <button 
-          onClick={onPlayPause} 
+        <button
+          onClick={onPlayPause}
           className="p-1.5 sm:p-2 rounded-full bg-foreground hover:bg-foreground/90 transition-colors cursor-pointer"
           aria-label={isPlaying ? "Pause" : "Play"}
         >
@@ -376,8 +415,8 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
           )}
         </button>
 
-        <button 
-          onClick={onNext} 
+        <button
+          onClick={onNext}
           className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
           aria-label="Next track"
         >
@@ -400,7 +439,9 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
           }}
           aria-label="Volume control"
         />
-        <span className="text-xs text-muted-foreground w-6 sm:w-8">{Math.round(volume * 100)}%</span>
+        <span className="text-xs text-muted-foreground w-6 sm:w-8">
+          {Math.round(volume * 100)}%
+        </span>
       </div>
     </div>
   </motion.div>

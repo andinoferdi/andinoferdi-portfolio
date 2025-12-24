@@ -7,8 +7,8 @@ import "aos/dist/aos.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TitleProvider } from "@/components/providers/title-provider";
 import { ToastProvider } from "@/components/providers/toast-provider";
-import { DemoNavbar } from "@/components/navbar";
-import { DemoFooter } from "@/components/footer";
+import { MainNavbar } from "@/components/navbar";
+import { MainFooter } from "@/components/footer";
 import { MiniPlayer } from "@/components/mini-player";
 import { MusicPlayerErrorBoundary } from "@/components/error-boundary";
 import { LoadingScreen } from "@/components/loading-screen";
@@ -53,7 +53,9 @@ export default function RootLayout({
         >
           <ToastProvider />
           <TitleProvider>
-            {!isLoaded && <LoadingScreen onComplete={() => setIsLoaded(true)} />}
+            {!isLoaded && (
+              <LoadingScreen onComplete={() => setIsLoaded(true)} />
+            )}
             {isLoaded && (
               <div className="relative flex flex-col min-h-screen">
                 <div className="fixed inset-0 z-0">
@@ -71,11 +73,9 @@ export default function RootLayout({
                   />
                 </div>
                 <div className="relative z-10 flex flex-col min-h-screen">
-                  <DemoNavbar />
-                  <main className="flex-1">
-                    {children}
-                  </main>
-                  <DemoFooter />
+                  <MainNavbar />
+                  <main className="flex-1">{children}</main>
+                  <MainFooter />
                   <MusicPlayerErrorBoundary>
                     <MiniPlayer />
                   </MusicPlayerErrorBoundary>

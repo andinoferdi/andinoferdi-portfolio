@@ -3,6 +3,21 @@ import { type GalleryData, type GalleryItem } from "@/types/gallery";
 export const getGalleryData = (): GalleryData => {
   const items: GalleryItem[] = [
     {
+      id: "41",
+      title: "Mt Puthuk Gragal (Puncak Bidadari) - 21 December 2025",
+      src: "/images/gallery/37.jpg",
+    },
+    {
+      id: "40",
+      title: "Mt Puthuk Gragal - 21 December 2025",
+      src: "/images/gallery/36.jpg",
+    },
+    {
+      id: "39",
+      title: "Mt Puthuk Siwur - 20 December 2025",
+      src: "/images/gallery/35.jpg",
+    },
+    {
       id: "38",
       title: "Mt Kelud - 27 October 2025",
       src: "/images/gallery/34.jpg",
@@ -202,8 +217,8 @@ export const getGalleryData = (): GalleryData => {
 export const searchGalleryItems = (query: string): GalleryItem[] => {
   const data = getGalleryData();
   const lowercaseQuery = query.toLowerCase();
-  
-  return data.items.filter(item => 
-    item.title.toLowerCase().includes(lowercaseQuery) 
+
+  return data.items.filter((item) =>
+    item.title.toLowerCase().includes(lowercaseQuery)
   );
 };

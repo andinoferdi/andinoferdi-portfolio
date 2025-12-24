@@ -4,6 +4,23 @@ export const getProjectsData = (): ProjectsData => {
   return {
     projects: [
       {
+        id: "gokandara",
+        title: "Gokandara",
+        description:
+          "A property management website built as part of a front-end development team, featuring property listings, booking management, and a clean modern interface.",
+        image: "/images/projects/gokandara.png",
+        technologies: ["Next.js", "TypeScript", "Tailwind CSS"],
+      },
+      {
+        id: "mylisttrip",
+        title: "My List Trip",
+        description:
+          "A travel agent website built as a full-stack developer, handling POS system and property management features with a focus on seamless booking experience.",
+        image: "/images/projects/mylisttrip.png",
+        technologies: ["Laravel", "Vue.js", "Bootstrap"],
+        liveUrl: "https://mylisttrip.com/",
+      },
+      {
         id: "freshko",
         title: "FreshKo",
         description:

@@ -1,19 +1,19 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Moon, Sun } from "lucide-react"
-import { useTheme } from "next-themes"
-import { Button } from "@/components/ui/button"
+import * as React from "react";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 
-export function ModeToggle() {
-  const { theme, setTheme } = useTheme()
+export const ModeToggle = () => {
+  const { theme, setTheme } = useTheme();
 
   return (
     <DropdownMenu>
@@ -29,21 +29,20 @@ export function ModeToggle() {
         </Button>
       </DropdownMenuTrigger>
 
-
       <DropdownMenuContent align="end">
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={() => setTheme("light")}
           className="cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
         >
           Light {theme === "light" && "✓"}
         </DropdownMenuItem>
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={() => setTheme("dark")}
           className="cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
         >
           Dark {theme === "dark" && "✓"}
         </DropdownMenuItem>
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={() => setTheme("system")}
           className="cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800"
         >
@@ -51,5 +50,5 @@ export function ModeToggle() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
-}
+  );
+};

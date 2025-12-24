@@ -32,7 +32,7 @@ const GRADIENT_CONFIG = {
   },
 };
 
-export function HoverBorderGradient<T extends React.ElementType = "button">({
+export const HoverBorderGradient = <T extends React.ElementType = "button">({
   children,
   containerClassName,
   className,
@@ -47,7 +47,10 @@ export function HoverBorderGradient<T extends React.ElementType = "button">({
   as?: T;
   duration?: number;
   clockwise?: boolean;
-} & Omit<React.ComponentPropsWithoutRef<T>, "as" | "children" | "className">) {
+} & Omit<
+  React.ComponentPropsWithoutRef<T>,
+  "as" | "children" | "className"
+>) => {
   const Tag = as || "button";
   const [hovered, setHovered] = useState<boolean>(false);
   const [direction, setDirection] = useState<Direction>("TOP");
@@ -160,4 +163,4 @@ export function HoverBorderGradient<T extends React.ElementType = "button">({
       className="bg-black dark:bg-white absolute z-1 flex-none inset-[2px] rounded-[100px]"
     />
   );
-}
+};

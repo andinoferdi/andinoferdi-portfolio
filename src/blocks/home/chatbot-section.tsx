@@ -5,9 +5,25 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { RightScrollBar } from "@/components/ui/right-scroll-bar";
-import { Bot, User, Send, X, RotateCcw, AlertCircle, Image as ImageIcon, ZoomIn, Pencil, Copy } from "lucide-react";
+import {
+  Bot,
+  User,
+  Send,
+  X,
+  RotateCcw,
+  AlertCircle,
+  Image as ImageIcon,
+  ZoomIn,
+  Pencil,
+  Copy,
+} from "lucide-react";
 import { useChatbot } from "@/hooks/useChatbot";
-import { formatTimestamp, MODELS, MODEL_DISPLAY_NAMES, imageToBase64 } from "@/services/chatbot";
+import {
+  formatTimestamp,
+  MODELS,
+  MODEL_DISPLAY_NAMES,
+  imageToBase64,
+} from "@/services/chatbot";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Message } from "@/types/chatbot";
 import ReactMarkdown from "react-markdown";
@@ -16,13 +32,15 @@ import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { validateImageFileStrict } from "@/lib/file-validation";
-
 
 export const ChatbotSection = () => {
   const [inputValue, setInputValue] = useState("");
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
-  const [selectedImageModal, setSelectedImageModal] = useState<string | null>(null);
+  const [selectedImageModal, setSelectedImageModal] = useState<string | null>(
+    null
+  );
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState<string>("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -49,7 +67,6 @@ export const ChatbotSection = () => {
     }
   };
 
- 
   useEffect(() => {
     if (messages.length === 0) return;
     const lastMessage = messages[messages.length - 1];
@@ -60,61 +77,66 @@ export const ChatbotSection = () => {
     scrollToBottom(behavior);
   }, [messages]);
 
-  const validateFileType = async (file: File): Promise<{ isValid: boolean; reason?: string }> => {
+  const validateFileType = async (
+    file: File
+  ): Promise<{ isValid: boolean; reason?: string }> => {
     try {
       const result = await validateImageFileStrict(file);
       return result;
     } catch (error) {
-      console.error('File validation error:', error);
-      return { isValid: false, reason: 'File validation failed' };
+      console.error("File validation error:", error);
+      return { isValid: false, reason: "File validation failed" };
     }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    
+
     if (selectedImages.length + files.length > 10) {
-      toast.error('Maksimal 10 images yang bisa diupload');
+      toast.error("Maksimal 10 images yang bisa diupload");
       return;
     }
-    
+
     const imagePromises = Array.from(files).map(async (file) => {
       // Enhanced validation with magic number detection
       const validationResult = await validateFileType(file);
       if (!validationResult.isValid) {
-        toast.error(`File ${file.name} tidak didukung: ${validationResult.reason}`);
+        toast.error(
+          `File ${file.name} tidak didukung: ${validationResult.reason}`
+        );
         return null;
       }
-      
+
       if (file.size > 5 * 1024 * 1024) {
         toast.error(`File ${file.name} terlalu besar. Maksimal 5MB`);
         return null;
       }
-      
+
       const base64 = await imageToBase64(file);
       return base64;
     });
-    
+
     const images = await Promise.all(imagePromises);
-    const validImages = images.filter(img => img !== null) as string[];
-    setSelectedImages(prev => [...prev, ...validImages]);
-    
+    const validImages = images.filter((img) => img !== null) as string[];
+    setSelectedImages((prev) => [...prev, ...validImages]);
+
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!inputValue.trim() && selectedImages.length === 0) || isLoading) return;
-    
+    if ((!inputValue.trim() && selectedImages.length === 0) || isLoading)
+      return;
+
     const message = inputValue.trim();
     const images = [...selectedImages];
-    
+
     setInputValue("");
     setSelectedImages([]);
-    
+
     await sendMessage({
       content: message || "",
       images: images,
@@ -129,15 +151,16 @@ export const ChatbotSection = () => {
   };
 
   const handleEditMessage = (messageId: string) => {
-    const message = messages.find(msg => msg.id === messageId);
-    if (message && message.role === 'user') {
-      const content = typeof message.content === 'string' 
-        ? message.content 
-        : message.content.find(c => c.type === 'text')?.text || '';
-      
+    const message = messages.find((msg) => msg.id === messageId);
+    if (message && message.role === "user") {
+      const content =
+        typeof message.content === "string"
+          ? message.content
+          : message.content.find((c) => c.type === "text")?.text || "";
+
       setEditingMessageId(messageId);
       setEditingContent(content);
-      
+
       setTimeout(() => {
         editInputRef.current?.focus();
         editInputRef.current?.select();
@@ -147,25 +170,31 @@ export const ChatbotSection = () => {
 
   const handleSaveEdit = async () => {
     if (!editingMessageId || !editingContent.trim()) return;
-    
-    const message = messages.find(msg => msg.id === editingMessageId);
+
+    const message = messages.find((msg) => msg.id === editingMessageId);
     if (!message) return;
 
     const images = message.images || [];
     const messageId = editingMessageId;
     const content = editingContent.trim();
-    
+
     // Close UI immediately
     setEditingMessageId(null);
     setEditingContent("");
-    
+
     // Then send the update
-    await updateAndResendMessage(messageId, content, images, () => {
-      // Already closed, no need to do anything
-    }, (error) => {
-      console.error("Edit error:", error);
-      // Optionally: reopen edit UI on error
-    });
+    await updateAndResendMessage(
+      messageId,
+      content,
+      images,
+      () => {
+        // Already closed, no need to do anything
+      },
+      (error) => {
+        console.error("Edit error:", error);
+        // Optionally: reopen edit UI on error
+      }
+    );
   };
 
   const handleCancelEdit = () => {
@@ -184,12 +213,13 @@ export const ChatbotSection = () => {
   };
 
   const handleCopyMessage = async (messageId: string) => {
-    const message = messages.find(msg => msg.id === messageId);
+    const message = messages.find((msg) => msg.id === messageId);
     if (message) {
-      const content = typeof message.content === 'string' 
-        ? message.content 
-        : message.content.find(c => c.type === 'text')?.text || '';
-      
+      const content =
+        typeof message.content === "string"
+          ? message.content
+          : message.content.find((c) => c.type === "text")?.text || "";
+
       try {
         await navigator.clipboard.writeText(content);
         toast.success("Message copied to clipboard");
@@ -229,10 +259,11 @@ export const ChatbotSection = () => {
 
     if (isUser) {
       const hasImages = message.images && message.images.length > 0;
-      const hasText = typeof message.content === 'string' 
-        ? message.content.trim() 
-        : message.content.find(c => c.type === 'text')?.text?.trim();
-      
+      const hasText =
+        typeof message.content === "string"
+          ? message.content.trim()
+          : message.content.find((c) => c.type === "text")?.text?.trim();
+
       return (
         <div key={message.id}>
           {hasImages && (
@@ -249,10 +280,14 @@ export const ChatbotSection = () => {
                 </div>
                 <div className="flex flex-col gap-2 md:flex-row md:gap-2 md:overflow-x-auto md:pb-2 md:scrollbar-thin md:scrollbar-thumb-gray-300 md:scrollbar-track-transparent">
                   {message.images?.map((img, idx) => (
-                    <div key={idx} className="relative group cursor-pointer shrink-0" onClick={() => setSelectedImageModal(img)}>
-                      <Image 
-                        src={img} 
-                        alt="uploaded" 
+                    <div
+                      key={idx}
+                      className="relative group cursor-pointer shrink-0"
+                      onClick={() => setSelectedImageModal(img)}
+                    >
+                      <Image
+                        src={img}
+                        alt="uploaded"
                         width={150}
                         height={150}
                         className="rounded-lg border object-cover shadow-sm transition-transform group-hover:scale-105"
@@ -266,13 +301,16 @@ export const ChatbotSection = () => {
               </div>
             </motion.div>
           )}
-          
+
           {hasText && (
             <motion.div
               key={`${message.id}-text`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.1 + (hasImages ? 0.1 : 0) }}
+              transition={{
+                duration: 0.3,
+                delay: index * 0.1 + (hasImages ? 0.1 : 0),
+              }}
               className="flex gap-3 justify-end"
             >
               <div className="flex gap-2 md:gap-3 max-w-[90%] md:max-w-[80%] flex-row-reverse">
@@ -297,13 +335,13 @@ export const ChatbotSection = () => {
                         placeholder="Edit your message..."
                         autoResize={true}
                         maxHeight={200}
-                        style={{ 
-                          lineHeight: '1.6',
-                          minHeight: '80px',
-                          paddingTop: '12px',
-                          paddingBottom: '12px',
-                          boxSizing: 'border-box',
-                          overflow: 'hidden'
+                        style={{
+                          lineHeight: "1.6",
+                          minHeight: "80px",
+                          paddingTop: "12px",
+                          paddingBottom: "12px",
+                          boxSizing: "border-box",
+                          overflow: "hidden",
                         }}
                       />
                       <div className="flex items-center justify-between mt-2">
@@ -335,16 +373,17 @@ export const ChatbotSection = () => {
                       <div className="rounded-lg px-3 py-2 md:px-4 bg-primary text-primary-foreground">
                         <div className="text-xs md:text-sm">
                           <div className="whitespace-pre-wrap">
-                            {typeof message.content === 'string' 
-                              ? message.content 
-                              : message.content.find(c => c.type === 'text')?.text}
+                            {typeof message.content === "string"
+                              ? message.content
+                              : message.content.find((c) => c.type === "text")
+                                  ?.text}
                           </div>
                         </div>
                         <div className="text-xs mt-1 text-primary-foreground/70">
                           {timestamp}
                         </div>
                       </div>
-                      
+
                       {/* Action Buttons - Separate from message background */}
                       <div className="flex items-center gap-1 mt-2 opacity-0 group-hover/message:opacity-100 transition-opacity duration-200">
                         <button
@@ -441,9 +480,7 @@ export const ChatbotSection = () => {
                     },
                     h3({ children }) {
                       return (
-                        <h3 className="text-base font-bold mb-2">
-                          {children}
-                        </h3>
+                        <h3 className="text-base font-bold mb-2">{children}</h3>
                       );
                     },
                     blockquote({ children }) {
@@ -493,7 +530,7 @@ export const ChatbotSection = () => {
                     },
                   }}
                 >
-                  {typeof message.content === 'string' ? message.content : ''}
+                  {typeof message.content === "string" ? message.content : ""}
                 </ReactMarkdown>
                 {message.isStreaming && (
                   <motion.span
@@ -508,7 +545,8 @@ export const ChatbotSection = () => {
               {timestamp}
               {message.model && (
                 <span className="ml-2 px-1.5 py-0.5 bg-background/20 rounded text-xs">
-                  {MODEL_DISPLAY_NAMES[MODELS.indexOf(message.model)] || message.model}
+                  {MODEL_DISPLAY_NAMES[MODELS.indexOf(message.model)] ||
+                    message.model}
                 </span>
               )}
             </div>
@@ -521,10 +559,7 @@ export const ChatbotSection = () => {
   return (
     <section className="py-10 md:py-20 px-2 md:px-4" id="chatbot-section">
       <div className="max-w-4xl mx-auto">
-        <header 
-          className="text-center mb-16"
-          data-aos="fade-up"
-        >
+        <header className="text-center mb-16" data-aos="fade-up">
           <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
             Chat with AI
           </h2>
@@ -533,7 +568,7 @@ export const ChatbotSection = () => {
             here to help!
           </p>
         </header>
-        <Card 
+        <Card
           className="h-[500px] md:h-[600px] flex flex-col"
           data-aos="fade-up"
         >
@@ -561,11 +596,12 @@ export const ChatbotSection = () => {
                     size="sm"
                     onClick={handleClearMessages}
                     disabled={isLoading || isStreaming}
-                    className={`text-muted-foreground hover:text-foreground cursor-pointer ${
-                      (isLoading || isStreaming) 
-                        ? 'opacity-50 cursor-not-allowed' 
-                        : 'hover:bg-muted'
-                    }`}
+                    className={cn(
+                      "text-muted-foreground hover:text-foreground cursor-pointer",
+                      isLoading || isStreaming
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:bg-muted"
+                    )}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -602,8 +638,8 @@ export const ChatbotSection = () => {
                         <div className="rounded-lg px-3 py-2 md:px-4 bg-muted text-foreground">
                           <div className="text-xs md:text-sm">
                             <p className="mb-2">
-                              Hi, I&apos;m an AndinoBot. Ask me anything
-                              about Andino Ferdiansah&apos;s projects or experience.
+                              Hi, I&apos;m an AndinoBot. Ask me anything about
+                              Andino Ferdiansah&apos;s projects or experience.
                             </p>
                           </div>
                           <p className="text-xs mt-1 text-muted-foreground">
@@ -646,16 +682,23 @@ export const ChatbotSection = () => {
               {selectedImages.length > 0 && (
                 <div className="flex flex-col gap-2 mb-2 md:flex-row md:gap-2 md:overflow-x-auto md:pb-2 md:scrollbar-thin md:scrollbar-thumb-gray-300 md:scrollbar-track-transparent">
                   {selectedImages.map((img, idx) => (
-                    <div key={idx} className="relative w-20 h-20 rounded-md overflow-hidden border shrink-0">
-                      <Image 
-                        src={img} 
-                        alt="upload" 
+                    <div
+                      key={idx}
+                      className="relative w-20 h-20 rounded-md overflow-hidden border shrink-0"
+                    >
+                      <Image
+                        src={img}
+                        alt="upload"
                         width={80}
                         height={80}
                         className="w-full h-full object-cover"
                       />
                       <button
-                        onClick={() => setSelectedImages(prev => prev.filter((_, i) => i !== idx))}
+                        onClick={() =>
+                          setSelectedImages((prev) =>
+                            prev.filter((_, i) => i !== idx)
+                          )
+                        }
                         className="absolute top-0 right-0 bg-gray-500/80 text-white rounded-full p-1 cursor-pointer hover:bg-gray-600/80"
                       >
                         <X className="h-3 w-3" />
@@ -664,8 +707,7 @@ export const ChatbotSection = () => {
                   ))}
                 </div>
               )}
-              
-              
+
               <form onSubmit={handleSubmit} className="relative">
                 <input
                   type="file"
@@ -699,15 +741,24 @@ export const ChatbotSection = () => {
                   />
                   <Button
                     type={isLoading && isStreaming ? "button" : "submit"}
-                    disabled={!isLoading && (!inputValue.trim() && selectedImages.length === 0)}
-                    onClick={isLoading && isStreaming ? handleCancelRequest : undefined}
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-full w-9 h-9 p-0 ${
-                      isLoading && isStreaming 
-                        ? 'cursor-pointer' 
-                        : !isLoading && (!inputValue.trim() && selectedImages.length === 0)
-                        ? 'cursor-not-allowed'
-                        : 'cursor-pointer'
-                    }`}
+                    disabled={
+                      !isLoading &&
+                      !inputValue.trim() &&
+                      selectedImages.length === 0
+                    }
+                    onClick={
+                      isLoading && isStreaming ? handleCancelRequest : undefined
+                    }
+                    className={cn(
+                      "absolute right-2 top-1/2 -translate-y-1/2 rounded-full w-9 h-9 p-0",
+                      isLoading && isStreaming
+                        ? "cursor-pointer"
+                        : !isLoading &&
+                          !inputValue.trim() &&
+                          selectedImages.length === 0
+                        ? "cursor-not-allowed"
+                        : "cursor-pointer"
+                    )}
                   >
                     {isLoading && isStreaming ? (
                       <X className="h-4 w-4" />

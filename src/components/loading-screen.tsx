@@ -33,65 +33,66 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
     // Critical images that are already preloaded via <link rel="preload"> in layout.tsx
     const preloadedImages = new Set([
       "/images/self/1.jpg",
-      "/images/self/2.jpg", 
+      "/images/self/2.jpg",
       "/images/self/3.jpg",
       "/images/self/4.jpg",
       "/images/gallery/34.jpg",
       "/images/projects/FreshKo.png",
       "/images/projects/portfolio-v2.png",
-      "/images/projects/anro.png"
+      "/images/projects/anro.png",
     ]);
 
     const criticalImages = [
-      ...profileData.profiles.map(p => p.src),
-      ...projectsData.projects.slice(0, 3).map(p => p.image),
-    ].filter(img => !preloadedImages.has(img)); // Skip already preloaded images
+      ...profileData.profiles.map((p) => p.src),
+      ...projectsData.projects.slice(0, 3).map((p) => p.image),
+    ].filter((img) => !preloadedImages.has(img)); // Skip already preloaded images
 
     const nonCriticalImages = [
-      ...projectsData.projects.slice(3).map(p => p.image),
-      ...musicData.map(m => m.coverImage),
-      ...galleryData.items.map(g => g.src),
-      ...experienceData.experiences.filter(exp => exp.logo).map(exp => exp.logo!),
-      ...certificateData.certificates.map(c => c.image),
+      ...projectsData.projects.slice(3).map((p) => p.image),
+      ...musicData.map((m) => m.coverImage),
+      ...galleryData.items.map((g) => g.src),
+      ...experienceData.experiences
+        .filter((exp) => exp.logo)
+        .map((exp) => exp.logo!),
+      ...certificateData.certificates.map((c) => c.image),
     ];
 
     const documentAssets = [profileData.cvDownload.url];
 
     return [
-      { 
-        name: "Critical Images", 
-        icon: ImageIcon, 
+      {
+        name: "Critical Images",
+        icon: ImageIcon,
         count: criticalImages.length,
         description: "Loading essential images",
         assets: criticalImages,
-        priority: "high"
+        priority: "high",
       },
-      { 
-        name: "Images", 
-        icon: ImageIcon, 
+      {
+        name: "Images",
+        icon: ImageIcon,
         count: nonCriticalImages.length,
         description: "Loading images",
         assets: nonCriticalImages,
-        priority: "low"
+        priority: "low",
       },
-      { 
-        name: "Documents", 
-        icon: FileText, 
+      {
+        name: "Documents",
+        icon: FileText,
         count: documentAssets.length,
         description: "Loading documents",
         assets: documentAssets,
-        priority: "low"
+        priority: "low",
       },
     ];
   }, []);
 
-
   useEffect(() => {
     // Lock body scroll when loading screen is active
-    document.body.style.overflow = 'hidden';
-    
+    document.body.style.overflow = "hidden";
+
     return () => {
-      document.body.style.overflow = 'unset';
+      document.body.style.overflow = "unset";
     };
   }, []);
 
@@ -108,13 +109,12 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
       for (const assetGroup of assets) {
         if (assetGroup.name === "Critical Images") {
           for (const assetUrl of assetGroup.assets) {
-            const promise = preloadImage(assetUrl)
-              .then(() => {
-                loadedCount++;
-                const progress = Math.floor((loadedCount / totalCount) * 100);
-                setProgress(Math.min(progress, 99));
-                setCurrentAsset(assetGroup.name);
-              });
+            const promise = preloadImage(assetUrl).then(() => {
+              loadedCount++;
+              const progress = Math.floor((loadedCount / totalCount) * 100);
+              setProgress(Math.min(progress, 99));
+              setCurrentAsset(assetGroup.name);
+            });
             allPromises.push(promise);
           }
           await Promise.all(allPromises);
@@ -123,7 +123,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           const batchSize = 8; // Increased batch size for faster loading
           for (let i = 0; i < assetGroup.assets.length; i += batchSize) {
             const batch = assetGroup.assets.slice(i, i + batchSize);
-            const batchPromises = batch.map(assetUrl => 
+            const batchPromises = batch.map((assetUrl) =>
               preloadImage(assetUrl).then(() => {
                 loadedCount++;
                 const progress = Math.floor((loadedCount / totalCount) * 100);
@@ -135,20 +135,19 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           }
         } else if (assetGroup.name === "Documents") {
           for (const assetUrl of assetGroup.assets) {
-            const promise = preloadDocument(assetUrl)
-              .then(() => {
-                loadedCount++;
-                const progress = Math.floor((loadedCount / totalCount) * 100);
-                setProgress(Math.min(progress, 99));
-                setCurrentAsset(assetGroup.name);
-              });
+            const promise = preloadDocument(assetUrl).then(() => {
+              loadedCount++;
+              const progress = Math.floor((loadedCount / totalCount) * 100);
+              setProgress(Math.min(progress, 99));
+              setCurrentAsset(assetGroup.name);
+            });
             allPromises.push(promise);
           }
         }
       }
 
       const forceCompleteTimeout = setTimeout(() => {
-        console.warn('Force completing loading after 60s timeout');
+        console.warn("Force completing loading after 60s timeout");
         setProgress(100);
         setIsLoading(false);
         setShowStartButton(true);
@@ -240,7 +239,6 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
                   </span>
                 </div>
               </motion.div>
-
             </div>
           </div>
         </motion.div>
@@ -278,7 +276,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
               >
                 Ready!
               </motion.h1>
-              
+
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}

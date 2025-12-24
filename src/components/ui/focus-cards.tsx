@@ -108,7 +108,7 @@ export const Card = React.memo(
 
 Card.displayName = "Card";
 
-export function FocusCards({ cards }: { cards: CardData[] }) {
+export const FocusCards = ({ cards }: { cards: CardData[] }) => {
   const [hovered, setHovered] = useState<number | null>(null);
   const [tapped, setTapped] = useState<number | null>(null);
   const [canHover, setCanHover] = useState(false);
@@ -144,4 +144,4 @@ export function FocusCards({ cards }: { cards: CardData[] }) {
       ))}
     </div>
   );
-}
+};
