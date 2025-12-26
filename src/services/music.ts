@@ -1,7 +1,7 @@
 import { type Track, type Playlist } from "@/types/music";
 
-const durationValueCache = new Map<string, number>(); 
-const durationPromiseCache = new Map<string, Promise<number>>(); 
+const durationValueCache = new Map<string, number>();
+const durationPromiseCache = new Map<string, Promise<number>>();
 
 const shuffleArray = <T>(array: T[]): T[] => {
   const shuffled = [...array];
@@ -12,7 +12,9 @@ const shuffleArray = <T>(array: T[]): T[] => {
   return shuffled;
 };
 
-export const getMusicData = (shuffled = true): { tracks: Track[]; playlists: Playlist[] } => {
+export const getMusicData = (
+  shuffled = true
+): { tracks: Track[]; playlists: Playlist[] } => {
   const originalTracks = getOriginalTracks();
   const tracks = shuffled ? shuffleArray(originalTracks) : originalTracks;
 
@@ -42,7 +44,7 @@ export const getAudioDuration = (audioUrl: string): Promise<number> => {
 
   const p = new Promise<number>((resolve) => {
     const audio = new Audio();
-    const encodedSrc = encodeURI(audioUrl); 
+    const encodedSrc = encodeURI(audioUrl);
     let settled = false;
 
     const done = (value: number) => {
@@ -84,6 +86,62 @@ export const getAudioDuration = (audioUrl: string): Promise<number> => {
   });
 
   durationPromiseCache.set(audioUrl, p);
+  return p;
+};
+
+// Accurate duration via decodeAudioData (more stable than HTMLMediaElement.duration)
+const accurateDurationValueCache = new Map<string, number>();
+const accurateDurationPromiseCache = new Map<string, Promise<number>>();
+
+let decodeCtx: AudioContext | null = null;
+const getDecodeCtx = (): AudioContext | null => {
+  if (typeof window === "undefined") return null;
+  if (decodeCtx && decodeCtx.state !== "closed") return decodeCtx;
+
+  const Ctx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+
+  if (!Ctx) return null;
+  decodeCtx = new Ctx();
+  return decodeCtx;
+};
+
+export const getAudioDurationAccurate = (audioUrl: string): Promise<number> => {
+  if (typeof window === "undefined") return Promise.resolve(0);
+
+  if (accurateDurationValueCache.has(audioUrl)) {
+    return Promise.resolve(accurateDurationValueCache.get(audioUrl)!);
+  }
+  if (accurateDurationPromiseCache.has(audioUrl)) {
+    return accurateDurationPromiseCache.get(audioUrl)!;
+  }
+
+  const p = (async () => {
+    try {
+      const ctx = getDecodeCtx();
+      if (!ctx) return 0;
+
+      const encodedUrl = encodeURI(audioUrl);
+      const res = await fetch(encodedUrl, { cache: "force-cache" });
+      if (!res.ok) return 0;
+
+      const buf = await res.arrayBuffer();
+      const audioBuf = await ctx.decodeAudioData(buf.slice(0));
+      const d = audioBuf?.duration;
+
+      const dur = Number.isFinite(d) && d > 0 ? d : 0;
+      accurateDurationValueCache.set(audioUrl, dur);
+      return dur;
+    } catch {
+      return 0;
+    } finally {
+      accurateDurationPromiseCache.delete(audioUrl);
+    }
+  })();
+
+  accurateDurationPromiseCache.set(audioUrl, p);
   return p;
 };
 
@@ -288,5 +346,24 @@ export const getOriginalTracks = (): Track[] => [
     coverImage: "/music/images/Look Sharp!.jpg",
     genre: "Pop Rock",
   },
+  {
+    id: "Kickstart-My-Heart",
+    title: "Kickstart My Heart",
+    artist: "Motley Crüe",
+    album: "Dr. Feelgood",
+    duration: 0,
+    audioUrl: "/music/Kickstart My Heart.mp3",
+    coverImage: "/music/images/Dr. Feelgood.jpg",
+    genre: "Glam Metal",
+  },
+  {
+    id: "Take-On-Me",
+    title: "Take On Me",
+    artist: "a-ha",
+    album: "Hunting High and Low",
+    duration: 0,
+    audioUrl: "/music/Take On Me.mp3",
+    coverImage: "/music/images/Hunting High and Low.jpg",
+    genre: "Classic Pop",
+  },
 ];
-

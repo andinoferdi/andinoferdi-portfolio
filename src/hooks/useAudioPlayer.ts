@@ -5,17 +5,24 @@ import {
   getOriginalTracks,
   normalizeTrackUrl,
   getDefaultVolume,
+  getAudioDurationAccurate,
 } from "@/services/music";
-import { isAssetPreloaded } from "@/services/preload";
+import { preloadImage } from "@/services/preload";
 import type { MusicPlayerState, Track } from "@/types/music";
 
-const clampVolume = (v: number) =>
+const clamp01 = (v: number) =>
   Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+
+const clampTime = (t: number, dur: number) => {
+  const safeT = Number.isFinite(t) ? t : 0;
+  if (Number.isFinite(dur) && dur > 0) return Math.min(Math.max(0, safeT), dur);
+  return Math.max(0, safeT);
+};
 
 const loadStoredVolume = (): number => {
   try {
     const raw = localStorage.getItem("mp_volume");
-    if (raw != null) return clampVolume(parseFloat(raw));
+    if (raw != null) return clamp01(parseFloat(raw));
   } catch {}
   return getDefaultVolume();
 };
@@ -31,10 +38,14 @@ const shuffleArray = <T>(array: T[]): T[] => {
 
 export const useAudioPlayer = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
   const changeTokenRef = useRef(0);
   const transitioningRef = useRef(false);
   const isPlayingRef = useRef(false);
-  const seekRafRef = useRef<number | null>(null);
+
+  const volumeRef = useRef(loadStoredVolume());
+  const durationRef = useRef(0);
+  const durationLockedRef = useRef(false);
 
   const shuffledPlaylist = useMemo(() => {
     const list = [...getOriginalTracks()].map((t) => ({
@@ -49,7 +60,7 @@ export const useAudioPlayer = () => {
     isPlaying: false,
     currentTime: 0,
     duration: 0,
-    volume: loadStoredVolume(),
+    volume: volumeRef.current,
     isShuffled: true,
     repeatMode: "none",
     playlist: shuffledPlaylist,
@@ -58,150 +69,290 @@ export const useAudioPlayer = () => {
     isTrackLoading: false,
   }));
 
-  const { currentTrack, isPlaying, currentTime, duration, volume, isExpanded, isTrackLoading } =
+  const { currentTrack, isPlaying, currentTime, duration, volume } =
     playerState;
-
-  useEffect(() => {
-    const audio = new Audio();
-    audio.preload = "auto";
-    audio.crossOrigin = "anonymous";
-    (audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
-    audio.volume = clampVolume(volume);
-
-    const onTimeUpdate = () => {
-      setPlayerState((prev) => ({
-        ...prev,
-        currentTime: audio.currentTime || 0,
-      }));
-    };
-
-    const onLoadedMetadata = () => {
-      if (Number.isFinite(audio.duration) && audio.duration > 0) {
-        setPlayerState((prev) => ({ ...prev, duration: audio.duration }));
-      }
-    };
-
-    const onEnded = () => {
-      handleNext();
-    };
-
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("loadedmetadata", onLoadedMetadata);
-    audio.addEventListener("ended", onEnded);
-
-    audioRef.current = audio;
-
-    if (currentTrack) {
-      changeTrack(currentTrack, false);
-    }
-
-    return () => {
-      audio.pause();
-      audio.src = "";
-      audio.load();
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
-      audio.removeEventListener("ended", onEnded);
-      audioRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem("mp_volume", String(volume));
-    } catch {}
-    const audio = audioRef.current;
-    if (audio) audio.volume = clampVolume(volume);
-  }, [volume]);
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
-  const changeTrack = useCallback((track: Track, shouldPlay: boolean) => {
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
+
+  useEffect(() => {
+    volumeRef.current = volume;
+    try {
+      localStorage.setItem("mp_volume", String(volume));
+    } catch {}
+
+    const a = audioRef.current;
+    if (a) a.volume = clamp01(volume);
+  }, [volume]);
+
+  const waitCanPlay = (audio: HTMLAudioElement, token: number) =>
+    new Promise<void>((resolve, reject) => {
+      let settled = false;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+      const cleanup = () => {
+        audio.removeEventListener("canplay", onCanPlay);
+        audio.removeEventListener("error", onError);
+        if (timeoutId) clearTimeout(timeoutId);
+      };
+
+      const onCanPlay = () => {
+        if (settled) return;
+        if (changeTokenRef.current !== token) {
+          settled = true;
+          cleanup();
+          return;
+        }
+        settled = true;
+        cleanup();
+        resolve();
+      };
+
+      const onError = () => {
+        if (settled) return;
+        if (changeTokenRef.current !== token) {
+          settled = true;
+          cleanup();
+          return;
+        }
+        settled = true;
+        cleanup();
+        reject(new Error("audio error"));
+      };
+
+      timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(new Error("canplay timeout"));
+      }, 15000);
+
+      audio.addEventListener("canplay", onCanPlay);
+      audio.addEventListener("error", onError);
+
+      if (audio.readyState >= 2) onCanPlay();
+    });
+
+  const changeTrack = useCallback(async (track: Track, shouldPlay: boolean) => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const normalizedUrl = normalizeTrackUrl(track.audioUrl);
-    const isCached = isAssetPreloaded(track.audioUrl);
-
-    setPlayerState((prev) => ({ ...prev, isTrackLoading: !isCached }));
-    transitioningRef.current = true;
     const token = ++changeTokenRef.current;
+    transitioningRef.current = true;
+
+    durationRef.current = 0;
+    durationLockedRef.current = false;
+
+    setPlayerState((prev) => ({
+      ...prev,
+      isTrackLoading: true,
+      currentTime: 0,
+      duration: 0,
+    }));
+
+    if (track.coverImage) {
+      await preloadImage(track.coverImage);
+    }
+    if (changeTokenRef.current !== token) return;
+
+    const rawUrl = normalizeTrackUrl(track.audioUrl);
+    const encodedUrl = encodeURI(rawUrl);
 
     audio.pause();
     try {
       audio.currentTime = 0;
     } catch {}
 
-    audio.src = normalizedUrl;
-    audio.preload = "auto";
+    audio.src = encodedUrl;
     audio.load();
 
-    const ready = () => {
+    try {
+      await waitCanPlay(audio, token);
+    } catch {
       if (changeTokenRef.current !== token) return;
-      try {
-        audio.currentTime = 0;
-      } catch {}
       transitioningRef.current = false;
-      setPlayerState((prev) => ({ ...prev, isTrackLoading: false }));
-      if (Number.isFinite(audio.duration) && audio.duration > 0) {
-        setPlayerState((prev) => ({ ...prev, duration: audio.duration }));
-      }
-      if (shouldPlay) {
-        audio.play().catch(() => {});
-        setPlayerState((prev) => ({ ...prev, isPlaying: true }));
-      }
-    };
+      setPlayerState((prev) => ({
+        ...prev,
+        isTrackLoading: false,
+        isPlaying: false,
+      }));
+      return;
+    }
 
-    if (isCached && audio.readyState >= 3) {
-      ready();
-    } else if (audio.readyState >= 3) {
-      ready();
-    } else {
-      audio.addEventListener("canplaythrough", ready, { once: true });
+    if (changeTokenRef.current !== token) return;
+
+    const quickDur =
+      Number.isFinite(audio.duration) && audio.duration > 0
+        ? audio.duration
+        : 0;
+
+    durationRef.current = quickDur;
+    setPlayerState((prev) => ({
+      ...prev,
+      isTrackLoading: false,
+      duration: quickDur,
+    }));
+
+    getAudioDurationAccurate(rawUrl).then((d) => {
+      if (changeTokenRef.current !== token) return;
+      if (!Number.isFinite(d) || d <= 0) return;
+      if (durationLockedRef.current) return;
+
+      const ct = audio.currentTime || 0;
+      if (ct > 2) return;
+
+      durationLockedRef.current = true;
+      durationRef.current = d;
+
+      setPlayerState((prev) => ({
+        ...prev,
+        duration: d,
+      }));
+    });
+
+    if (!shouldPlay) {
+      transitioningRef.current = false;
+      return;
+    }
+
+    try {
+      await audio.play();
+      setPlayerState((prev) => ({ ...prev, isPlaying: true }));
+    } catch {
+      setPlayerState((prev) => ({ ...prev, isPlaying: false }));
+    } finally {
+      transitioningRef.current = false;
     }
   }, []);
 
-  const handlePlayPause = useCallback(() => {
+  useEffect(() => {
+    const audio = new Audio();
+    audio.preload = "auto";
+    audio.crossOrigin = "anonymous";
+    (audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
+    audio.volume = clamp01(volumeRef.current);
+
+    audioRef.current = audio;
+
+    const onTimeUpdate = () => {
+      const dur =
+        durationRef.current ||
+        (Number.isFinite(audio.duration) ? audio.duration : 0);
+      const ct = clampTime(audio.currentTime || 0, dur);
+      setPlayerState((prev) => ({
+        ...prev,
+        currentTime: ct,
+      }));
+    };
+
+    const onLoadedMetadata = () => {
+      if (durationLockedRef.current) return;
+      const d =
+        Number.isFinite(audio.duration) && audio.duration > 0
+          ? audio.duration
+          : 0;
+      if (!d) return;
+
+      durationRef.current = Math.max(durationRef.current || 0, d);
+      setPlayerState((prev) => ({
+        ...prev,
+        duration: Math.max(prev.duration || 0, d),
+      }));
+    };
+
+    const onDurationChange = () => {
+      if (durationLockedRef.current) return;
+      const ct = audio.currentTime || 0;
+      if (ct > 2) return;
+
+      const d =
+        Number.isFinite(audio.duration) && audio.duration > 0
+          ? audio.duration
+          : 0;
+      if (!d) return;
+
+      durationRef.current = Math.max(durationRef.current || 0, d);
+      setPlayerState((prev) => ({
+        ...prev,
+        duration: Math.max(prev.duration || 0, d),
+      }));
+    };
+
+    const onEnded = () => {
+      if (transitioningRef.current) return;
+      handleNext();
+    };
+
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("durationchange", onDurationChange);
+    audio.addEventListener("ended", onEnded);
+
+    if (playerState.currentTrack) {
+      changeTrack(playerState.currentTrack, false);
+    }
+
+    return () => {
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("durationchange", onDurationChange);
+      audio.removeEventListener("ended", onEnded);
+
+      audio.pause();
+      audio.src = "";
+      audio.load();
+      audioRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handlePlayPause = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    setPlayerState((prev) => {
-      const nextPlaying = !prev.isPlaying;
-      if (nextPlaying) {
-        if (!transitioningRef.current) {
-          audio.play().catch(() => {});
-        }
-      } else {
-        audio.pause();
-      }
-      return { ...prev, isPlaying: nextPlaying };
-    });
+    if (isPlayingRef.current) {
+      audio.pause();
+      setPlayerState((prev) => ({ ...prev, isPlaying: false }));
+      return;
+    }
+
+    if (transitioningRef.current) return;
+
+    try {
+      await audio.play();
+      setPlayerState((prev) => ({ ...prev, isPlaying: true }));
+    } catch {
+      setPlayerState((prev) => ({ ...prev, isPlaying: false }));
+    }
   }, []);
 
   const handleNext = useCallback(() => {
     if (transitioningRef.current) return;
     const wasPlaying = isPlayingRef.current;
+
     setPlayerState((prev) => {
       const nextIndex = (prev.currentTrackIndex + 1) % prev.playlist.length;
       const nextTrack = prev.playlist[nextIndex]!;
-      const updated = {
+      changeTrack(nextTrack, wasPlaying);
+      return {
         ...prev,
         currentTrackIndex: nextIndex,
         currentTrack: nextTrack,
         currentTime: 0,
         duration: 0,
       };
-      changeTrack(nextTrack, wasPlaying);
-      return updated;
     });
   }, [changeTrack]);
 
   const PREV_RESTART_THRESHOLD = 3;
   const handlePrevious = useCallback(() => {
     if (transitioningRef.current) return;
+
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -210,9 +361,6 @@ export const useAudioPlayer = () => {
         try {
           audio.currentTime = 0;
         } catch {}
-        if (prev.isPlaying && !transitioningRef.current) {
-          audio.play().catch(() => {});
-        }
         return { ...prev, currentTime: 0 };
       }
 
@@ -221,44 +369,56 @@ export const useAudioPlayer = () => {
         prev.currentTrackIndex === 0
           ? prev.playlist.length - 1
           : prev.currentTrackIndex - 1;
+
       const prevTrack = prev.playlist[prevIndex]!;
-      const updated = {
+      changeTrack(prevTrack, wasPlaying);
+
+      return {
         ...prev,
         currentTrackIndex: prevIndex,
         currentTrack: prevTrack,
         currentTime: 0,
         duration: 0,
       };
-      changeTrack(prevTrack, wasPlaying);
-      return updated;
     });
   }, [changeTrack]);
 
   const handleSeek = useCallback((newTime: number) => {
     const audio = audioRef.current;
     if (!audio) return;
-    if (seekRafRef.current) cancelAnimationFrame(seekRafRef.current);
-    seekRafRef.current = requestAnimationFrame(() => {
-      try {
-        audio.currentTime = newTime;
-      } catch {}
-      setPlayerState((prev) => ({ ...prev, currentTime: newTime }));
-    });
+
+    const dur =
+      durationRef.current ||
+      (Number.isFinite(audio.duration) && audio.duration > 0
+        ? audio.duration
+        : 0);
+
+    const t = clampTime(newTime, dur);
+
+    try {
+      audio.currentTime = t;
+    } catch {}
+
+    setPlayerState((prev) => ({ ...prev, currentTime: t }));
   }, []);
 
   const handleVolumeChange = useCallback((newVolume: number) => {
-    setPlayerState((prev) => ({ ...prev, volume: clampVolume(newVolume) }));
+    setPlayerState((prev) => ({ ...prev, volume: clamp01(newVolume) }));
   }, []);
 
   const toggleExpanded = useCallback(() => {
     setPlayerState((prev) => ({ ...prev, isExpanded: !prev.isExpanded }));
   }, []);
 
-  const progressPercent = useMemo(
-    () => (duration ? (currentTime / duration) * 100 : 0),
-    [currentTime, duration]
-  );
-  const volumePercent = useMemo(() => volume * 100, [volume]);
+  const progressPercent = useMemo(() => {
+    if (!duration || duration <= 0) return 0;
+    return Math.min(
+      100,
+      Math.max(0, (Math.min(currentTime, duration) / duration) * 100)
+    );
+  }, [currentTime, duration]);
+
+  const volumePercent = useMemo(() => clamp01(volume) * 100, [volume]);
 
   return {
     playerState,
@@ -267,8 +427,8 @@ export const useAudioPlayer = () => {
     currentTime,
     duration,
     volume,
-    isExpanded,
-    isTrackLoading,
+    isExpanded: playerState.isExpanded,
+    isTrackLoading: playerState.isTrackLoading,
     progressPercent,
     volumePercent,
     handlePlayPause,
