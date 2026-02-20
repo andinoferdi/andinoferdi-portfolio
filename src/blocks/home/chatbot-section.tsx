@@ -20,8 +20,7 @@ import {
 import { useChatbot } from "@/hooks/useChatbot";
 import {
   formatTimestamp,
-  MODELS,
-  MODEL_DISPLAY_NAMES,
+  getModelDisplayName,
   imageToBase64,
 } from "@/services/chatbot";
 import { motion, AnimatePresence } from "framer-motion";
@@ -545,8 +544,7 @@ export const ChatbotSection = () => {
               {timestamp}
               {message.model && (
                 <span className="ml-2 px-1.5 py-0.5 bg-background/20 rounded text-xs">
-                  {MODEL_DISPLAY_NAMES[MODELS.indexOf(message.model)] ||
-                    message.model}
+                  {getModelDisplayName(message.model)}
                 </span>
               )}
             </div>
@@ -590,6 +588,9 @@ export const ChatbotSection = () => {
                 )}
               </CardTitle>
               <div className="flex items-center gap-2">
+                <div className="px-2.5 py-1 text-xs rounded-md border text-muted-foreground">
+                  Mode: {getModelDisplayName("openrouter/free")}
+                </div>
                 {messages.length > 0 && (
                   <Button
                     variant="ghost"
@@ -723,6 +724,7 @@ export const ChatbotSection = () => {
                     variant="ghost"
                     size="icon"
                     onClick={() => fileInputRef.current?.click()}
+                    title="Upload image"
                     className="absolute left-2 top-1/2 -translate-y-1/2 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full w-10 h-10 p-0 z-10"
                   >
                     <ImageIcon className="h-5 w-5" />
@@ -767,6 +769,10 @@ export const ChatbotSection = () => {
                     )}
                   </Button>
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Model dipilih otomatis dari OpenRouter Free berdasarkan tipe
+                  input.
+                </p>
               </form>
             </div>
           </CardContent>

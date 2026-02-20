@@ -33,10 +33,7 @@ export const ProjectsSection = () => {
               key={project.id}
               data-aos="fade-up"
             >
-              <ProjectCard
-                project={project}
-                showCodeButton={false}
-              />
+              <ProjectCard project={project} />
             </div>
           ))}
         </div>

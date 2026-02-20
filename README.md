@@ -31,6 +31,13 @@ Portfolio website modern yang menampilkan proyek, pengalaman, dan kemampuan saya
 - **Tech & Certs** - Daftar lengkap tech stack dan sertifikat profesional
 - **Gallery** - Koleksi foto perjalanan dan momen penting
 
+## Project Terbaru
+
+- **SIKAS** - Aplikasi manajemen keuangan personal modern untuk mencatat pemasukan, pengeluaran, dan ringkasan bulanan dengan antarmuka yang bersih dan mudah digunakan.
+- **Tech Stack** - Next.js, TypeScript, Tailwind CSS
+- **Live URL** - [sikas-noyu.vercel.app](https://sikas-noyu.vercel.app/)
+- **Repository** - [github.com/andinoferdi/SIKAS](https://github.com/andinoferdi/SIKAS)
+
 ## Music Player
 
 Mini player yang selalu tersedia dengan fitur:
@@ -47,6 +54,58 @@ Chat dengan AI yang mengetahui tentang:
 - Pengalaman kerja dan pendidikan
 - Skills dan kemampuan
 - Informasi CV dan kontak
+
+Routing model chatbot menggunakan `openrouter/free` (Auto Free) untuk stabilitas text + image.
+Model spesifik disembunyikan dari UI agar tidak terkena perubahan endpoint model gratis.
+
+Troubleshooting chatbot:
+- Pastikan `NEXT_PUBLIC_OPENROUTER_API_KEY` terisi dan valid
+- Maksimal 3 gambar per request
+- Jika total payload gambar terlalu besar, kompres gambar atau kirim bertahap
+
+## Visit Notification (Brevo)
+
+Notifikasi visit sekarang menggunakan dedupe harian:
+- 1 IP hanya mengirim 1 email notifikasi per hari (WIB / Asia Jakarta)
+- Pindah halaman di hari yang sama tidak mengirim email tambahan
+- IP yang sama pada hari berikutnya akan mengirim email lagi
+- Jika IP tidak terbaca, notifikasi di-skip
+
+Dependensi environment:
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `BREVO_API_KEY`
+- `BREVO_SENDER_EMAIL`
+- `BREVO_SENDER_NAME`
+- `VISIT_ALERT_TO_EMAIL`
+
+SQL table yang dibutuhkan di Supabase:
+
+```sql
+create table if not exists public.portfolio_visit_daily (
+  id bigserial primary key,
+  visit_day_jakarta date not null,
+  ip text not null,
+  first_path text,
+  first_referrer text,
+  first_user_agent text,
+  first_country text,
+  first_region text,
+  first_city text,
+  first_language text,
+  first_timezone text,
+  first_client_timestamp timestamptz,
+  first_server_timestamp timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique (visit_day_jakarta, ip)
+);
+
+create index if not exists idx_portfolio_visit_daily_day
+  on public.portfolio_visit_daily (visit_day_jakarta);
+
+create index if not exists idx_portfolio_visit_daily_ip
+  on public.portfolio_visit_daily (ip);
+```
 
 ## Animasi
 

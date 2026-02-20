@@ -1,0 +1,56 @@
+diff --git a/node_modules/@eslint/eslintrc/dist/eslintrc-universal.cjs b/node_modules/@eslint/eslintrc/dist/eslintrc-universal.cjs
+index 6000445..53c87c7 100644
+--- a/node_modules/@eslint/eslintrc/dist/eslintrc-universal.cjs
++++ b/node_modules/@eslint/eslintrc/dist/eslintrc-universal.cjs
+@@ -374,15 +374,20 @@ var ajvOrig = (additionalOptions = {}) => {
+         meta: false,
+         useDefaults: true,
+         validateSchema: false,
+-        missingRefs: "ignore",
+         verbose: true,
+-        schemaId: "auto",
++        strict: false,
+         ...additionalOptions
+     });
+ 
+     ajv.addMetaSchema(metaSchema);
+-    // eslint-disable-next-line no-underscore-dangle -- part of the API
+-    ajv._opts.defaultMeta = metaSchema.id;
++
++    // Keep compatibility for both Ajv v6 (`_opts`) and Ajv v8 (`opts`).
++    if (ajv._opts) {
++        // eslint-disable-next-line no-underscore-dangle -- Ajv v6 API
++        ajv._opts.defaultMeta = metaSchema.id;
++    } else if (ajv.opts) {
++        ajv.opts.defaultMeta = metaSchema.id;
++    }
+ 
+     return ajv;
+ };
+diff --git a/node_modules/@eslint/eslintrc/dist/eslintrc.cjs b/node_modules/@eslint/eslintrc/dist/eslintrc.cjs
+index 1b76091..a818df6 100644
+--- a/node_modules/@eslint/eslintrc/dist/eslintrc.cjs
++++ b/node_modules/@eslint/eslintrc/dist/eslintrc.cjs
+@@ -1607,15 +1607,18 @@ var ajvOrig = (additionalOptions = {}) => {
+         meta: false,
+         useDefaults: true,
+         validateSchema: false,
+-        missingRefs: "ignore",
+         verbose: true,
+-        schemaId: "auto",
++        strict: false,
+         ...additionalOptions
+     });
+ 
+     ajv.addMetaSchema(metaSchema);
+-    // eslint-disable-next-line no-underscore-dangle -- part of the API
+-    ajv._opts.defaultMeta = metaSchema.id;
++    if (ajv._opts) {
++        // eslint-disable-next-line no-underscore-dangle -- Ajv v6 API
++        ajv._opts.defaultMeta = metaSchema.id;
++    } else if (ajv.opts) {
++        ajv.opts.defaultMeta = metaSchema.id;
++    }
+ 
+     return ajv;
+ };

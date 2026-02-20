@@ -4,6 +4,15 @@ export const getProjectsData = (): ProjectsData => {
   return {
     projects: [
       {
+        id: "sikas",
+        title: "SIKAS",
+        description:
+          "A modern personal finance management web app for tracking income, expenses, and monthly summaries with a clean and user-friendly interface.",
+        image: "/images/projects/sikas-noyu.png",
+        technologies: ["Next.js", "TypeScript", "Tailwind CSS"],
+        liveUrl: "https://sikas-noyu.vercel.app/",
+      },
+      {
         id: "gokandara",
         title: "Gokandara",
         description:

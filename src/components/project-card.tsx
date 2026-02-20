@@ -42,6 +42,7 @@ export const ProjectCard = ({
                 className="object-contain"
                 loading="eager"
                 priority={
+                  project.id === "sikas" ||
                   project.id === "freshko" ||
                   project.id === "portfolio-v2" ||
                   project.id === "anro-studio" ||

@@ -3,6 +3,11 @@ import { type GalleryData, type GalleryItem } from "@/types/gallery";
 export const getGalleryData = (): GalleryData => {
   const items: GalleryItem[] = [
     {
+      id: "42",
+      title: "Mt Pundak - 15 February 2026",
+      src: "/images/gallery/38.jpg",
+    },
+    {
       id: "41",
       title: "Mt Puthuk Gragal (Puncak Bidadari) - 21 December 2025",
       src: "/images/gallery/37.jpg",

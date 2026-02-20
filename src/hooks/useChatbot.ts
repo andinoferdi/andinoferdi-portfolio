@@ -2,24 +2,27 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  type Message,
+  type ChatModelMode,
   type ChatbotState,
-  type SendMessageParams,
+  type Message,
   type MessageContent,
+  type SendMessageParams,
 } from "@/types/chatbot";
 import {
+  AUTO_MODEL_ID,
+  getModelDisplayName,
   handleModelFallback,
   saveChatHistory,
   clearChatHistory,
   generateMessageId,
-  MODEL_DISPLAY_NAMES,
 } from "@/services/chatbot";
 
 export const useChatbot = () => {
   const [state, setState] = useState<ChatbotState>({
     messages: [],
     isLoading: false,
-    currentModelIndex: 0,
+    selectedModelId: AUTO_MODEL_ID,
+    selectedMode: "auto",
     error: null,
     isStreaming: false,
     editingMessageId: null,
@@ -38,23 +41,37 @@ export const useChatbot = () => {
     }
   }, [state.messages]);
 
+  const setSelectedModel = useCallback((modelId: string) => {
+    if (process.env.NODE_ENV === "development" && modelId !== AUTO_MODEL_ID) {
+      console.info(
+        "[Chatbot] Manual model selection ignored; using Auto (OpenRouter Free)."
+      );
+    }
+
+    setState((prev) => ({
+      ...prev,
+      selectedModelId: AUTO_MODEL_ID,
+      selectedMode: "auto" as ChatModelMode,
+    }));
+  }, []);
+
   const sendMessage = useCallback(
     async ({ content, images = [], onStream, onComplete, onError }: SendMessageParams) => {
       if ((!content.trim() && images.length === 0) || state.isLoading) return;
 
       const messageContent: MessageContent[] = [];
-      
+
       if (content.trim()) {
         messageContent.push({
           type: "text",
-          text: content.trim()
+          text: content.trim(),
         });
       }
-      
-      images.forEach(imageUrl => {
+
+      images.forEach((imageUrl) => {
         messageContent.push({
           type: "image_url",
-          image_url: { url: imageUrl }
+          image_url: { url: imageUrl },
         });
       });
 
@@ -63,7 +80,7 @@ export const useChatbot = () => {
         role: "user",
         content: messageContent,
         timestamp: new Date(),
-        images: images,
+        images,
       };
 
       const assistantMessage: Message = {
@@ -80,7 +97,6 @@ export const useChatbot = () => {
         isLoading: true,
         isStreaming: true,
         error: null,
-        currentModelIndex: 0,
       }));
 
       abortControllerRef.current = new AbortController();
@@ -90,7 +106,11 @@ export const useChatbot = () => {
 
         const result = await handleModelFallback(
           messages,
-          state.currentModelIndex,
+          {
+            selectedModelId: AUTO_MODEL_ID,
+            hasImages: images.length > 0,
+            userText: content.trim(),
+          },
           (chunk: string) => {
             setState((prev) => ({
               ...prev,
@@ -120,14 +140,12 @@ export const useChatbot = () => {
           ),
           isLoading: false,
           isStreaming: false,
-          currentModelIndex: result.finalIndex,
           error: null,
         }));
 
         onComplete?.();
       } catch (error) {
-        // Check if request was aborted
-        if (error instanceof DOMException && error.name === 'AbortError') {
+        if (error instanceof DOMException && error.name === "AbortError") {
           setState((prev) => ({
             ...prev,
             messages: prev.messages.map((msg) =>
@@ -162,7 +180,7 @@ export const useChatbot = () => {
         onError?.(errorMessage);
       }
     },
-    [state.messages, state.isLoading, state.currentModelIndex]
+    [state.messages, state.isLoading]
   );
 
   const clearMessages = useCallback(() => {
@@ -170,7 +188,6 @@ export const useChatbot = () => {
       ...prev,
       messages: [],
       error: null,
-      currentModelIndex: 0,
       editingMessageId: null,
       isEditing: false,
     }));
@@ -190,13 +207,13 @@ export const useChatbot = () => {
       ...prev,
       messages: messagesBeforeLast,
       error: null,
-      currentModelIndex: 0,
     }));
 
     await sendMessage({
-      content: typeof lastUserMessage.content === 'string' 
-        ? lastUserMessage.content 
-        : lastUserMessage.content.find(c => c.type === 'text')?.text || '',
+      content:
+        typeof lastUserMessage.content === "string"
+          ? lastUserMessage.content
+          : lastUserMessage.content.find((c) => c.type === "text")?.text || "",
       images: lastUserMessage.images || [],
       onComplete: () => {
         setState((prev) => ({ ...prev, error: null }));
@@ -211,7 +228,7 @@ export const useChatbot = () => {
     const lastUserMessage = [...state.messages]
       .reverse()
       .find((msg) => msg.role === "user");
-    
+
     if (!lastUserMessage) return null;
 
     setState((prev) => ({
@@ -221,9 +238,10 @@ export const useChatbot = () => {
     }));
 
     return {
-      content: typeof lastUserMessage.content === 'string' 
-        ? lastUserMessage.content 
-        : lastUserMessage.content.find(c => c.type === 'text')?.text || '',
+      content:
+        typeof lastUserMessage.content === "string"
+          ? lastUserMessage.content
+          : lastUserMessage.content.find((c) => c.type === "text")?.text || "",
       images: lastUserMessage.images || [],
     };
   }, [state.messages]);
@@ -236,77 +254,64 @@ export const useChatbot = () => {
     }));
   }, []);
 
-  const resendEditedMessage = useCallback(async (
-    content: string,
-    onComplete?: () => void,
-    onError?: (error: string) => void
-  ) => {
-    const assistantMessage: Message = {
-      id: generateMessageId(),
-      role: "assistant",
-      content: "",
-      timestamp: new Date(),
-      isStreaming: true,
-    };
-
-    setState((prev) => ({
-      ...prev,
-      messages: [...prev.messages, assistantMessage],
-      isLoading: true,
-      isStreaming: true,
-      error: null,
-      currentModelIndex: 0,
-    }));
-
-    abortControllerRef.current = new AbortController();
-
-    try {
-      const messages = state.messages;
-
-      const result = await handleModelFallback(
-        messages,
-        state.currentModelIndex,
-        (chunk: string) => {
-          setState((prev) => ({
-            ...prev,
-            messages: prev.messages.map((msg) =>
-              msg.id === assistantMessage.id
-                ? { ...msg, content: msg.content + chunk }
-                : msg
-            ),
-          }));
-        },
-        abortControllerRef.current.signal
-      );
+  const resendEditedMessage = useCallback(
+    async (
+      content: string,
+      onComplete?: () => void,
+      onError?: (error: string) => void
+    ) => {
+      const assistantMessage: Message = {
+        id: generateMessageId(),
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+        isStreaming: true,
+      };
 
       setState((prev) => ({
         ...prev,
-        messages: prev.messages.map((msg) =>
-          msg.id === assistantMessage.id
-            ? {
-                ...msg,
-                content: result.content,
-                model: result.model,
-                isStreaming: false,
-              }
-            : msg
-        ),
-        isLoading: false,
-        isStreaming: false,
-        currentModelIndex: result.finalIndex,
+        messages: [...prev.messages, assistantMessage],
+        isLoading: true,
+        isStreaming: true,
         error: null,
       }));
 
-      onComplete?.();
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      abortControllerRef.current = new AbortController();
+
+      try {
+        const messages = state.messages;
+        const lastUserMessage = [...messages]
+          .reverse()
+          .find((msg) => msg.role === "user");
+
+        const result = await handleModelFallback(
+          messages,
+          {
+            selectedModelId: AUTO_MODEL_ID,
+            hasImages: (lastUserMessage?.images?.length || 0) > 0,
+            userText: content.trim(),
+          },
+          (chunk: string) => {
+            setState((prev) => ({
+              ...prev,
+              messages: prev.messages.map((msg) =>
+                msg.id === assistantMessage.id
+                  ? { ...msg, content: msg.content + chunk }
+                  : msg
+              ),
+            }));
+          },
+          abortControllerRef.current.signal
+        );
+
         setState((prev) => ({
           ...prev,
           messages: prev.messages.map((msg) =>
             msg.id === assistantMessage.id
               ? {
                   ...msg,
-                  content: msg.content + "\n\n[The chat was canceled]",
+                  content: result.content,
+                  model: result.model,
                   isStreaming: false,
                 }
               : msg
@@ -315,68 +320,96 @@ export const useChatbot = () => {
           isStreaming: false,
           error: null,
         }));
-        return;
-      }
 
-      const errorMessage =
-        error instanceof Error ? error.message : "An error occurred";
+        onComplete?.();
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          setState((prev) => ({
+            ...prev,
+            messages: prev.messages.map((msg) =>
+              msg.id === assistantMessage.id
+                ? {
+                    ...msg,
+                    content: msg.content + "\n\n[The chat was canceled]",
+                    isStreaming: false,
+                  }
+                : msg
+            ),
+            isLoading: false,
+            isStreaming: false,
+            error: null,
+          }));
+          return;
+        }
+
+        const errorMessage =
+          error instanceof Error ? error.message : "An error occurred";
+
+        setState((prev) => ({
+          ...prev,
+          messages: prev.messages.filter(
+            (msg) => msg.id !== assistantMessage.id
+          ),
+          isLoading: false,
+          isStreaming: false,
+          error: errorMessage,
+        }));
+
+        onError?.(errorMessage);
+      }
+    },
+    [state.messages]
+  );
+
+  const updateAndResendMessage = useCallback(
+    async (
+      messageId: string,
+      newContent: string,
+      images: string[] = [],
+      onComplete?: () => void,
+      onError?: (error: string) => void
+    ) => {
+      if (!messageId) return;
+
+      const lastUserMessageIndex = state.messages.findIndex(
+        (msg) => msg.id === messageId
+      );
+
+      if (lastUserMessageIndex === -1) return;
+
+      const messagesBeforeEdit = state.messages.slice(0, lastUserMessageIndex + 1);
+      const updatedMessages = messagesBeforeEdit.map((msg) =>
+        msg.id === messageId
+          ? {
+              ...msg,
+              content: newContent,
+              images,
+            }
+          : msg
+      );
 
       setState((prev) => ({
         ...prev,
-        messages: prev.messages.filter(
-          (msg) => msg.id !== assistantMessage.id
-        ),
-        isLoading: false,
-        isStreaming: false,
-        error: errorMessage,
+        messages: updatedMessages,
+        editingMessageId: null,
+        isEditing: false,
+        error: null,
       }));
 
-      onError?.(errorMessage);
-    }
-  }, [state.messages, state.currentModelIndex]);
-
-  const updateAndResendMessage = useCallback(async (
-    messageId: string,
-    newContent: string, 
-    images: string[] = [],
-    onComplete?: () => void,
-    onError?: (error: string) => void
-  ) => {
-    if (!messageId) return;
-
-    const lastUserMessageIndex = state.messages.findIndex(
-      (msg) => msg.id === messageId
-    );
-
-    if (lastUserMessageIndex === -1) return;
-
-    const messagesBeforeEdit = state.messages.slice(0, lastUserMessageIndex + 1);
-    const updatedMessages = messagesBeforeEdit.map((msg) =>
-      msg.id === messageId
-        ? {
-            ...msg,
-            content: newContent,
-            images: images,
-          }
-        : msg
-    );
-
-    setState((prev) => ({
-      ...prev,
-      messages: updatedMessages,
-      editingMessageId: null,
-      isEditing: false,
-      error: null,
-    }));
-
-    await resendEditedMessage(newContent, () => {
-      setState((prev) => ({ ...prev, error: null }));
-      onComplete?.();
-    }, (error) => {
-      setState((prev) => ({ ...prev, error }));
-      onError?.(error);
-    });
-  }, [state.messages, resendEditedMessage]);
+      await resendEditedMessage(
+        newContent,
+        () => {
+          setState((prev) => ({ ...prev, error: null }));
+          onComplete?.();
+        },
+        (error) => {
+          setState((prev) => ({ ...prev, error }));
+          onError?.(error);
+        }
+      );
+    },
+    [state.messages, resendEditedMessage]
+  );
 
   const cancelRequest = useCallback(() => {
     if (abortControllerRef.current) {
@@ -392,17 +425,16 @@ export const useChatbot = () => {
   }, []);
 
   const getCurrentModelName = useCallback(() => {
-    return MODEL_DISPLAY_NAMES[state.currentModelIndex] || "Unknown Model";
-  }, [state.currentModelIndex]);
+    return getModelDisplayName(state.selectedModelId);
+  }, [state.selectedModelId]);
 
   const getLastAssistantMessage = useCallback(() => {
-    return [...state.messages]
-      .reverse()
-      .find((msg) => msg.role === "assistant");
+    return [...state.messages].reverse().find((msg) => msg.role === "assistant");
   }, [state.messages]);
 
   return {
     ...state,
+    setSelectedModel,
     sendMessage,
     clearMessages,
     retryLastMessage,

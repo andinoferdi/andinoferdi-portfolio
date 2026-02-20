@@ -13,6 +13,7 @@ import { MiniPlayer } from "@/components/mini-player";
 import { MusicPlayerErrorBoundary } from "@/components/error-boundary";
 import { LoadingScreen } from "@/components/loading-screen";
 import { RoutePrefetch } from "@/components/route-prefetch";
+import { VisitTracker } from "@/components/visit-tracker";
 import ThemeScript from "@/components/ui/theme-script";
 import { Spotlight } from "@/components/ui/spotlight-new";
 import Head from "next/head";
@@ -74,6 +75,7 @@ export default function RootLayout({
                 </div>
                 <div className="relative z-10 flex flex-col min-h-screen">
                   <MainNavbar />
+                  <VisitTracker />
                   <main className="flex-1">{children}</main>
                   <MainFooter />
                   <MusicPlayerErrorBoundary>

@@ -37,31 +37,35 @@ console.log(
     : "NOT SET - Please configure NEXT_PUBLIC_OPENROUTER_API_KEY"
 );
 
-export const MODELS = [
-  "meta-llama/llama-4-maverick:free",
-  "mistralai/mistral-small-3.2-24b-instruct:free",
-  "google/gemini-2.0-flash-exp:free",
-  "meta-llama/llama-4-scout:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-  "qwen/qwen2.5-vl-32b-instruct:free",
-  "google/gemma-3-27b-it:free",
-  "google/gemma-3-12b-it:free",
-  "google/gemma-3-4b-it:free",
-  "openrouter/andromeda-alpha",
-];
+export const AUTO_MODEL_ID = "auto";
+export type RuntimeRoute = "openrouter/free";
+export const DEFAULT_ROUTE_MODEL: RuntimeRoute = "openrouter/free";
+const MAX_IMAGES_PER_REQUEST = 3;
+const MAX_TOTAL_IMAGE_BASE64_CHARS = 8_500_000;
+const MAX_RETRIES = 3;
 
-export const MODEL_DISPLAY_NAMES = [
-  "Llama 4 Maverick",
-  "Mistral Small 3.2",
-  "Gemini 2.0 Flash",
-  "Llama 4 Scout",
-  "Mistral Small 3.1",
-  "Qwen 2.5 VL",
-  "Gemma 3 27B",
-  "Gemma 3 12B",
-  "Gemma 3 4B",
-  "Andromeda Alpha",
+// Backward-compatible exports used by existing UI pieces.
+export const TEXT_MODELS: string[] = [DEFAULT_ROUTE_MODEL];
+export const VISION_MODELS: string[] = [DEFAULT_ROUTE_MODEL];
+export const ALL_MODELS: Array<{
+  id: string;
+  name: string;
+  family: "text";
+  supportsVision: true;
+  free: true;
+  priority: 1;
+}> = [
+  {
+    id: DEFAULT_ROUTE_MODEL,
+    name: "Auto (OpenRouter Free)",
+    family: "text",
+    supportsVision: true,
+    free: true,
+    priority: 1,
+  },
 ];
+export const MODELS = [DEFAULT_ROUTE_MODEL];
+export const MODEL_DISPLAY_NAMES = ["Auto (OpenRouter Free)"];
 
 const CHAT_HISTORY_KEY = "andinoferdi_chat_history";
 
@@ -389,9 +393,50 @@ export const parseStreamResponse = async (
   }
 };
 
+const MODEL_ID_NAME_MAP = new Map<string, string>([
+  [AUTO_MODEL_ID, "Auto (Free)"],
+  [DEFAULT_ROUTE_MODEL, "Auto (OpenRouter Free)"],
+]);
+
+const estimateImagePayloadChars = (messages: Message[]): {
+  imageCount: number;
+  totalBase64Chars: number;
+} => {
+  let imageCount = 0;
+  let totalBase64Chars = 0;
+
+  for (const message of messages) {
+    if (!Array.isArray(message.content)) continue;
+
+    for (const contentItem of message.content) {
+      if (contentItem.type !== "image_url" || !contentItem.image_url?.url) continue;
+      imageCount += 1;
+      totalBase64Chars += contentItem.image_url.url.length;
+    }
+  }
+
+  return { imageCount, totalBase64Chars };
+};
+
+export const isVisionCapable = (): boolean => {
+  return true;
+};
+
+export const getModelDisplayName = (modelId?: string): string => {
+  if (!modelId) return "Auto (OpenRouter Free)";
+  return MODEL_ID_NAME_MAP.get(modelId) ?? modelId;
+};
+
+export const resolveModelForRequest = (): { modelId: string; family: "text" } => {
+  return { modelId: DEFAULT_ROUTE_MODEL, family: "text" };
+};
+
+export const getFallbackOrder = (): string[] => {
+  return [DEFAULT_ROUTE_MODEL];
+};
+
 export const sendChatMessage = async (
   messages: Message[],
-  modelIndex: number = 0,
   onStream?: (chunk: string) => void,
   signal?: AbortSignal
 ): Promise<{ content: string; model: string }> => {
@@ -406,6 +451,19 @@ export const sendChatMessage = async (
     systemPrompt,
     ...messages.filter((m) => m.role !== "system"),
   ];
+  const payloadEstimate = estimateImagePayloadChars(apiMessages);
+
+  if (payloadEstimate.imageCount > MAX_IMAGES_PER_REQUEST) {
+    throw new Error(
+      `IMAGE_LIMIT: Maksimal ${MAX_IMAGES_PER_REQUEST} gambar per pesan.`
+    );
+  }
+
+  if (payloadEstimate.totalBase64Chars > MAX_TOTAL_IMAGE_BASE64_CHARS) {
+    throw new Error(
+      "IMAGE_PAYLOAD_TOO_LARGE: Ukuran total gambar terlalu besar. Kurangi jumlah gambar atau kompres gambar."
+    );
+  }
 
   const response = await fetch(
     "https://openrouter.ai/api/v1/chat/completions",
@@ -418,7 +476,7 @@ export const sendChatMessage = async (
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODELS[modelIndex],
+        model: DEFAULT_ROUTE_MODEL,
         messages: apiMessages.map((m) => ({
           role: m.role,
           content: Array.isArray(m.content) ? m.content : m.content,
@@ -433,19 +491,39 @@ export const sendChatMessage = async (
 
   if (!response.ok) {
     const errorText = await response.text();
-    let errorMessage = `API Error (${response.status}): ${errorText}`;
-
-    if (response.status === 401) {
-      errorMessage = `Authentication failed (401): Please check your OpenRouter API key. ${errorText}`;
-    } else if (response.status === 402) {
-      errorMessage = "Provider insufficient balance. Trying alternative model...";
-    } else if (response.status === 429) {
-      errorMessage = `Rate limit exceeded (429): Please try again later. ${errorText}`;
-    } else if (response.status >= 500) {
-      errorMessage = `Server error (${response.status}): Please try again later. ${errorText}`;
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[OpenRouter] Request failed", {
+        status: response.status,
+        routeModel: DEFAULT_ROUTE_MODEL,
+        hasImages: payloadEstimate.imageCount > 0,
+        imageCount: payloadEstimate.imageCount,
+        estimatedChars: payloadEstimate.totalBase64Chars,
+      });
     }
 
-    throw new Error(errorMessage);
+    if (response.status === 404) {
+      throw new Error(
+        "ROUTE_UNAVAILABLE: Provider OpenRouter Free sementara tidak tersedia."
+      );
+    } else if (response.status === 429) {
+      throw new Error("RATE_LIMITED: Antrian model sedang padat, coba lagi.");
+    } else if (response.status === 402) {
+      throw new Error("INSUFFICIENT_CREDITS: Provider insufficient balance");
+    } else if (response.status === 502 || response.status === 503) {
+      throw new Error(`MODEL_DOWN: ${errorText}`);
+    } else if (response.status === 401) {
+      throw new Error(
+        "AUTH_ERROR: API key OpenRouter tidak valid atau belum diisi."
+      );
+    } else if (response.status === 400) {
+      throw new Error(
+        `BAD_REQUEST: Format request tidak valid. Periksa ukuran/jumlah gambar. ${errorText}`
+      );
+    } else if (response.status >= 500) {
+      throw new Error(`SERVER_ERROR: ${errorText}`);
+    }
+
+    throw new Error(`API_ERROR (${response.status}): ${errorText}`);
   }
 
   const reader = response.body?.getReader();
@@ -466,101 +544,99 @@ export const sendChatMessage = async (
     }, signal);
   }
 
+  if (fullContent.trim().length === 0) {
+    throw new Error("EMPTY_RESPONSE: Model returned empty response");
+  }
+
   return {
     content: fullContent,
-    model: MODELS[modelIndex],
+    model: DEFAULT_ROUTE_MODEL,
   };
 };
 
-
 export const handleModelFallback = async (
   messages: Message[],
-  startModelIndex: number = 0,
+  options: {
+    selectedModelId: string;
+    hasImages: boolean;
+    userText: string;
+  },
   onStream?: (chunk: string) => void,
   signal?: AbortSignal
-): Promise<{ content: string; model: string; finalIndex: number }> => {
+): Promise<{ content: string; model: string; finalModelId: string }> => {
   let lastError: Error | null = null;
-  const rateLimitedModels: string[] = [];
+  let retryDelay = 800;
+  const modelId = DEFAULT_ROUTE_MODEL;
 
-  const order: number[] = [];
-  for (let i = startModelIndex; i < MODELS.length; i++) order.push(i);
-  for (let i = 0; i < startModelIndex; i++) order.push(i);
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const shouldLog = process.env.NODE_ENV === "development";
+    if (shouldLog) {
+      console.log("[OpenRouter] Sending request", {
+        attempt,
+        routeModel: modelId,
+        hasImages: options.hasImages,
+      });
+    }
 
-  for (const i of order) {
     try {
-      const result = await sendChatMessage(messages, i, onStream, signal);
-      return { content: result.content, model: result.model, finalIndex: i };
+      const result = await sendChatMessage(messages, onStream, signal);
+      return {
+        content: result.content,
+        model: result.model,
+        finalModelId: result.model,
+      };
     } catch (error: unknown) {
-      // Check if request was aborted
-      if (error instanceof DOMException && error.name === 'AbortError') {
+      if (error instanceof DOMException && error.name === "AbortError") {
         throw error;
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error);
-
-      if (errorMessage.includes("429") || errorMessage.includes("Rate limit")) {
-        console.warn(` ${MODEL_DISPLAY_NAMES[i]} rate limited, skipping...`);
-        rateLimitedModels.push(MODEL_DISPLAY_NAMES[i]);
-
-        if (rateLimitedModels.length === MODELS.length) {
-          throw new Error(
-            "Chatbot sedang tidak tersedia sementara. Silakan coba lagi nanti."
-          );
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        continue;
-      }
-
-      if (errorMessage.includes("402") || errorMessage.includes("insufficient balance")) {
-        console.warn(`${MODEL_DISPLAY_NAMES[i]} insufficient balance, trying next model...`);
-        rateLimitedModels.push(MODEL_DISPLAY_NAMES[i]);
-        
-        if (rateLimitedModels.length === MODELS.length) {
-          throw new Error(
-            "Chatbot sedang tidak tersedia sementara. Silakan coba lagi nanti."
-          );
-        }
-        
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        continue;
-      }
-
-      if (errorMessage.includes("403") || errorMessage.includes("moderation") || errorMessage.includes("flagged")) {
-        console.warn(`${MODEL_DISPLAY_NAMES[i]} content flagged by moderation, trying next model...`);
-        rateLimitedModels.push(MODEL_DISPLAY_NAMES[i]);
-        
-        if (rateLimitedModels.length === MODELS.length) {
-          throw new Error(
-            "Konten Anda tidak dapat diproses oleh AI. Silakan coba dengan konten yang berbeda."
-          );
-        }
-        
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        continue;
-      }
-
-      if (errorMessage.includes("400") || errorMessage.includes("Bad Request")) {
-        console.warn(`${MODEL_DISPLAY_NAMES[i]} bad request, trying next model...`);
-        rateLimitedModels.push(MODEL_DISPLAY_NAMES[i]);
-        
-        if (rateLimitedModels.length === MODELS.length) {
-          throw new Error(
-            "Permintaan tidak valid. Silakan coba lagi dengan format yang berbeda."
-          );
-        }
-        
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        continue;
-      }
-
       lastError = error instanceof Error ? error : new Error(errorMessage);
-      console.error(`${MODEL_DISPLAY_NAMES[i]} Failed:`, errorMessage);
-      continue;
+
+      const canRetry =
+        errorMessage.startsWith("RATE_LIMITED:") ||
+        errorMessage.startsWith("MODEL_DOWN:") ||
+        errorMessage.startsWith("SERVER_ERROR:");
+
+      if (canRetry && attempt < MAX_RETRIES) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        retryDelay = Math.min(retryDelay * 2, 5000);
+        continue;
+      }
+
+      if (errorMessage.startsWith("BAD_REQUEST:")) {
+        throw new Error(
+          "Permintaan tidak valid. Periksa format teks/gambar lalu coba lagi."
+        );
+      }
+      if (errorMessage.startsWith("ROUTE_UNAVAILABLE:")) {
+        throw new Error(
+          "OpenRouter Free sedang tidak tersedia. Coba lagi beberapa saat."
+        );
+      }
+      if (errorMessage.startsWith("AUTH_ERROR:")) {
+        throw new Error("API key OpenRouter tidak valid.");
+      }
+      if (errorMessage.startsWith("IMAGE_LIMIT:")) {
+        throw new Error(errorMessage.replace("IMAGE_LIMIT: ", ""));
+      }
+      if (errorMessage.startsWith("IMAGE_PAYLOAD_TOO_LARGE:")) {
+        throw new Error(
+          errorMessage.replace("IMAGE_PAYLOAD_TOO_LARGE: ", "")
+        );
+      }
+      if (errorMessage.startsWith("RATE_LIMITED:")) {
+        throw new Error("Antrian model sedang padat. Coba lagi sebentar.");
+      }
+
+      throw lastError;
     }
   }
 
-  throw lastError || new Error("Chatbot sedang tidak tersedia sementara. Silakan coba lagi nanti.");
+  throw (
+    lastError ||
+    new Error("Chatbot sedang tidak tersedia sementara. Silakan coba lagi nanti.")
+  );
 };
 
 export const saveChatHistory = (messages: Message[]): void => {

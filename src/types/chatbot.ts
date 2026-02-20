@@ -1,5 +1,5 @@
 export interface MessageContent {
-  type: 'text' | 'image_url';
+  type: "text" | "image_url";
   text?: string;
   image_url?: {
     url: string;
@@ -8,7 +8,7 @@ export interface MessageContent {
 
 export interface Message {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string | MessageContent[];
   timestamp: Date;
   model?: string;
@@ -16,10 +16,24 @@ export interface Message {
   images?: string[];
 }
 
+export type ChatModelMode = "auto" | "manual";
+
+export type ModelFamily = "text" | "vision";
+
+export interface AIModel {
+  id: string;
+  name: string;
+  family: ModelFamily;
+  supportsVision: boolean;
+  free: boolean;
+  priority: number;
+}
+
 export interface ChatbotState {
   messages: Message[];
   isLoading: boolean;
-  currentModelIndex: number;
+  selectedModelId: string;
+  selectedMode: ChatModelMode;
   error: string | null;
   isStreaming: boolean;
   editingMessageId: string | null;

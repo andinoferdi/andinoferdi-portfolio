@@ -187,6 +187,16 @@ export const clearDurationCache = (): void => {
 
 export const getOriginalTracks = (): Track[] => [
   {
+    id: "I-Just-Died-In-Your-Arms",
+    title: "(I Just) Died In Your Arms",
+    artist: "Cutting Crew",
+    album: "Broadcast",
+    duration: 0,
+    audioUrl: "/music/(I Just) Died In Your Arms.mp3",
+    coverImage: "/music/images/Broadcast.jpg",
+    genre: "Pop Rock",
+  },
+  {
     id: "Every-Breath-You-Take",
     title: "Every Breath You Take",
     artist: "The Police",
