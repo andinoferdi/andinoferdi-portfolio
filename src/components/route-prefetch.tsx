@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { preloadImage } from "@/services/preload";
+import { isInitialPreloadComplete, preloadImage } from "@/services/preload";
 import { getGalleryData } from "@/services/gallery";
 import { getProjectsData } from "@/services/projects";
 
@@ -11,6 +11,11 @@ import { getProjectsData } from "@/services/projects";
  */
 export const RoutePrefetch = () => {
   useEffect(() => {
+    // Skip route prefetch when strict preload has already loaded all assets.
+    if (isInitialPreloadComplete()) {
+      return;
+    }
+
     const prefetchImages = () => {
       const galleryData = getGalleryData();
       const projectsData = getProjectsData();
