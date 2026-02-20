@@ -317,6 +317,16 @@ export const getOriginalTracks = (): Track[] => [
     genre: "Alternative Rock",
   },
   {
+    id: "Hotel-California",
+    title: "Hotel California",
+    artist: "Eagles",
+    album: "Hotel California",
+    duration: 0,
+    audioUrl: "/music/Hotel California.mp3",
+    coverImage: "/music/images/Hotel California.jpg",
+    genre: "Classic Rock",
+  },
+  {
     id: "Right-Here-Waiting",
     title: "Right Here Waiting",
     artist: "Richard Marx",
