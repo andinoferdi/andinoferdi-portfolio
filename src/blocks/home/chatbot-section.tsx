@@ -588,9 +588,6 @@ export const ChatbotSection = () => {
                 )}
               </CardTitle>
               <div className="flex items-center gap-2">
-                <div className="px-2.5 py-1 text-xs rounded-md border text-muted-foreground">
-                  Mode: {getModelDisplayName("openrouter/free")}
-                </div>
                 {messages.length > 0 && (
                   <Button
                     variant="ghost"
@@ -769,10 +766,6 @@ export const ChatbotSection = () => {
                     )}
                   </Button>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Model dipilih otomatis dari OpenRouter Free berdasarkan tipe
-                  input.
-                </p>
               </form>
             </div>
           </CardContent>
