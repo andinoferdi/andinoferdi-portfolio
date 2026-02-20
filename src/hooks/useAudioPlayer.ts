@@ -5,7 +5,6 @@ import {
   getOriginalTracks,
   normalizeTrackUrl,
   getDefaultVolume,
-  getAudioDurationAccurate,
 } from "@/services/music";
 import { preloadImage } from "@/services/preload";
 import type { MusicPlayerState, Track } from "@/types/music";
@@ -45,7 +44,6 @@ export const useAudioPlayer = () => {
 
   const volumeRef = useRef(loadStoredVolume());
   const durationRef = useRef(0);
-  const durationLockedRef = useRef(false);
 
   const shuffledPlaylist = useMemo(() => {
     const list = [...getOriginalTracks()].map((t) => ({
@@ -143,10 +141,15 @@ export const useAudioPlayer = () => {
     if (!audio) return;
 
     const token = ++changeTokenRef.current;
+    const releaseTransition = () => {
+      if (changeTokenRef.current === token) {
+        transitioningRef.current = false;
+      }
+    };
+
     transitioningRef.current = true;
 
     durationRef.current = 0;
-    durationLockedRef.current = false;
 
     setPlayerState((prev) => ({
       ...prev,
@@ -156,12 +159,10 @@ export const useAudioPlayer = () => {
     }));
 
     if (track.coverImage) {
-      await preloadImage(track.coverImage);
+      void preloadImage(track.coverImage);
     }
-    if (changeTokenRef.current !== token) return;
 
-    const rawUrl = normalizeTrackUrl(track.audioUrl);
-    const encodedUrl = encodeURI(rawUrl);
+    const encodedUrl = encodeURI(normalizeTrackUrl(track.audioUrl));
 
     audio.pause();
     try {
@@ -175,7 +176,7 @@ export const useAudioPlayer = () => {
       await waitCanPlay(audio, token);
     } catch {
       if (changeTokenRef.current !== token) return;
-      transitioningRef.current = false;
+      releaseTransition();
       setPlayerState((prev) => ({
         ...prev,
         isTrackLoading: false,
@@ -198,35 +199,33 @@ export const useAudioPlayer = () => {
       duration: quickDur,
     }));
 
-    getAudioDurationAccurate(rawUrl).then((d) => {
-      if (changeTokenRef.current !== token) return;
-      if (!Number.isFinite(d) || d <= 0) return;
-      if (durationLockedRef.current) return;
-
-      const ct = audio.currentTime || 0;
-      if (ct > 2) return;
-
-      durationLockedRef.current = true;
-      durationRef.current = d;
-
-      setPlayerState((prev) => ({
-        ...prev,
-        duration: d,
-      }));
-    });
-
     if (!shouldPlay) {
-      transitioningRef.current = false;
+      releaseTransition();
       return;
     }
 
     try {
-      await audio.play();
-      setPlayerState((prev) => ({ ...prev, isPlaying: true }));
-    } catch {
-      setPlayerState((prev) => ({ ...prev, isPlaying: false }));
+      let played = false;
+
+      try {
+        await audio.play();
+        played = true;
+      } catch {}
+
+      if (!played) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        if (changeTokenRef.current !== token) return;
+
+        try {
+          await audio.play();
+          played = true;
+        } catch {}
+      }
+
+      if (changeTokenRef.current !== token) return;
+      setPlayerState((prev) => ({ ...prev, isPlaying: played }));
     } finally {
-      transitioningRef.current = false;
+      releaseTransition();
     }
   }, []);
 
@@ -251,7 +250,6 @@ export const useAudioPlayer = () => {
     };
 
     const onLoadedMetadata = () => {
-      if (durationLockedRef.current) return;
       const d =
         Number.isFinite(audio.duration) && audio.duration > 0
           ? audio.duration
@@ -266,7 +264,6 @@ export const useAudioPlayer = () => {
     };
 
     const onDurationChange = () => {
-      if (durationLockedRef.current) return;
       const ct = audio.currentTime || 0;
       if (ct > 2) return;
 

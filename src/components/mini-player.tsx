@@ -57,12 +57,9 @@ function SmartImage({
         alt={alt}
         fill
         sizes="224px"
-        priority
-        loading="eager"
         className={imgClass}
         placeholder={blurDataURL ? "blur" : undefined}
         blurDataURL={blurDataURL}
-        fetchPriority="high"
         onLoad={handleLoad}
         onError={handleError}
       />
@@ -79,7 +76,6 @@ export const MiniPlayer: React.FC = () => {
     volume,
     isExpanded,
     isTrackLoading,
-    progressPercent,
     volumePercent,
     handlePlayPause,
     handleNext,
@@ -175,7 +171,6 @@ export const MiniPlayer: React.FC = () => {
             currentTime={currentTime}
             duration={duration}
             volume={volume}
-            progressPercent={progressPercent}
             volumePercent={volumePercent}
             onPlayPause={handlePlayPause}
             onNext={handleNext}
@@ -307,7 +302,6 @@ interface MiniPlayerExpandedProps {
   currentTime: number;
   duration: number;
   volume: number;
-  progressPercent: number;
   volumePercent: number;
   onPlayPause: () => void;
   onNext: () => void;
@@ -325,7 +319,6 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
   currentTime,
   duration,
   volume,
-  progressPercent,
   volumePercent,
   onPlayPause,
   onNext,
