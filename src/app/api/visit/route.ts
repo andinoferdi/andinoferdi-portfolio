@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { sendVisitNotification, type VisitEmailPayload } from "@/lib/visit-email";
-import { registerVisitIfFirstOfDay } from "@/lib/visit-dedupe";
+import { createHash } from "node:crypto";
 
 type VisitRequestBody = {
   path?: string;
@@ -8,6 +8,9 @@ type VisitRequestBody = {
   clientTimestamp?: string;
   language?: string;
   timezone?: string;
+  eventType?: "session_start" | "route_change";
+  visitorId?: string;
+  clientHints?: string;
 };
 
 const BOT_USER_AGENT_PATTERN =
@@ -45,6 +48,24 @@ const normalizeValue = (value?: string): string => {
   return value.trim();
 };
 
+const buildDeviceSignature = (input: {
+  visitorId: string;
+  userAgent: string;
+  secChUa: string;
+  secChUaPlatform: string;
+  secChUaMobile: string;
+}): string => {
+  const raw = [
+    input.visitorId,
+    input.userAgent,
+    input.secChUa,
+    input.secChUaPlatform,
+    input.secChUaMobile,
+  ].join("|");
+
+  return createHash("sha256").update(raw).digest("hex").slice(0, 16);
+};
+
 const isLikelyBot = (userAgent: string): boolean => {
   return BOT_USER_AGENT_PATTERN.test(userAgent);
 };
@@ -60,6 +81,17 @@ export async function POST(request: NextRequest) {
 
   const headers = request.headers;
   const userAgent = normalizeValue(pickHeader(headers, "user-agent"));
+  const secChUa = normalizeValue(pickHeader(headers, "sec-ch-ua"));
+  const secChUaPlatform = normalizeValue(
+    pickHeader(headers, "sec-ch-ua-platform")
+  );
+  const secChUaMobile = normalizeValue(pickHeader(headers, "sec-ch-ua-mobile"));
+  const visitorId = normalizeValue(body.visitorId);
+  const eventType = body.eventType ?? "session_start";
+  const normalizedClientHints =
+    normalizeValue(body.clientHints) !== "Unknown"
+      ? normalizeValue(body.clientHints)
+      : `sec-ch-ua=${secChUa}; sec-ch-ua-platform=${secChUaPlatform}; sec-ch-ua-mobile=${secChUaMobile}`;
 
   if (isLikelyBot(userAgent)) {
     return new Response(null, { status: 204 });
@@ -82,27 +114,19 @@ export async function POST(request: NextRequest) {
     city: normalizeValue(pickHeader(headers, "x-vercel-ip-city")),
     language: normalizeValue(body.language),
     timezone: normalizeValue(body.timezone),
+    visitorId,
+    eventType,
+    clientHints: normalizedClientHints,
+    deviceSignature: buildDeviceSignature({
+      visitorId,
+      userAgent,
+      secChUa,
+      secChUaPlatform,
+      secChUaMobile,
+    }),
   };
 
   try {
-    const dedupeResult = await registerVisitIfFirstOfDay({
-      ip: payload.ip,
-      path: payload.path,
-      referrer: payload.referrer,
-      userAgent: payload.userAgent,
-      serverTimestamp: payload.serverTimestamp,
-      clientTimestamp: payload.clientTimestamp,
-      country: payload.country,
-      region: payload.region,
-      city: payload.city,
-      language: payload.language,
-      timezone: payload.timezone,
-    });
-
-    if (!dedupeResult.isFirstVisitToday) {
-      return new Response(null, { status: 204 });
-    }
-
     await sendVisitNotification(payload);
   } catch (error) {
     console.error("Failed to send visit notification:", error);

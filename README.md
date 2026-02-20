@@ -65,47 +65,18 @@ Troubleshooting chatbot:
 
 ## Visit Notification (Brevo)
 
-Notifikasi visit sekarang menggunakan dedupe harian:
-- 1 IP hanya mengirim 1 email notifikasi per hari (WIB / Asia Jakarta)
-- Pindah halaman di hari yang sama tidak mengirim email tambahan
-- IP yang sama pada hari berikutnya akan mengirim email lagi
-- Jika IP tidak terbaca, notifikasi di-skip
+Notifikasi visit sekarang menggunakan session browser:
+- 1 session browser mengirim 1 email notifikasi
+- Pindah halaman di session yang sama tidak mengirim email tambahan
+- Session baru dihitung saat browser ditutup lalu dibuka lagi
+- Metadata device tetap dikirim (Visitor ID + Device Signature + Client Hints) agar perangkat berbeda pada IP sama tetap teridentifikasi
+- Di mode development (React Strict Mode), tracker memakai lock state `sending/sent` agar tidak double-send
 
 Dependensi environment:
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `NEXT_PUBLIC_SUPABASE_URL`
 - `BREVO_API_KEY`
 - `BREVO_SENDER_EMAIL`
 - `BREVO_SENDER_NAME`
 - `VISIT_ALERT_TO_EMAIL`
-
-SQL table yang dibutuhkan di Supabase:
-
-```sql
-create table if not exists public.portfolio_visit_daily (
-  id bigserial primary key,
-  visit_day_jakarta date not null,
-  ip text not null,
-  first_path text,
-  first_referrer text,
-  first_user_agent text,
-  first_country text,
-  first_region text,
-  first_city text,
-  first_language text,
-  first_timezone text,
-  first_client_timestamp timestamptz,
-  first_server_timestamp timestamptz not null default now(),
-  created_at timestamptz not null default now(),
-  unique (visit_day_jakarta, ip)
-);
-
-create index if not exists idx_portfolio_visit_daily_day
-  on public.portfolio_visit_daily (visit_day_jakarta);
-
-create index if not exists idx_portfolio_visit_daily_ip
-  on public.portfolio_visit_daily (ip);
-```
 
 ## Animasi
 

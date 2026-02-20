@@ -14,6 +14,10 @@ export type VisitEmailPayload = {
   region?: string;
   language?: string;
   timezone?: string;
+  visitorId?: string;
+  eventType?: string;
+  clientHints?: string;
+  deviceSignature?: string;
 };
 
 type BrevoRecipient = {
@@ -44,7 +48,7 @@ const toSafeValue = (value?: string): string => {
 };
 
 const buildSubject = (path: string): string => {
-  return `[Portfolio] New Visit - ${path}`;
+  return `[Portfolio] New Session Visit - ${path}`;
 };
 
 const buildTextContent = (payload: VisitEmailPayload): string => {
@@ -54,8 +58,12 @@ const buildTextContent = (payload: VisitEmailPayload): string => {
     "Visit Details:",
     `IP Address: ${toSafeValue(payload.ip)}`,
     `Path: ${toSafeValue(payload.path)}`,
+    `Event Type: ${toSafeValue(payload.eventType)}`,
     `Referrer: ${toSafeValue(payload.referrer)}`,
     `User Agent: ${toSafeValue(payload.userAgent)}`,
+    `Visitor ID: ${toSafeValue(payload.visitorId)}`,
+    `Device Signature: ${toSafeValue(payload.deviceSignature)}`,
+    `Client Hints: ${toSafeValue(payload.clientHints)}`,
     `Country: ${toSafeValue(payload.country)}`,
     `Region: ${toSafeValue(payload.region)}`,
     `City: ${toSafeValue(payload.city)}`,
@@ -74,8 +82,12 @@ const buildHtmlContent = (payload: VisitEmailPayload): string => {
       <p style="margin:0 0 12px 0;"><strong>Visit Details:</strong></p>
       <p style="margin:4px 0;"><strong>IP Address:</strong> ${escapeHtml(toSafeValue(payload.ip))}</p>
       <p style="margin:4px 0;"><strong>Path:</strong> ${escapeHtml(toSafeValue(payload.path))}</p>
+      <p style="margin:4px 0;"><strong>Event Type:</strong> ${escapeHtml(toSafeValue(payload.eventType))}</p>
       <p style="margin:4px 0;"><strong>Referrer:</strong> ${escapeHtml(toSafeValue(payload.referrer))}</p>
       <p style="margin:4px 0;"><strong>User Agent:</strong> ${escapeHtml(toSafeValue(payload.userAgent))}</p>
+      <p style="margin:4px 0;"><strong>Visitor ID:</strong> ${escapeHtml(toSafeValue(payload.visitorId))}</p>
+      <p style="margin:4px 0;"><strong>Device Signature:</strong> ${escapeHtml(toSafeValue(payload.deviceSignature))}</p>
+      <p style="margin:4px 0;"><strong>Client Hints:</strong> ${escapeHtml(toSafeValue(payload.clientHints))}</p>
       <p style="margin:4px 0;"><strong>Country:</strong> ${escapeHtml(toSafeValue(payload.country))}</p>
       <p style="margin:4px 0;"><strong>Region:</strong> ${escapeHtml(toSafeValue(payload.region))}</p>
       <p style="margin:4px 0;"><strong>City:</strong> ${escapeHtml(toSafeValue(payload.city))}</p>
