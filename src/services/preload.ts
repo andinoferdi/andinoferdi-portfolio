@@ -59,11 +59,27 @@ const DEFAULT_CONCURRENCY_BY_KIND: Record<PreloadAssetKind, number> = {
 };
 
 const preloadedAssets = new Set<string>();
+const preloadedAudioObjectUrls = new Map<string, string>();
 const PRELOAD_COMPLETE_STORAGE_KEY = "initial_preload_complete_v1";
 
 const isBrowser = () => typeof window !== "undefined";
 
 const normalizeUrl = (url: string): string => encodeURI(url);
+
+const toAssetKey = (url: string): string => {
+  if (!url) return "";
+  if (!isBrowser()) return normalizeUrl(url);
+
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.origin === window.location.origin) {
+      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+    return parsed.toString();
+  } catch {
+    return normalizeUrl(url);
+  }
+};
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error && error.message) return error.message;
@@ -122,8 +138,9 @@ export const preloadImageStrict = async (
   timeoutMs = DEFAULT_TIMEOUT_BY_KIND_MS.image
 ): Promise<PreloadResult> => {
   if (!isBrowser()) return createFailedResult(url, "image", "not_in_browser");
+  const assetKey = toAssetKey(url);
 
-  if (preloadedAssets.has(url)) {
+  if (preloadedAssets.has(assetKey)) {
     return createSuccessResult(url, "image", true);
   }
 
@@ -145,7 +162,7 @@ export const preloadImageStrict = async (
     }, timeoutMs);
 
     img.onload = () => {
-      preloadedAssets.add(url);
+      preloadedAssets.add(assetKey);
       done(createSuccessResult(url, "image", false));
     };
 
@@ -163,8 +180,9 @@ export const preloadBinaryStrict = async (
   timeoutMs = DEFAULT_TIMEOUT_BY_KIND_MS[kind]
 ): Promise<PreloadResult> => {
   if (!isBrowser()) return createFailedResult(url, kind, "not_in_browser");
+  const assetKey = toAssetKey(url);
 
-  if (preloadedAssets.has(url)) {
+  if (preloadedAssets.has(assetKey)) {
     return createSuccessResult(url, kind, true);
   }
 
@@ -182,8 +200,16 @@ export const preloadBinaryStrict = async (
       return createFailedResult(url, kind, `http_${response.status}`);
     }
 
-    const bytesLoaded = (await response.arrayBuffer()).byteLength;
-    preloadedAssets.add(url);
+    const buffer = await response.arrayBuffer();
+    const bytesLoaded = buffer.byteLength;
+    preloadedAssets.add(assetKey);
+
+    if (kind === "audio" && !preloadedAudioObjectUrls.has(assetKey)) {
+      const contentType = response.headers.get("content-type") || "audio/mpeg";
+      const blob = new Blob([buffer], { type: contentType });
+      preloadedAudioObjectUrls.set(assetKey, URL.createObjectURL(blob));
+    }
+
     return createSuccessResult(url, kind, false, bytesLoaded);
   } catch (error) {
     return createFailedResult(url, kind, getErrorMessage(error));
@@ -322,10 +348,21 @@ export const preloadDocument = async (url: string): Promise<void> => {
 };
 
 export const isAssetPreloaded = (src: string): boolean => {
-  return preloadedAssets.has(src);
+  return preloadedAssets.has(toAssetKey(src));
+};
+
+export const getPreloadedAudioObjectUrl = (src: string): string | null => {
+  if (!isBrowser()) return null;
+  return preloadedAudioObjectUrls.get(toAssetKey(src)) ?? null;
 };
 
 export const clearPreloadCache = (): void => {
+  if (isBrowser()) {
+    for (const objectUrl of preloadedAudioObjectUrls.values()) {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+  preloadedAudioObjectUrls.clear();
   preloadedAssets.clear();
 };
 

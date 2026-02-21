@@ -6,7 +6,7 @@ import {
   normalizeTrackUrl,
   getDefaultVolume,
 } from "@/services/music";
-import { preloadImage } from "@/services/preload";
+import { getPreloadedAudioObjectUrl, preloadImage } from "@/services/preload";
 import type { MusicPlayerState, Track } from "@/types/music";
 
 const clamp01 = (v: number) =>
@@ -162,7 +162,11 @@ export const useAudioPlayer = () => {
       void preloadImage(track.coverImage);
     }
 
-    const encodedUrl = encodeURI(normalizeTrackUrl(track.audioUrl));
+    const normalizedTrackUrl = normalizeTrackUrl(track.audioUrl);
+    const preloadedAudioUrl =
+      getPreloadedAudioObjectUrl(track.audioUrl) ||
+      getPreloadedAudioObjectUrl(normalizedTrackUrl);
+    const encodedUrl = preloadedAudioUrl || encodeURI(normalizedTrackUrl);
 
     audio.pause();
     try {
