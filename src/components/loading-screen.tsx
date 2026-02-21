@@ -1,16 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HoverBorderGradient } from "@/components/ui/hover-border-button";
-import {
-  Download,
-  FileText,
-  Image as ImageIcon,
-  Music,
-  Play,
-  RefreshCw,
-} from "lucide-react";
+import { Play, RefreshCw } from "lucide-react";
 import {
   clearInitialPreloadComplete,
   markInitialPreloadComplete,
@@ -27,7 +20,6 @@ interface LoadingScreenProps {
 interface PreloadManifestResponse {
   assets: PreloadAsset[];
   totalCount: number;
-  totalBytes: number;
 }
 
 const CONCURRENCY_BY_KIND: Record<PreloadAssetKind, number> = {
@@ -37,57 +29,15 @@ const CONCURRENCY_BY_KIND: Record<PreloadAssetKind, number> = {
   other: 2,
 };
 
-const KIND_LABEL: Record<PreloadAssetKind, string> = {
-  image: "Images",
-  audio: "Audio",
-  document: "Documents",
-  other: "Other Assets",
-};
-
-const KIND_ICON: Record<PreloadAssetKind, ComponentType<{ className?: string }>> = {
-  image: ImageIcon,
-  audio: Music,
-  document: FileText,
-  other: Download,
-};
-
-const formatBytes = (bytes: number): string => {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  let size = bytes;
-  let unitIndex = 0;
-
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex += 1;
-  }
-
-  const rounded = unitIndex === 0 ? Math.round(size) : size.toFixed(1);
-  return `${rounded} ${units[unitIndex]}`;
-};
-
 export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showStartButton, setShowStartButton] = useState(false);
-  const [currentAsset, setCurrentAsset] = useState("Preparing preload...");
-  const [currentKind, setCurrentKind] = useState<PreloadAssetKind>("image");
   const [totalAssets, setTotalAssets] = useState(0);
   const [loadedAssets, setLoadedAssets] = useState(0);
-  const [totalBytes, setTotalBytes] = useState(0);
-  const [loadedBytes, setLoadedBytes] = useState(0);
   const [failedAssets, setFailedAssets] = useState<PreloadResult[]>([]);
   const [manifestError, setManifestError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
-
-  const failedSummaryText = useMemo(() => {
-    if (!failedAssets.length) return "";
-    const firstThree = failedAssets.slice(0, 3).map((asset) => asset.url);
-    const remaining = failedAssets.length - firstThree.length;
-    return remaining > 0
-      ? `${firstThree.join(", ")} and ${remaining} more`
-      : firstThree.join(", ");
-  }, [failedAssets]);
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -108,10 +58,6 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
       setProgress(0);
       setTotalAssets(0);
       setLoadedAssets(0);
-      setTotalBytes(0);
-      setLoadedBytes(0);
-      setCurrentAsset("Fetching asset manifest...");
-      setCurrentKind("other");
 
       try {
         const response = await fetch("/api/preload-assets", { cache: "no-store" });
@@ -123,38 +69,24 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
         if (cancelled) return;
 
         const assets = manifest.assets ?? [];
-        const sizeByUrl = new Map(assets.map((asset) => [asset.url, asset.size ?? 0]));
 
         setTotalAssets(manifest.totalCount ?? assets.length);
-        setTotalBytes(manifest.totalBytes ?? 0);
 
         if (!assets.length) {
           setProgress(100);
           setIsLoading(false);
           setShowStartButton(true);
-          setCurrentAsset("No assets found to preload.");
           markInitialPreloadComplete();
           return;
         }
-
-        let succeededBytes = 0;
 
         const result = await runStrictPreload(assets, {
           concurrencyByKind: CONCURRENCY_BY_KIND,
           onProgress: (state) => {
             if (cancelled) return;
 
-            if (state.current.success) {
-              succeededBytes += sizeByUrl.get(state.current.url) ?? 0;
-            }
-
             setLoadedAssets(state.succeeded);
-            setLoadedBytes(succeededBytes);
             setProgress(Math.floor((state.succeeded / state.total) * 100));
-            setCurrentAsset(
-              `${KIND_LABEL[state.current.kind]}: ${state.current.url}`
-            );
-            setCurrentKind(state.current.kind);
           },
         });
 
@@ -167,16 +99,12 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           setProgress(100);
           setIsLoading(false);
           setShowStartButton(true);
-          setCurrentAsset("All assets downloaded successfully.");
-          setCurrentKind("other");
           markInitialPreloadComplete();
           return;
         }
 
         setIsLoading(false);
         setShowStartButton(false);
-        setCurrentAsset("Some assets failed to preload.");
-        setCurrentKind("other");
       } catch (error) {
         if (cancelled) return;
         setManifestError(
@@ -184,7 +112,6 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
         );
         setIsLoading(false);
         setShowStartButton(false);
-        setCurrentKind("other");
       }
     };
 
@@ -205,8 +132,6 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   const handleRetry = () => {
     setRetryToken((prev) => prev + 1);
   };
-
-  const CurrentAssetIcon = KIND_ICON[currentKind];
 
   return (
     <AnimatePresence>
@@ -240,11 +165,8 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
                 transition={{ delay: 0.4, duration: 0.6 }}
                 className="w-full max-w-sm"
               >
-                <div className="mb-4 flex items-center justify-center gap-2">
-                  <CurrentAssetIcon className="h-5 w-5 text-primary" />
-                  <span className="max-w-[260px] truncate text-sm text-muted-foreground">
-                    {currentAsset}
-                  </span>
+                <div className="mb-4 text-sm text-muted-foreground">
+                  Preparing your experience...
                 </div>
 
                 <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
@@ -271,10 +193,6 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
                     <span>
                       {loadedAssets}/{totalAssets} assets
                     </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>{formatBytes(loadedBytes)} loaded</span>
-                    <span>{formatBytes(totalBytes)} total</span>
                   </div>
                 </div>
               </motion.div>
@@ -305,14 +223,8 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
               <p className="max-w-lg text-sm text-muted-foreground md:text-base">
                 {manifestError
                   ? `Manifest error: ${manifestError}`
-                  : `${failedAssets.length} asset(s) failed to download.`}
+                  : `${failedAssets.length} asset(s) failed to download. Please retry.`}
               </p>
-
-              {!manifestError && failedSummaryText && (
-                <p className="max-w-lg break-words text-xs text-muted-foreground/90">
-                  {failedSummaryText}
-                </p>
-              )}
 
               <HoverBorderGradient
                 as="button"
