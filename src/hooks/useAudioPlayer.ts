@@ -6,7 +6,11 @@ import {
   normalizeTrackUrl,
   getDefaultVolume,
 } from "@/services/music";
-import { getPreloadedAudioObjectUrl, preloadImage } from "@/services/preload";
+import {
+  ensurePreloadedAudioObjectUrl,
+  getPreloadedAudioObjectUrl,
+  preloadImage,
+} from "@/services/preload";
 import type { MusicPlayerState, Track } from "@/types/music";
 
 const clamp01 = (v: number) =>
@@ -233,6 +237,13 @@ export const useAudioPlayer = () => {
     }
   }, []);
 
+  const warmupTrackAudioObjectUrl = useCallback((track: Track | null) => {
+    if (!track) return;
+    const normalizedTrackUrl = normalizeTrackUrl(track.audioUrl);
+    void ensurePreloadedAudioObjectUrl(track.audioUrl);
+    void ensurePreloadedAudioObjectUrl(normalizedTrackUrl);
+  }, []);
+
   useEffect(() => {
     const audio = new Audio();
     audio.preload = "auto";
@@ -311,6 +322,21 @@ export const useAudioPlayer = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!playerState.currentTrack || !playerState.playlist.length) return;
+
+    warmupTrackAudioObjectUrl(playerState.currentTrack);
+
+    const nextIndex = (playerState.currentTrackIndex + 1) % playerState.playlist.length;
+    const nextTrack = playerState.playlist[nextIndex] ?? null;
+    warmupTrackAudioObjectUrl(nextTrack);
+  }, [
+    playerState.currentTrack,
+    playerState.currentTrackIndex,
+    playerState.playlist,
+    warmupTrackAudioObjectUrl,
+  ]);
 
   const handlePlayPause = useCallback(async () => {
     const audio = audioRef.current;

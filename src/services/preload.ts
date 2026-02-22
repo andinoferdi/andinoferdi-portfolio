@@ -20,12 +20,19 @@ export interface PreloadProgress {
   completed: number;
   succeeded: number;
   failed: number;
+  totalBytes: number;
+  loadedBytes: number;
+  attempt: number;
+  retrying: boolean;
   current: PreloadResult;
 }
 
 export interface RunStrictPreloadOptions {
   concurrencyByKind?: Partial<Record<PreloadAssetKind, number>>;
   timeoutByKindMs?: Partial<Record<PreloadAssetKind, number>>;
+  retryBaseDelayMsByKind?: Partial<Record<PreloadAssetKind, number>>;
+  maxRetryAttemptsPerAsset?: number;
+  signal?: AbortSignal;
   onProgress?: (progress: PreloadProgress) => void;
 }
 
@@ -58,8 +65,39 @@ const DEFAULT_CONCURRENCY_BY_KIND: Record<PreloadAssetKind, number> = {
   other: 2,
 };
 
+const SLOW_CONCURRENCY_BY_KIND: Record<PreloadAssetKind, number> = {
+  image: 3,
+  audio: 1,
+  document: 1,
+  other: 1,
+};
+
+const VERY_SLOW_CONCURRENCY_BY_KIND: Record<PreloadAssetKind, number> = {
+  image: 2,
+  audio: 1,
+  document: 1,
+  other: 1,
+};
+
+const DEFAULT_RETRY_BASE_DELAY_BY_KIND_MS: Record<PreloadAssetKind, number> = {
+  image: 1200,
+  audio: 2000,
+  document: 1600,
+  other: 1600,
+};
+
+const MIN_TIMEOUT_BY_KIND_MS: Record<PreloadAssetKind, number> = {
+  image: 12000,
+  audio: 20000,
+  document: 15000,
+  other: 15000,
+};
+
+const MAX_TIMEOUT_BY_KIND_MS = 300000;
+
 const preloadedAssets = new Set<string>();
 const preloadedAudioObjectUrls = new Map<string, string>();
+const preloadedAudioObjectUrlPromises = new Map<string, Promise<string | null>>();
 const PRELOAD_COMPLETE_STORAGE_KEY = "initial_preload_complete_v1";
 
 const isBrowser = () => typeof window !== "undefined";
@@ -84,6 +122,238 @@ const toAssetKey = (url: string): string => {
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error && error.message) return error.message;
   return "unknown_error";
+};
+
+interface NetworkHints {
+  downlinkMbps: number | null;
+  rttMs: number | null;
+  effectiveType: string | null;
+}
+
+interface DeviceHints {
+  hardwareConcurrency: number | null;
+  deviceMemoryGb: number | null;
+}
+
+interface AdaptiveProfile {
+  timeoutByKindMs: Record<PreloadAssetKind, number>;
+  concurrencyByKind: Record<PreloadAssetKind, number>;
+  retryBaseDelayByKindMs: Record<PreloadAssetKind, number>;
+}
+
+const clamp = (value: number, min: number, max: number): number => {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
+};
+
+const toFinitePositive = (value: unknown): number | null => {
+  if (typeof value !== "number") return null;
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
+};
+
+const getNetworkHints = (): NetworkHints => {
+  if (!isBrowser()) {
+    return {
+      downlinkMbps: null,
+      rttMs: null,
+      effectiveType: null,
+    };
+  }
+
+  const nav = navigator as Navigator & {
+    connection?: {
+      downlink?: number;
+      rtt?: number;
+      effectiveType?: string;
+    };
+  };
+
+  const conn = nav.connection;
+  return {
+    downlinkMbps: toFinitePositive(conn?.downlink) ?? null,
+    rttMs: toFinitePositive(conn?.rtt) ?? null,
+    effectiveType: conn?.effectiveType ?? null,
+  };
+};
+
+const getDeviceHints = (): DeviceHints => {
+  if (!isBrowser()) {
+    return {
+      hardwareConcurrency: null,
+      deviceMemoryGb: null,
+    };
+  }
+
+  const nav = navigator as Navigator & {
+    deviceMemory?: number;
+  };
+
+  return {
+    hardwareConcurrency: toFinitePositive(nav.hardwareConcurrency) ?? null,
+    deviceMemoryGb: toFinitePositive(nav.deviceMemory) ?? null,
+  };
+};
+
+const getFallbackDownlinkMbps = (effectiveType: string | null): number => {
+  if (!effectiveType) return 1.2;
+  if (effectiveType.includes("slow-2g")) return 0.05;
+  if (effectiveType.includes("2g")) return 0.2;
+  if (effectiveType.includes("3g")) return 0.7;
+  if (effectiveType.includes("4g")) return 2.5;
+  return 1.2;
+};
+
+const estimateTimeoutMs = (
+  kind: PreloadAssetKind,
+  sizeBytes: number | undefined,
+  hints: NetworkHints
+): number => {
+  const safeSize = Number.isFinite(sizeBytes) && (sizeBytes as number) > 0
+    ? (sizeBytes as number)
+    : 0;
+
+  if (!safeSize) return DEFAULT_TIMEOUT_BY_KIND_MS[kind];
+
+  const downlinkMbps =
+    hints.downlinkMbps ?? getFallbackDownlinkMbps(hints.effectiveType);
+  const rttMs = hints.rttMs ?? 300;
+
+  const bitsPerSecond = Math.max(10000, downlinkMbps * 1_000_000);
+  const transferMs = (safeSize * 8 * 1000) / bitsPerSecond;
+
+  const multiplierByKind: Record<PreloadAssetKind, number> = {
+    image: 1.7,
+    audio: 2.2,
+    document: 1.9,
+    other: 1.9,
+  };
+
+  const estimated =
+    transferMs * multiplierByKind[kind] + rttMs * 2 + 4500;
+
+  return clamp(
+    Math.ceil(estimated),
+    MIN_TIMEOUT_BY_KIND_MS[kind],
+    MAX_TIMEOUT_BY_KIND_MS
+  );
+};
+
+const detectAdaptiveProfile = (
+  assets: PreloadAsset[]
+): AdaptiveProfile => {
+  const networkHints = getNetworkHints();
+  const deviceHints = getDeviceHints();
+
+  const slowNetwork =
+    (networkHints.effectiveType?.includes("2g") ?? false) ||
+    (networkHints.effectiveType?.includes("3g") ?? false) ||
+    (networkHints.downlinkMbps != null && networkHints.downlinkMbps < 1.5) ||
+    (networkHints.rttMs != null && networkHints.rttMs > 400);
+
+  const verySlowNetwork =
+    (networkHints.effectiveType?.includes("slow-2g") ?? false) ||
+    (networkHints.downlinkMbps != null && networkHints.downlinkMbps < 0.6) ||
+    (networkHints.rttMs != null && networkHints.rttMs > 800);
+
+  const constrainedDevice =
+    (deviceHints.hardwareConcurrency != null &&
+      deviceHints.hardwareConcurrency <= 4) ||
+    (deviceHints.deviceMemoryGb != null && deviceHints.deviceMemoryGb <= 4);
+
+  const baseConcurrency = verySlowNetwork
+    ? VERY_SLOW_CONCURRENCY_BY_KIND
+    : slowNetwork || constrainedDevice
+      ? SLOW_CONCURRENCY_BY_KIND
+      : DEFAULT_CONCURRENCY_BY_KIND;
+
+  const timeoutByKindMs: Record<PreloadAssetKind, number> = {
+    image: DEFAULT_TIMEOUT_BY_KIND_MS.image,
+    audio: DEFAULT_TIMEOUT_BY_KIND_MS.audio,
+    document: DEFAULT_TIMEOUT_BY_KIND_MS.document,
+    other: DEFAULT_TIMEOUT_BY_KIND_MS.other,
+  };
+
+  for (const asset of assets) {
+    const candidate = estimateTimeoutMs(asset.kind, asset.size, networkHints);
+    timeoutByKindMs[asset.kind] = Math.max(timeoutByKindMs[asset.kind], candidate);
+  }
+
+  return {
+    timeoutByKindMs,
+    concurrencyByKind: { ...baseConcurrency },
+    retryBaseDelayByKindMs: { ...DEFAULT_RETRY_BASE_DELAY_BY_KIND_MS },
+  };
+};
+
+const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
+  new Promise((resolve, reject) => {
+    let settled = false;
+    const timeoutId = window.setTimeout(() => {
+      settled = true;
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, Math.max(0, ms));
+
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      signal?.removeEventListener("abort", onAbort);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+
+    if (signal) {
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+  });
+
+const waitUntilOnline = async (signal?: AbortSignal): Promise<void> => {
+  if (!isBrowser()) return;
+  if (typeof navigator === "undefined" || navigator.onLine) return;
+
+  await new Promise<void>((resolve, reject) => {
+    const onOnline = () => {
+      cleanup();
+      resolve();
+    };
+
+    const onAbort = () => {
+      cleanup();
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+
+    const cleanup = () => {
+      window.removeEventListener("online", onOnline);
+      signal?.removeEventListener("abort", onAbort);
+    };
+
+    window.addEventListener("online", onOnline, { once: true });
+
+    if (signal) {
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+  });
+};
+
+const getRetryDelayMs = (
+  kind: PreloadAssetKind,
+  attempt: number,
+  retryBaseDelayMsByKind: Record<PreloadAssetKind, number>
+): number => {
+  const base = retryBaseDelayMsByKind[kind];
+  const exponential = base * Math.pow(1.6, Math.max(0, attempt - 1));
+  const jitter = 0.85 + Math.random() * 0.3;
+  return Math.min(30000, Math.round(exponential * jitter));
 };
 
 const createSuccessResult = (
@@ -112,6 +382,35 @@ const createFailedResult = (
   reason,
 });
 
+const consumeResponseStream = async (
+  response: Response,
+  signal?: AbortSignal
+): Promise<number> => {
+  if (!response.body) {
+    const fallback = await response.arrayBuffer();
+    return fallback.byteLength;
+  }
+
+  const reader = response.body.getReader();
+  let total = 0;
+
+  try {
+    while (true) {
+      if (signal?.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
+
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value?.byteLength ?? 0;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return total;
+};
+
 const runTaskPool = async <T>(
   items: T[],
   concurrency: number,
@@ -135,7 +434,8 @@ const runTaskPool = async <T>(
 
 export const preloadImageStrict = async (
   url: string,
-  timeoutMs = DEFAULT_TIMEOUT_BY_KIND_MS.image
+  timeoutMs = DEFAULT_TIMEOUT_BY_KIND_MS.image,
+  signal?: AbortSignal
 ): Promise<PreloadResult> => {
   if (!isBrowser()) return createFailedResult(url, "image", "not_in_browser");
   const assetKey = toAssetKey(url);
@@ -144,40 +444,58 @@ export const preloadImageStrict = async (
     return createSuccessResult(url, "image", true);
   }
 
-  return new Promise<PreloadResult>((resolve) => {
-    const img = new Image();
-    let settled = false;
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const onAbort = () => controller.abort();
 
-    const done = (result: PreloadResult) => {
-      if (settled) return;
-      settled = true;
-      if (timeoutId) window.clearTimeout(timeoutId);
-      img.onload = null;
-      img.onerror = null;
-      resolve(result);
-    };
+  if (signal) {
+    if (signal.aborted) {
+      window.clearTimeout(timeoutId);
+      return createFailedResult(url, "image", "aborted");
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
 
-    const timeoutId = window.setTimeout(() => {
-      done(createFailedResult(url, "image", "timeout"));
-    }, timeoutMs);
+  try {
+    const response = await fetch(normalizeUrl(url), {
+      method: "GET",
+      cache: "force-cache",
+      signal: controller.signal,
+    });
 
-    img.onload = () => {
-      preloadedAssets.add(assetKey);
-      done(createSuccessResult(url, "image", false));
-    };
+    if (!response.ok) {
+      return createFailedResult(url, "image", `http_${response.status}`);
+    }
 
-    img.onerror = () => {
-      done(createFailedResult(url, "image", "image_load_failed"));
-    };
+    let bytesLoaded = await consumeResponseStream(response, controller.signal);
+    if (bytesLoaded <= 0) {
+      const contentLength = Number.parseInt(
+        response.headers.get("content-length") ?? "",
+        10
+      );
+      if (Number.isFinite(contentLength) && contentLength > 0) {
+        bytesLoaded = contentLength;
+      }
+    }
 
-    img.src = normalizeUrl(url);
-  });
+    preloadedAssets.add(assetKey);
+    return createSuccessResult(url, "image", false, bytesLoaded);
+  } catch (error) {
+    if (controller.signal.aborted) {
+      return createFailedResult(url, "image", signal?.aborted ? "aborted" : "timeout");
+    }
+    return createFailedResult(url, "image", getErrorMessage(error));
+  } finally {
+    window.clearTimeout(timeoutId);
+    signal?.removeEventListener("abort", onAbort);
+  }
 };
 
 export const preloadBinaryStrict = async (
   url: string,
   kind: Exclude<PreloadAssetKind, "image">,
-  timeoutMs = DEFAULT_TIMEOUT_BY_KIND_MS[kind]
+  timeoutMs = DEFAULT_TIMEOUT_BY_KIND_MS[kind],
+  signal?: AbortSignal
 ): Promise<PreloadResult> => {
   if (!isBrowser()) return createFailedResult(url, kind, "not_in_browser");
   const assetKey = toAssetKey(url);
@@ -188,6 +506,15 @@ export const preloadBinaryStrict = async (
 
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  const onAbort = () => controller.abort();
+
+  if (signal) {
+    if (signal.aborted) {
+      window.clearTimeout(timeoutId);
+      return createFailedResult(url, kind, "aborted");
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
 
   try {
     const response = await fetch(normalizeUrl(url), {
@@ -200,36 +527,43 @@ export const preloadBinaryStrict = async (
       return createFailedResult(url, kind, `http_${response.status}`);
     }
 
-    const buffer = await response.arrayBuffer();
-    const bytesLoaded = buffer.byteLength;
-    preloadedAssets.add(assetKey);
-
-    if (kind === "audio" && !preloadedAudioObjectUrls.has(assetKey)) {
-      const contentType = response.headers.get("content-type") || "audio/mpeg";
-      const blob = new Blob([buffer], { type: contentType });
-      preloadedAudioObjectUrls.set(assetKey, URL.createObjectURL(blob));
+    let bytesLoaded = await consumeResponseStream(response, controller.signal);
+    if (bytesLoaded <= 0) {
+      const contentLength = Number.parseInt(
+        response.headers.get("content-length") ?? "",
+        10
+      );
+      if (Number.isFinite(contentLength) && contentLength > 0) {
+        bytesLoaded = contentLength;
+      }
     }
+    preloadedAssets.add(assetKey);
 
     return createSuccessResult(url, kind, false, bytesLoaded);
   } catch (error) {
+    if (controller.signal.aborted) {
+      return createFailedResult(url, kind, signal?.aborted ? "aborted" : "timeout");
+    }
     return createFailedResult(url, kind, getErrorMessage(error));
   } finally {
     window.clearTimeout(timeoutId);
+    signal?.removeEventListener("abort", onAbort);
   }
 };
 
 export const preloadAssetStrict = async (
   asset: PreloadAsset,
-  timeoutByKindMs: Partial<Record<PreloadAssetKind, number>> = {}
+  timeoutByKindMs: Partial<Record<PreloadAssetKind, number>> = {},
+  signal?: AbortSignal
 ): Promise<PreloadResult> => {
   const timeoutMs =
     timeoutByKindMs[asset.kind] ?? DEFAULT_TIMEOUT_BY_KIND_MS[asset.kind];
 
   if (asset.kind === "image") {
-    return preloadImageStrict(asset.url, timeoutMs);
+    return preloadImageStrict(asset.url, timeoutMs, signal);
   }
 
-  return preloadBinaryStrict(asset.url, asset.kind, timeoutMs);
+  return preloadBinaryStrict(asset.url, asset.kind, timeoutMs, signal);
 };
 
 export const runStrictPreload = async (
@@ -250,27 +584,63 @@ export const runStrictPreload = async (
     };
   }
 
+  const adaptiveProfile = detectAdaptiveProfile(uniqueAssets);
+
   const concurrencyByKind = {
-    ...DEFAULT_CONCURRENCY_BY_KIND,
+    ...adaptiveProfile.concurrencyByKind,
     ...options.concurrencyByKind,
   };
+
+  const timeoutByKindMs = {
+    ...adaptiveProfile.timeoutByKindMs,
+    ...options.timeoutByKindMs,
+  };
+
+  const retryBaseDelayMsByKind = {
+    ...adaptiveProfile.retryBaseDelayByKindMs,
+    ...options.retryBaseDelayMsByKind,
+  };
+
+  const maxRetryAttemptsPerAsset =
+    options.maxRetryAttemptsPerAsset ?? Number.POSITIVE_INFINITY;
 
   const outcomes: PreloadResult[] = [];
   let completed = 0;
   let succeeded = 0;
   let failed = 0;
+  const totalBytes = uniqueAssets.reduce(
+    (sum, asset) => sum + (asset.size ?? 0),
+    0
+  );
+  let loadedBytes = 0;
 
-  const pushOutcome = (outcome: PreloadResult) => {
-    outcomes.push(outcome);
-    completed += 1;
-    if (outcome.success) succeeded += 1;
-    else failed += 1;
+  const pushOutcome = (
+    outcome: PreloadResult,
+    attempt: number,
+    retrying: boolean,
+    assetSize: number,
+    isFinal: boolean
+  ) => {
+    if (isFinal) {
+      outcomes.push(outcome);
+      completed += 1;
+      if (outcome.success) {
+        succeeded += 1;
+        loadedBytes += assetSize > 0 ? assetSize : outcome.bytesLoaded ?? 0;
+      } else {
+        failed += 1;
+      }
+    }
 
     options.onProgress?.({
       total: uniqueAssets.length,
       completed,
       succeeded,
       failed,
+      totalBytes,
+      loadedBytes,
+      attempt,
+      retrying,
       current: outcome,
     });
   };
@@ -292,8 +662,40 @@ export const runStrictPreload = async (
       if (!queue.length) return;
 
       await runTaskPool(queue, concurrencyByKind[kind], async (asset) => {
-        const outcome = await preloadAssetStrict(asset, options.timeoutByKindMs);
-        pushOutcome(outcome);
+        let attempt = 0;
+
+        while (true) {
+          if (options.signal?.aborted) {
+            throw new DOMException("Aborted", "AbortError");
+          }
+
+          attempt += 1;
+          const outcome = await preloadAssetStrict(
+            asset,
+            timeoutByKindMs,
+            options.signal
+          );
+
+          if (outcome.success) {
+            pushOutcome(outcome, attempt, false, asset.size ?? 0, true);
+            return;
+          }
+
+          const shouldRetry = attempt < maxRetryAttemptsPerAsset;
+          if (!shouldRetry) {
+            pushOutcome(outcome, attempt, false, asset.size ?? 0, true);
+            return;
+          }
+
+          pushOutcome(outcome, attempt, true, asset.size ?? 0, false);
+
+          if (isBrowser() && typeof navigator !== "undefined" && !navigator.onLine) {
+            await waitUntilOnline(options.signal);
+          }
+
+          const delay = getRetryDelayMs(kind, attempt, retryBaseDelayMsByKind);
+          await sleep(delay, options.signal);
+        }
       });
     })
   );
@@ -356,12 +758,54 @@ export const getPreloadedAudioObjectUrl = (src: string): string | null => {
   return preloadedAudioObjectUrls.get(toAssetKey(src)) ?? null;
 };
 
+export const ensurePreloadedAudioObjectUrl = async (
+  src: string
+): Promise<string | null> => {
+  if (!isBrowser()) return null;
+  const assetKey = toAssetKey(src);
+
+  const existing = preloadedAudioObjectUrls.get(assetKey);
+  if (existing) return existing;
+
+  if (preloadedAudioObjectUrlPromises.has(assetKey)) {
+    return preloadedAudioObjectUrlPromises.get(assetKey)!;
+  }
+
+  const promise = (async () => {
+    try {
+      if (!preloadedAssets.has(assetKey)) {
+        const preloadResult = await preloadBinaryStrict(src, "audio");
+        if (!preloadResult.success) return null;
+      }
+
+      const response = await fetch(normalizeUrl(src), {
+        method: "GET",
+        cache: "force-cache",
+      });
+      if (!response.ok) return null;
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      preloadedAudioObjectUrls.set(assetKey, objectUrl);
+      return objectUrl;
+    } catch {
+      return null;
+    } finally {
+      preloadedAudioObjectUrlPromises.delete(assetKey);
+    }
+  })();
+
+  preloadedAudioObjectUrlPromises.set(assetKey, promise);
+  return promise;
+};
+
 export const clearPreloadCache = (): void => {
   if (isBrowser()) {
     for (const objectUrl of preloadedAudioObjectUrls.values()) {
       URL.revokeObjectURL(objectUrl);
     }
   }
+  preloadedAudioObjectUrlPromises.clear();
   preloadedAudioObjectUrls.clear();
   preloadedAssets.clear();
 };

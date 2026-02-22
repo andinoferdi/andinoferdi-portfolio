@@ -9,7 +9,6 @@ import {
   markInitialPreloadComplete,
   runStrictPreload,
   type PreloadAsset,
-  type PreloadAssetKind,
   type PreloadResult,
 } from "@/services/preload";
 
@@ -20,19 +19,14 @@ interface LoadingScreenProps {
 interface PreloadManifestResponse {
   assets: PreloadAsset[];
   totalCount: number;
+  totalBytes: number;
 }
-
-const CONCURRENCY_BY_KIND: Record<PreloadAssetKind, number> = {
-  image: 6,
-  audio: 2,
-  document: 2,
-  other: 2,
-};
 
 export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showStartButton, setShowStartButton] = useState(false);
+  const [statusText, setStatusText] = useState("Preparing your experience...");
   const [totalAssets, setTotalAssets] = useState(0);
   const [loadedAssets, setLoadedAssets] = useState(0);
   const [failedAssets, setFailedAssets] = useState<PreloadResult[]>([]);
@@ -48,6 +42,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
 
   useEffect(() => {
     let cancelled = false;
+    const preloadController = new AbortController();
 
     const preloadAssets = async () => {
       clearInitialPreloadComplete();
@@ -58,6 +53,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
       setProgress(0);
       setTotalAssets(0);
       setLoadedAssets(0);
+      setStatusText("Fetching preload manifest...");
 
       try {
         const response = await fetch("/api/preload-assets", { cache: "no-store" });
@@ -71,6 +67,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
         const assets = manifest.assets ?? [];
 
         setTotalAssets(manifest.totalCount ?? assets.length);
+        setStatusText("Downloading all assets...");
 
         if (!assets.length) {
           setProgress(100);
@@ -81,12 +78,22 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
         }
 
         const result = await runStrictPreload(assets, {
-          concurrencyByKind: CONCURRENCY_BY_KIND,
+          signal: preloadController.signal,
           onProgress: (state) => {
             if (cancelled) return;
 
             setLoadedAssets(state.succeeded);
-            setProgress(Math.floor((state.succeeded / state.total) * 100));
+            const progressByBytes =
+              state.totalBytes > 0
+                ? Math.floor((state.loadedBytes / state.totalBytes) * 100)
+                : Math.floor((state.succeeded / state.total) * 100);
+
+            setProgress(Math.min(100, Math.max(0, progressByBytes)));
+            setStatusText(
+              state.retrying
+                ? "Retrying failed downloads..."
+                : "Downloading all assets..."
+            );
           },
         });
 
@@ -99,14 +106,19 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           setProgress(100);
           setIsLoading(false);
           setShowStartButton(true);
+          setStatusText("All assets loaded successfully.");
           markInitialPreloadComplete();
           return;
         }
 
         setIsLoading(false);
         setShowStartButton(false);
+        setStatusText("Some assets failed to preload.");
       } catch (error) {
         if (cancelled) return;
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
         setManifestError(
           error instanceof Error ? error.message : "Failed to load manifest"
         );
@@ -119,6 +131,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
 
     return () => {
       cancelled = true;
+      preloadController.abort();
     };
   }, [retryToken]);
 
@@ -166,7 +179,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
                 className="w-full max-w-sm"
               >
                 <div className="mb-4 text-sm text-muted-foreground">
-                  Preparing your experience...
+                  {statusText}
                 </div>
 
                 <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
