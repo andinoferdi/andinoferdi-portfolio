@@ -130,11 +130,6 @@ interface NetworkHints {
   effectiveType: string | null;
 }
 
-interface DeviceHints {
-  hardwareConcurrency: number | null;
-  deviceMemoryGb: number | null;
-}
-
 interface AdaptiveProfile {
   timeoutByKindMs: Record<PreloadAssetKind, number>;
   concurrencyByKind: Record<PreloadAssetKind, number>;
@@ -174,24 +169,6 @@ const getNetworkHints = (): NetworkHints => {
     downlinkMbps: toFinitePositive(conn?.downlink) ?? null,
     rttMs: toFinitePositive(conn?.rtt) ?? null,
     effectiveType: conn?.effectiveType ?? null,
-  };
-};
-
-const getDeviceHints = (): DeviceHints => {
-  if (!isBrowser()) {
-    return {
-      hardwareConcurrency: null,
-      deviceMemoryGb: null,
-    };
-  }
-
-  const nav = navigator as Navigator & {
-    deviceMemory?: number;
-  };
-
-  return {
-    hardwareConcurrency: toFinitePositive(nav.hardwareConcurrency) ?? null,
-    deviceMemoryGb: toFinitePositive(nav.deviceMemory) ?? null,
   };
 };
 
@@ -243,7 +220,6 @@ const detectAdaptiveProfile = (
   assets: PreloadAsset[]
 ): AdaptiveProfile => {
   const networkHints = getNetworkHints();
-  const deviceHints = getDeviceHints();
 
   const slowNetwork =
     (networkHints.effectiveType?.includes("2g") ?? false) ||
@@ -256,14 +232,9 @@ const detectAdaptiveProfile = (
     (networkHints.downlinkMbps != null && networkHints.downlinkMbps < 0.6) ||
     (networkHints.rttMs != null && networkHints.rttMs > 800);
 
-  const constrainedDevice =
-    (deviceHints.hardwareConcurrency != null &&
-      deviceHints.hardwareConcurrency <= 4) ||
-    (deviceHints.deviceMemoryGb != null && deviceHints.deviceMemoryGb <= 4);
-
   const baseConcurrency = verySlowNetwork
     ? VERY_SLOW_CONCURRENCY_BY_KIND
-    : slowNetwork || constrainedDevice
+    : slowNetwork
       ? SLOW_CONCURRENCY_BY_KIND
       : DEFAULT_CONCURRENCY_BY_KIND;
 

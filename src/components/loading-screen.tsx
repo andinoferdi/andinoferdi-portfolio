@@ -22,6 +22,32 @@ interface PreloadManifestResponse {
   totalBytes: number;
 }
 
+let preloadManifestPromise: Promise<PreloadManifestResponse> | null = null;
+
+const fetchPreloadManifest = async (): Promise<PreloadManifestResponse> => {
+  const response = await fetch("/api/preload-assets", { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`manifest_http_${response.status}`);
+  }
+
+  return (await response.json()) as PreloadManifestResponse;
+};
+
+const getPreloadManifest = (): Promise<PreloadManifestResponse> => {
+  if (!preloadManifestPromise) {
+    preloadManifestPromise = fetchPreloadManifest().catch((error) => {
+      preloadManifestPromise = null;
+      throw error;
+    });
+  }
+
+  return preloadManifestPromise;
+};
+
+const resetPreloadManifestPromise = (): void => {
+  preloadManifestPromise = null;
+};
+
 export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,12 +82,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
       setStatusText("Fetching preload manifest...");
 
       try {
-        const response = await fetch("/api/preload-assets", { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error(`manifest_http_${response.status}`);
-        }
-
-        const manifest = (await response.json()) as PreloadManifestResponse;
+        const manifest = await getPreloadManifest();
         if (cancelled) return;
 
         const assets = manifest.assets ?? [];
@@ -143,6 +164,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   };
 
   const handleRetry = () => {
+    resetPreloadManifestPromise();
     setRetryToken((prev) => prev + 1);
   };
 
