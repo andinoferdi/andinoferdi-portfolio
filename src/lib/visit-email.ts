@@ -18,6 +18,9 @@ export type VisitEmailPayload = {
   eventType?: string;
   clientHints?: string;
   deviceSignature?: string;
+  geoSource?: string;
+  geoReliability?: "high" | "medium" | "low";
+  ipHeaderSource?: string;
 };
 
 type BrevoRecipient = {
@@ -64,9 +67,14 @@ const buildTextContent = (payload: VisitEmailPayload): string => {
     `Visitor ID: ${toSafeValue(payload.visitorId)}`,
     `Device Signature: ${toSafeValue(payload.deviceSignature)}`,
     `Client Hints: ${toSafeValue(payload.clientHints)}`,
-    `Country: ${toSafeValue(payload.country)}`,
-    `Region: ${toSafeValue(payload.region)}`,
-    `City: ${toSafeValue(payload.city)}`,
+    "Estimated IP Geolocation:",
+    `Country (estimated): ${toSafeValue(payload.country)}`,
+    `Region (estimated): ${toSafeValue(payload.region)}`,
+    `City (estimated): ${toSafeValue(payload.city)}`,
+    `Geo Source: ${toSafeValue(payload.geoSource)}`,
+    `Geo Reliability: ${toSafeValue(payload.geoReliability)}`,
+    `IP Header Source: ${toSafeValue(payload.ipHeaderSource)}`,
+    "Geolocation is based on IP estimation and may differ from the visitor's precise physical location.",
     `Language: ${toSafeValue(payload.language)}`,
     `Timezone: ${toSafeValue(payload.timezone)}`,
     `Server Timestamp: ${toSafeValue(payload.serverTimestamp)}`,
@@ -88,9 +96,14 @@ const buildHtmlContent = (payload: VisitEmailPayload): string => {
       <p style="margin:4px 0;"><strong>Visitor ID:</strong> ${escapeHtml(toSafeValue(payload.visitorId))}</p>
       <p style="margin:4px 0;"><strong>Device Signature:</strong> ${escapeHtml(toSafeValue(payload.deviceSignature))}</p>
       <p style="margin:4px 0;"><strong>Client Hints:</strong> ${escapeHtml(toSafeValue(payload.clientHints))}</p>
-      <p style="margin:4px 0;"><strong>Country:</strong> ${escapeHtml(toSafeValue(payload.country))}</p>
-      <p style="margin:4px 0;"><strong>Region:</strong> ${escapeHtml(toSafeValue(payload.region))}</p>
-      <p style="margin:4px 0;"><strong>City:</strong> ${escapeHtml(toSafeValue(payload.city))}</p>
+      <p style="margin:10px 0 6px 0;"><strong>Estimasi Lokasi IP:</strong></p>
+      <p style="margin:4px 0;"><strong>Country (estimasi):</strong> ${escapeHtml(toSafeValue(payload.country))}</p>
+      <p style="margin:4px 0;"><strong>Region (estimasi):</strong> ${escapeHtml(toSafeValue(payload.region))}</p>
+      <p style="margin:4px 0;"><strong>City (estimasi):</strong> ${escapeHtml(toSafeValue(payload.city))}</p>
+      <p style="margin:4px 0;"><strong>Geo Source:</strong> ${escapeHtml(toSafeValue(payload.geoSource))}</p>
+      <p style="margin:4px 0;"><strong>Geo Reliability:</strong> ${escapeHtml(toSafeValue(payload.geoReliability))}</p>
+      <p style="margin:4px 0;"><strong>IP Header Source:</strong> ${escapeHtml(toSafeValue(payload.ipHeaderSource))}</p>
+      <p style="margin:6px 0 0 0; color:#4b5563;"><em>Lokasi berbasis IP bersifat estimasi dan dapat berbeda dari lokasi fisik presisi pengunjung.</em></p>
       <p style="margin:4px 0;"><strong>Language:</strong> ${escapeHtml(toSafeValue(payload.language))}</p>
       <p style="margin:4px 0;"><strong>Timezone:</strong> ${escapeHtml(toSafeValue(payload.timezone))}</p>
       <p style="margin:4px 0;"><strong>Server Timestamp:</strong> ${escapeHtml(toSafeValue(payload.serverTimestamp))}</p>

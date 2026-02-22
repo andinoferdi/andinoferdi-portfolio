@@ -18,9 +18,12 @@ const TRACK_ENDPOINT = "/api/visit";
 const VISIT_SESSION_KEY = "portfolio_visit_sent";
 const VISIT_STATE_KEY = "portfolio_visit_state";
 const VISIT_LAST_ATTEMPT_KEY = "portfolio_visit_last_attempt";
+const VISIT_LAST_FAILED_PATH_KEY = "portfolio_visit_last_failed_path";
+const VISIT_LAST_FAILED_AT_KEY = "portfolio_visit_last_failed_at";
 const VISITOR_COOKIE_KEY = "portfolio_visitor_id";
 const VISITOR_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365 * 2; // 2 years
 const RETRY_COOLDOWN_MS = 3000;
+const SAME_PATH_FAILURE_COOLDOWN_MS = 15000;
 
 type VisitState = "idle" | "sending" | "sent";
 
@@ -106,6 +109,18 @@ export const VisitTracker = () => {
       return;
     }
 
+    const lastFailedPath = window.sessionStorage.getItem(VISIT_LAST_FAILED_PATH_KEY);
+    const lastFailedAtRaw = window.sessionStorage.getItem(VISIT_LAST_FAILED_AT_KEY);
+    const lastFailedAt = lastFailedAtRaw ? Number(lastFailedAtRaw) : 0;
+    const isSamePathFailure =
+      lastFailedPath === pathname &&
+      Number.isFinite(lastFailedAt) &&
+      now - lastFailedAt < SAME_PATH_FAILURE_COOLDOWN_MS;
+
+    if (isSamePathFailure) {
+      return;
+    }
+
     inFlightRef.current = true;
     window.sessionStorage.setItem(VISIT_STATE_KEY, "sending");
     window.sessionStorage.setItem(VISIT_LAST_ATTEMPT_KEY, String(now));
@@ -133,9 +148,13 @@ export const VisitTracker = () => {
       .then(() => {
         window.sessionStorage.setItem(VISIT_STATE_KEY, "sent");
         window.sessionStorage.setItem(VISIT_SESSION_KEY, "1");
+        window.sessionStorage.removeItem(VISIT_LAST_FAILED_PATH_KEY);
+        window.sessionStorage.removeItem(VISIT_LAST_FAILED_AT_KEY);
       })
       .catch(() => {
         window.sessionStorage.setItem(VISIT_STATE_KEY, "idle");
+        window.sessionStorage.setItem(VISIT_LAST_FAILED_PATH_KEY, pathname);
+        window.sessionStorage.setItem(VISIT_LAST_FAILED_AT_KEY, String(Date.now()));
       })
       .finally(() => {
         inFlightRef.current = false;

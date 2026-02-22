@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
@@ -44,7 +44,7 @@ export const useChatbot = () => {
   const setSelectedModel = useCallback((modelId: string) => {
     if (process.env.NODE_ENV === "development" && modelId !== AUTO_MODEL_ID) {
       console.info(
-        "[Chatbot] Manual model selection ignored; using Auto (OpenRouter Free)."
+        "[Chatbot] Manual model selection ignored; using Auto (Server Route)."
       );
     }
 

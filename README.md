@@ -1,4 +1,4 @@
-# Andino Ferdiansah Portfolio
+﻿# Andino Ferdiansah Portfolio
 
 Portfolio website modern yang menampilkan proyek, pengalaman, dan kemampuan saya sebagai Full-Stack Developer.
 
@@ -55,11 +55,12 @@ Chat dengan AI yang mengetahui tentang:
 - Skills dan kemampuan
 - Informasi CV dan kontak
 
-Routing model chatbot menggunakan `openrouter/free` (Auto Free) untuk stabilitas text + image.
-Model spesifik disembunyikan dari UI agar tidak terkena perubahan endpoint model gratis.
+Chatbot sekarang memakai route internal `POST /api/chatbot` agar request model tidak langsung dari browser.
+Pemilihan model bersifat deterministik dengan primary + fallback dari environment server.
 
 Troubleshooting chatbot:
-- Pastikan `NEXT_PUBLIC_OPENROUTER_API_KEY` terisi dan valid
+- Pastikan `OPENROUTER_API_KEY` terisi dan valid di server
+- Opsional atur `CHATBOT_MODEL_PRIMARY` dan `CHATBOT_MODEL_FALLBACKS`
 - Maksimal 3 gambar per request
 - Jika total payload gambar terlalu besar, kompres gambar atau kirim bertahap
 
@@ -105,14 +106,14 @@ npm start
 
 ```
 src/
-├── app/                 # Next.js App Router pages
-├── blocks/              # Komponen halaman utama
-├── components/          # Komponen UI reusable
-├── hooks/               # Custom React hooks
-├── services/            # Business logic dan data
-├── stores/              # State management
-├── types/               # TypeScript definitions
-└── lib/                 # Utility functions
+â”œâ”€â”€ app/                 # Next.js App Router pages
+â”œâ”€â”€ blocks/              # Komponen halaman utama
+â”œâ”€â”€ components/          # Komponen UI reusable
+â”œâ”€â”€ hooks/               # Custom React hooks
+â”œâ”€â”€ services/            # Business logic dan data
+â”œâ”€â”€ stores/              # State management
+â”œâ”€â”€ types/               # TypeScript definitions
+â””â”€â”€ lib/                 # Utility functions
 ```
 
 ## Highlights
@@ -126,3 +127,4 @@ src/
 ## Kontak
 
 - **WhatsApp**: [wa.me/6281359528944](https://wa.me/6281359528944)
+

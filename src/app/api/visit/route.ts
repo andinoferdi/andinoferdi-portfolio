@@ -26,7 +26,9 @@ const pickFirstForwardedIp = (value: string): string => {
   return firstIp?.trim() ?? "";
 };
 
-const getClientIp = (headers: Headers): string => {
+const getClientIpMeta = (
+  headers: Headers
+): { ip: string; ipHeaderSource: string } => {
   const forwardedFor = pickFirstForwardedIp(pickHeader(headers, "x-forwarded-for"));
   const realIp = pickHeader(headers, "x-real-ip");
   const cfIp = pickHeader(headers, "cf-connecting-ip");
@@ -34,7 +36,23 @@ const getClientIp = (headers: Headers): string => {
     pickHeader(headers, "x-vercel-forwarded-for")
   );
 
-  return forwardedFor || realIp || cfIp || vercelForwardedFor || "Unknown";
+  if (forwardedFor) {
+    return { ip: forwardedFor, ipHeaderSource: "x-forwarded-for" };
+  }
+  if (realIp) {
+    return { ip: realIp, ipHeaderSource: "x-real-ip" };
+  }
+  if (cfIp) {
+    return { ip: cfIp, ipHeaderSource: "cf-connecting-ip" };
+  }
+  if (vercelForwardedFor) {
+    return {
+      ip: vercelForwardedFor,
+      ipHeaderSource: "x-vercel-forwarded-for",
+    };
+  }
+
+  return { ip: "Unknown", ipHeaderSource: "none" };
 };
 
 const normalizePath = (path?: string): string => {
@@ -70,6 +88,20 @@ const isLikelyBot = (userAgent: string): boolean => {
   return BOT_USER_AGENT_PATTERN.test(userAgent);
 };
 
+const getGeoReliability = (input: {
+  country: string;
+  region: string;
+  city: string;
+}): "high" | "medium" | "low" => {
+  const hasCountry = input.country !== "Unknown";
+  const hasRegion = input.region !== "Unknown";
+  const hasCity = input.city !== "Unknown";
+
+  if (hasCountry && hasCity) return "high";
+  if (hasCountry || hasRegion) return "medium";
+  return "low";
+};
+
 export async function POST(request: NextRequest) {
   let body: VisitRequestBody = {};
 
@@ -97,8 +129,13 @@ export async function POST(request: NextRequest) {
     return new Response(null, { status: 204 });
   }
 
+  const ipMeta = getClientIpMeta(headers);
+  const country = normalizeValue(pickHeader(headers, "x-vercel-ip-country"));
+  const region = normalizeValue(pickHeader(headers, "x-vercel-ip-country-region"));
+  const city = normalizeValue(pickHeader(headers, "x-vercel-ip-city"));
+
   const payload: VisitEmailPayload = {
-    ip: getClientIp(headers),
+    ip: ipMeta.ip,
     path: normalizePath(body.path),
     referrer:
       normalizeValue(body.referrer) !== "Unknown"
@@ -109,14 +146,17 @@ export async function POST(request: NextRequest) {
     userAgent,
     serverTimestamp: new Date().toISOString(),
     clientTimestamp: normalizeValue(body.clientTimestamp),
-    country: normalizeValue(pickHeader(headers, "x-vercel-ip-country")),
-    region: normalizeValue(pickHeader(headers, "x-vercel-ip-country-region")),
-    city: normalizeValue(pickHeader(headers, "x-vercel-ip-city")),
+    country,
+    region,
+    city,
     language: normalizeValue(body.language),
     timezone: normalizeValue(body.timezone),
     visitorId,
     eventType,
     clientHints: normalizedClientHints,
+    geoSource: "vercel_header",
+    geoReliability: getGeoReliability({ country, region, city }),
+    ipHeaderSource: ipMeta.ipHeaderSource,
     deviceSignature: buildDeviceSignature({
       visitorId,
       userAgent,
