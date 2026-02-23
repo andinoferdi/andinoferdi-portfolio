@@ -199,6 +199,7 @@ const useFlappy = () => {
   const [state, setState] = useState<GameState>("idle");
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(0);
+  const audioPreloadAbortRef = useRef<AbortController | null>(null);
 
   const audioRef = useRef<{ jump: HTMLAudioElement | null; pass: HTMLAudioElement | null; dead: HTMLAudioElement | null; bg: HTMLAudioElement | null }>({
     jump: null, pass: null, dead: null, bg: null,
@@ -420,17 +421,34 @@ const useFlappy = () => {
     const pass = new Audio("/flappy-bird/pass.mp3");
     const dead = new Audio("/flappy-bird/dead.mp3");
     const bg = new Audio("/flappy-bird/background.mp3");
-    jump.preload = "auto";
-    pass.preload = "auto";
-    dead.preload = "auto";
-    bg.preload = "auto";
+    const allAudio = [jump, pass, dead, bg];
+    for (const audio of allAudio) {
+      audio.preload = "auto";
+      audio.setAttribute("playsinline", "true");
+      audio.setAttribute("webkit-playsinline", "true");
+      audio.load();
+    }
     bg.loop = true;
     jump.volume = 1;
     pass.volume = 1;
     dead.volume = 1;
     bg.volume = 1;
+
+    const preloadAbort = new AbortController();
+    audioPreloadAbortRef.current = preloadAbort;
+    const urls = ["/flappy-bird/jump.mp3", "/flappy-bird/pass.mp3", "/flappy-bird/dead.mp3", "/flappy-bird/background.mp3"];
+    void Promise.allSettled(
+      urls.map(async (url) => {
+        const response = await fetch(url, { cache: "force-cache", signal: preloadAbort.signal });
+        if (!response.ok) return;
+        await response.arrayBuffer();
+      })
+    );
+
     audioRef.current = { jump, pass, dead, bg };
     return () => {
+      preloadAbort.abort();
+      audioPreloadAbortRef.current = null;
       jump.pause();
       pass.pause();
       dead.pause();
