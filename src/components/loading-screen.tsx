@@ -106,6 +106,83 @@ const hitCircleRect = (cx: number, cy: number, r: number, x: number, y: number, 
   return dx * dx + dy * dy < r * r;
 };
 
+const drawBird = (ctx: CanvasRenderingContext2D, wing: 0 | 1 | 2, r: number) => {
+  const wingAngles: [number, number, number] = [-0.62, 0.08, 0.62];
+  const wa = wingAngles[wing];
+
+  ctx.save();
+  ctx.translate(-r * 0.68, r * 0.14);
+  ctx.rotate(wa);
+  const wingGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.95);
+  wingGradient.addColorStop(0, "#f6b421");
+  wingGradient.addColorStop(1, "#a85d00");
+  ctx.fillStyle = wingGradient;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 0.98, r * 0.42, -0.08, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#7f4300";
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+  ctx.restore();
+
+  const bodyGradient = ctx.createRadialGradient(-r * 0.18, -r * 0.28, r * 0.04, 0, 0, r);
+  bodyGradient.addColorStop(0, "#ffe566");
+  bodyGradient.addColorStop(0.42, "#f5c800");
+  bodyGradient.addColorStop(1, "#d4a000");
+  ctx.fillStyle = bodyGradient;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#a06800";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(255,255,255,0.78)";
+  ctx.beginPath();
+  ctx.ellipse(r * 0.14, r * 0.32, r * 0.54, r * 0.44, 0.18, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(r * 0.38, -r * 0.22, r * 0.36, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#bbb";
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+
+  ctx.fillStyle = "#111";
+  ctx.beginPath();
+  ctx.arc(r * 0.5, -r * 0.18, r * 0.19, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(r * 0.44, -r * 0.28, r * 0.08, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#f47c0b";
+  ctx.beginPath();
+  ctx.moveTo(r * 0.58, -r * 0.14);
+  ctx.quadraticCurveTo(r * 1.05, -r * 0.1, r * 1.3, r * 0.04);
+  ctx.lineTo(r * 0.62, r * 0.04);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#c85800";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = "#e06800";
+  ctx.beginPath();
+  ctx.moveTo(r * 0.62, r * 0.05);
+  ctx.quadraticCurveTo(r * 1.05, r * 0.1, r * 1.28, r * 0.04);
+  ctx.lineTo(r * 0.6, r * 0.24);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#c85800";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+};
+
 const useFlappy = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stateRef = useRef<GameState>("idle");
@@ -133,6 +210,14 @@ const useFlappy = () => {
   }, []);
 
   const setPhase = useCallback((s: GameState) => { stateRef.current = s; setState(s); }, []);
+  const stopBackgroundMusic = useCallback(() => {
+    const bg = audioRef.current.bg;
+    if (!bg) return;
+    bg.pause();
+    bg.currentTime = 0;
+    bgStartedRef.current = false;
+    bgStartingRef.current = false;
+  }, []);
   const stopAllAudio = useCallback(() => {
     const { jump, pass, dead, bg } = audioRef.current;
     jump?.pause();
@@ -145,7 +230,7 @@ const useFlappy = () => {
     bgStartedRef.current = false;
     bgStartingRef.current = false;
   }, []);
-  const tryStartBackgroundMusic = useCallback(() => {
+  const startBackgroundMusicForPlaying = useCallback(() => {
     if (bgStartedRef.current || bgStartingRef.current) return;
     const bg = audioRef.current.bg;
     if (!bg) return;
@@ -207,10 +292,11 @@ const useFlappy = () => {
   const gameOver = useCallback(() => {
     const s = sim.current;
     setPhase("gameover");
+    stopBackgroundMusic();
     s.flash = 0.9; s.deathVy = Math.max(s.vy, -80); s.deathBounced = false;
     if (!deadPlayedRef.current) { play("dead"); deadPlayedRef.current = true; }
     if (scoreRef.current > bestRef.current) { bestRef.current = scoreRef.current; setBest(scoreRef.current); }
-  }, [play, setPhase]);
+  }, [play, setPhase, stopBackgroundMusic]);
 
   const restartToPlaying = useCallback(() => {
     resetRun();
@@ -218,16 +304,15 @@ const useFlappy = () => {
     sim.current.vy = G.flapVy * 0.6;
     setPhase("playing");
     play("jump");
-    tryStartBackgroundMusic();
-  }, [play, resetRun, setPhase, spawnPipe, tryStartBackgroundMusic]);
+    startBackgroundMusicForPlaying();
+  }, [play, resetRun, setPhase, spawnPipe, startBackgroundMusicForPlaying]);
 
   const flap = useCallback(() => {
-    tryStartBackgroundMusic();
     const st = stateRef.current;
     if (st === "gameover") return;
     if (st === "idle") { restartToPlaying(); return; }
     sim.current.vy = G.flapVy; sim.current.wing = 0; sim.current.wingT = 0; play("jump");
-  }, [play, restartToPlaying, tryStartBackgroundMusic]);
+  }, [play, restartToPlaying]);
 
   const step = useCallback((dt: number) => {
     const s = sim.current;
@@ -294,15 +379,40 @@ const useFlappy = () => {
     const sg = ctx.createLinearGradient(0, groundTop + 12, 0, s.H); sg.addColorStop(0, C.sand1); sg.addColorStop(1, C.sand2); ctx.fillStyle = sg; ctx.fillRect(0, groundTop + 12, s.W, s.groundH - 12);
     ctx.strokeStyle = "rgba(160,120,60,0.4)"; ctx.lineWidth = 1.5; for (let x = -s.groundOff; x < s.W + 48; x += 48) { ctx.beginPath(); ctx.moveTo(x, groundTop + 14); ctx.lineTo(x + 30, groundTop + 14); ctx.stroke(); }
     const tilt = stateRef.current === "gameover" ? Math.PI * 0.5 : clamp(s.vy * 0.0026, -0.5, Math.PI * 0.42);
-    ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(tilt);
-    const wa = s.wing === 0 ? -0.6 : s.wing === 1 ? 0.1 : 0.55; ctx.save(); ctx.rotate(wa); ctx.fillStyle = "#f5a623"; ctx.beginPath(); ctx.ellipse(-G.birdR * 0.2, G.birdR * 0.15, G.birdR * 0.65, G.birdR * 0.38, -0.3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-    const bg = ctx.createRadialGradient(-G.birdR * 0.2, -G.birdR * 0.25, G.birdR * 0.1, 0, 0, G.birdR); bg.addColorStop(0, "#fff8b0"); bg.addColorStop(0.45, "#ffe74c"); bg.addColorStop(1, "#f5c800"); ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, G.birdR, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(G.birdR * 0.32, -G.birdR * 0.22, G.birdR * 0.36, G.birdR * 0.32, 0.2, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#1a0a00"; ctx.beginPath(); ctx.arc(G.birdR * 0.42, -G.birdR * 0.18, G.birdR * 0.14, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#f47c0b"; ctx.beginPath(); ctx.moveTo(G.birdR * 0.55, -G.birdR * 0.08); ctx.lineTo(G.birdR * 1.26, G.birdR * 0.08); ctx.lineTo(G.birdR * 0.55, G.birdR * 0.28); ctx.closePath(); ctx.fill(); ctx.restore();
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(tilt);
+    drawBird(ctx, s.wing, G.birdR);
+    ctx.restore();
     if (stateRef.current === "playing" || stateRef.current === "gameover") { ctx.save(); ctx.translate(s.W * 0.5, 62); ctx.scale(s.pop || 1, s.pop || 1); ctx.font = `900 ${Math.min(46, s.W * 0.1)}px 'Press Start 2P','Courier New',monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 8; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.6)"; ctx.strokeText(String(scoreRef.current), 0, 0); ctx.fillStyle = "#fff"; ctx.fillText(String(scoreRef.current), 0, 0); ctx.restore(); }
     if (s.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${s.flash})`; ctx.fillRect(0, 0, s.W, s.H); }
-    if (stateRef.current === "idle") { ctx.fillStyle = "rgba(0,0,0,0.08)"; ctx.fillRect(0, 0, s.W, s.H); ctx.font = `900 ${Math.min(34, s.W * 0.09)}px 'Press Start 2P','Courier New',monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.strokeText("GET READY!", s.W * 0.5, s.H * 0.3); ctx.fillStyle = "#fff"; ctx.fillText("GET READY!", s.W * 0.5, s.H * 0.3); }
+    if (stateRef.current === "idle") {
+      ctx.fillStyle = "rgba(0,0,0,0.08)";
+      ctx.fillRect(0, 0, s.W, s.H);
+
+      const titleSize = Math.min(34, s.W * 0.09);
+      ctx.font = `900 ${titleSize}px 'Press Start 2P','Courier New',monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineWidth = 6;
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "rgba(0,0,0,0.5)";
+      ctx.strokeText("GET READY!", s.W * 0.5, s.H * 0.28);
+      ctx.fillStyle = "#fff";
+      ctx.fillText("GET READY!", s.W * 0.5, s.H * 0.28);
+
+      const pulse = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() * 0.0032));
+      const instructionSize = Math.min(11, s.W * 0.028);
+      const instructionY = s.H * 0.28 + titleSize + Math.min(28, s.H * 0.06);
+      ctx.globalAlpha = pulse;
+      ctx.font = `900 ${instructionSize}px 'Press Start 2P','Courier New',monospace`;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "rgba(0,0,0,0.55)";
+      ctx.strokeText("TAP / SPACE TO PLAY", s.W * 0.5, instructionY);
+      ctx.fillStyle = "#ffe84c";
+      ctx.fillText("TAP / SPACE TO PLAY", s.W * 0.5, instructionY);
+      ctx.globalAlpha = 1;
+    }
   }, []);
 
   useEffect(() => {
@@ -368,7 +478,7 @@ const useFlappy = () => {
   return {
     canvasRef, state, score, best, medal: useMemo(() => (score >= 10 ? "MEDAL" : null), [score]),
     onTap: flap,
-    onRestart: () => { resetRun(); setPhase("idle"); tryStartBackgroundMusic(); },
+    onRestart: () => { resetRun(); setPhase("idle"); stopBackgroundMusic(); },
     onReplay: restartToPlaying,
     stopAllAudio,
   };
