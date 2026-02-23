@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
@@ -8,6 +8,7 @@ import {
   SkipBack,
   SkipForward,
   Volume2,
+  VolumeX,
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
@@ -88,6 +89,7 @@ export const MiniPlayer: React.FC = () => {
   const [hasAnimated, setHasAnimated] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [hasLoadedInitialTrack, setHasLoadedInitialTrack] = useState(false);
 
   useEffect(() => {
     if (currentTrack && !hasAnimated) {
@@ -119,6 +121,12 @@ export const MiniPlayer: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isTrackLoading && currentTrack && !hasLoadedInitialTrack) {
+      setHasLoadedInitialTrack(true);
+    }
+  }, [currentTrack, hasLoadedInitialTrack, isTrackLoading]);
+
   if (!currentTrack) return null;
 
   return (
@@ -141,7 +149,7 @@ export const MiniPlayer: React.FC = () => {
       }}
       className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40"
     >
-      {isTrackLoading && (
+      {isTrackLoading && !hasLoadedInitialTrack && (
         <div
           className={cn(
             "absolute inset-0 rounded-xl flex items-center justify-center z-50",
@@ -329,8 +337,16 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
   isMobile,
   prefersReducedMotion,
 }) => {
+  const TRACK_TRANSITION_MS = 180;
+  const PREV_RESTART_THRESHOLD = 3;
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekValue, setSeekValue] = useState(currentTime);
+  const [displayTime, setDisplayTime] = useState(currentTime);
+  const [isTrackTransitioning, setIsTrackTransitioning] = useState(false);
+  const [isMuted, setIsMuted] = useState(volume <= 0.001);
+  const transitionRafRef = useRef<number | null>(null);
+  const transitionTimeoutRef = useRef<number | null>(null);
+  const lastNonZeroVolumeRef = useRef(volume > 0.001 ? volume : 0.2);
 
   const seekKeys = new Set([
     "ArrowLeft",
@@ -342,13 +358,116 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
   ]);
 
   useEffect(() => {
-    if (!isSeeking) {
+    if (!isSeeking && !isTrackTransitioning) {
       setSeekValue(currentTime);
     }
-  }, [currentTime, isSeeking]);
+  }, [currentTime, isSeeking, isTrackTransitioning]);
+
+  useEffect(() => {
+    if (!isSeeking && !isTrackTransitioning) {
+      setDisplayTime(currentTime);
+    }
+  }, [currentTime, isSeeking, isTrackTransitioning]);
+
+  useEffect(() => {
+    const muted = volume <= 0.001;
+    setIsMuted(muted);
+    if (!muted) {
+      lastNonZeroVolumeRef.current = volume;
+    }
+  }, [volume]);
+
+  useEffect(() => {
+    return () => {
+      if (transitionRafRef.current) {
+        cancelAnimationFrame(transitionRafRef.current);
+      }
+      if (transitionTimeoutRef.current) {
+        window.clearTimeout(transitionTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const animateDisplayTimeToZero = useCallback(
+    (fromTime: number, onDone: () => void) => {
+      if (prefersReducedMotion) {
+        setDisplayTime(0);
+        onDone();
+        return;
+      }
+
+      if (transitionRafRef.current) {
+        cancelAnimationFrame(transitionRafRef.current);
+      }
+
+      const start = performance.now();
+      const step = (now: number) => {
+        const t = Math.min(1, (now - start) / TRACK_TRANSITION_MS);
+        const eased = 1 - (1 - t) * (1 - t);
+        setDisplayTime(Math.max(0, fromTime * (1 - eased)));
+        if (t < 1) {
+          transitionRafRef.current = requestAnimationFrame(step);
+          return;
+        }
+        transitionRafRef.current = null;
+        onDone();
+      };
+
+      transitionRafRef.current = requestAnimationFrame(step);
+    },
+    [prefersReducedMotion]
+  );
+
+  const runTrackChangeTransition = useCallback(
+    (action: () => void) => {
+      if (isTrackTransitioning) return;
+
+      const fromTime = isSeeking ? seekValue : displayTime;
+      setIsTrackTransitioning(true);
+
+      animateDisplayTimeToZero(fromTime, () => {
+        action();
+        if (transitionTimeoutRef.current) {
+          window.clearTimeout(transitionTimeoutRef.current);
+        }
+        transitionTimeoutRef.current = window.setTimeout(() => {
+          setIsTrackTransitioning(false);
+          transitionTimeoutRef.current = null;
+        }, prefersReducedMotion ? 0 : TRACK_TRANSITION_MS);
+      });
+    },
+    [
+      animateDisplayTimeToZero,
+      displayTime,
+      isSeeking,
+      isTrackTransitioning,
+      prefersReducedMotion,
+      seekValue,
+    ]
+  );
+
+  const toggleMute = useCallback(() => {
+    if (isMuted) {
+      onVolumeChange(lastNonZeroVolumeRef.current > 0.001 ? lastNonZeroVolumeRef.current : 0.2);
+      return;
+    }
+
+    if (volume > 0.001) {
+      lastNonZeroVolumeRef.current = volume;
+    }
+    onVolumeChange(0);
+  }, [isMuted, onVolumeChange, volume]);
+
+  const handlePreviousClick = useCallback(() => {
+    if (currentTime > PREV_RESTART_THRESHOLD) {
+      onPrevious();
+      return;
+    }
+    runTrackChangeTransition(onPrevious);
+  }, [currentTime, onPrevious, runTrackChangeTransition]);
 
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
-  const rawDisplayTime = isSeeking ? seekValue : currentTime;
+  const rawDisplayTime = isSeeking ? seekValue : displayTime;
   const safeDisplayTime =
     safeDuration > 0
       ? Math.min(Math.max(0, rawDisplayTime), safeDuration)
@@ -381,44 +500,51 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
         willChange: "transform, opacity",
         transform: "translateZ(0)",
       }}
-      className="bg-background rounded-2xl shadow-2xl border border-border p-3 w-48 sm:w-52 md:w-56"
+      className="bg-background rounded-2xl shadow-2xl border border-border overflow-hidden w-48 sm:w-52 md:w-56"
       role="dialog"
       aria-label="Music player controls"
     >
-      <div className="flex items-center justify-between mb-2 sm:mb-3">
-        <h3 className="font-bold text-sm sm:text-base text-foreground">
-          Now Playing
-        </h3>
-        <button
-          onClick={onCollapse}
-          className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
-          aria-label="Collapse player"
-        >
-          <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
-        </button>
-      </div>
-
-      <div className="relative w-full h-36 sm:h-40 md:h-48 rounded-xl overflow-hidden mb-2 sm:mb-3">
+      <motion.div
+        className="relative w-full aspect-square"
+        animate={{ opacity: isTrackTransitioning ? 0.45 : 1 }}
+        transition={{ duration: prefersReducedMotion ? 0 : TRACK_TRANSITION_MS / 1000, ease: "easeInOut" }}
+      >
         <SmartImage
           key={currentTrack.id}
           src={currentTrack.coverImage || "/placeholder.svg"}
           alt={currentTrack.title}
-          imgClass="object-contain"
+          imgClass="object-cover"
         />
-      </div>
+        <button
+          onClick={onCollapse}
+          className="absolute right-2 top-2 rounded-full bg-black/40 p-1 text-white backdrop-blur-sm transition-colors hover:bg-black/60 cursor-pointer"
+          aria-label="Collapse player"
+        >
+          <ChevronDown className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+        </button>
+      </motion.div>
 
-      <div className="text-center mb-2 sm:mb-3">
-        <h4 className="font-bold text-sm sm:text-base text-foreground">
-          {currentTrack.title}
-        </h4>
-        <p className="text-xs text-muted-foreground">{currentTrack.artist}</p>
-      </div>
-
-      <div className="space-y-1.5 sm:space-y-2">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="space-y-1.5 p-3 sm:space-y-2">
+        <motion.div
+          className="text-center"
+          animate={{ opacity: isTrackTransitioning ? 0.2 : 1 }}
+          transition={{ duration: prefersReducedMotion ? 0 : TRACK_TRANSITION_MS / 1000, ease: "easeInOut" }}
+        >
+          <h4 className="wrap-break-word text-pretty font-bold text-sm leading-tight text-foreground sm:text-base">
+            {currentTrack.title}
+          </h4>
+          <p className="truncate text-xs text-muted-foreground">
+            {currentTrack.artist}
+          </p>
+        </motion.div>
+        <motion.div
+          className="flex items-center justify-between text-xs text-muted-foreground"
+          animate={{ opacity: isTrackTransitioning ? 0.2 : 1 }}
+          transition={{ duration: prefersReducedMotion ? 0 : TRACK_TRANSITION_MS / 1000, ease: "easeInOut" }}
+        >
           <span>{formatTime(safeDisplayTime)}</span>
           <span>{formatTime(safeDuration)}</span>
-        </div>
+        </motion.div>
 
         <input
           type="range"
@@ -450,7 +576,7 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
 
         <div className="flex items-center justify-center gap-1.5 sm:gap-2">
           <button
-            onClick={onPrevious}
+            onClick={handlePreviousClick}
             className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
             aria-label="Previous track"
           >
@@ -470,7 +596,7 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
           </button>
 
           <button
-            onClick={onNext}
+            onClick={() => runTrackChangeTransition(onNext)}
             className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
             aria-label="Next track"
           >
@@ -479,7 +605,18 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
         </div>
 
         <div className="flex items-center gap-1 sm:gap-1.5">
-          <Volume2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground" />
+          <button
+            type="button"
+            onClick={toggleMute}
+            className="cursor-pointer text-muted-foreground transition-colors hover:text-foreground"
+            aria-label={isMuted ? "Unmute" : "Mute"}
+          >
+            {isMuted ? (
+              <VolumeX className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            ) : (
+              <Volume2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            )}
+          </button>
           <input
             type="range"
             min="0"
@@ -493,7 +630,7 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
             }}
             aria-label="Volume control"
           />
-          <span className="text-xs text-muted-foreground w-6 sm:w-8">
+          <span className="w-6 text-right text-xs text-muted-foreground sm:w-8">
             {Math.round(volume * 100)}%
           </span>
         </div>
@@ -501,3 +638,6 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
     </motion.div>
   );
 };
+
+
+
