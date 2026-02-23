@@ -113,6 +113,7 @@ const useFlappy = () => {
   const bestRef = useRef(0);
   const deadPlayedRef = useRef(false);
   const bgStartedRef = useRef(false);
+  const bgStartingRef = useRef(false);
   const sim = useRef({
     W: 0, H: 0, x: 0, y: 0, vy: 0, groundH: G.groundH,
     pipes: [] as Pipe[], groundOff: 0, cloudOff: 0, wing: 1 as 0 | 1 | 2, wingT: 0,
@@ -142,13 +143,34 @@ const useFlappy = () => {
       bg.currentTime = 0;
     }
     bgStartedRef.current = false;
+    bgStartingRef.current = false;
   }, []);
   const tryStartBackgroundMusic = useCallback(() => {
-    if (bgStartedRef.current) return;
+    if (bgStartedRef.current || bgStartingRef.current) return;
     const bg = audioRef.current.bg;
     if (!bg) return;
-    bgStartedRef.current = true;
-    try { void bg.play(); } catch { bgStartedRef.current = false; }
+    bgStartingRef.current = true;
+    try {
+      const playResult = bg.play();
+      if (playResult && typeof playResult.then === "function") {
+        void playResult
+          .then(() => {
+            bgStartedRef.current = true;
+          })
+          .catch(() => {
+            bgStartedRef.current = false;
+          })
+          .finally(() => {
+            bgStartingRef.current = false;
+          });
+        return;
+      }
+      bgStartedRef.current = true;
+      bgStartingRef.current = false;
+    } catch {
+      bgStartedRef.current = false;
+      bgStartingRef.current = false;
+    }
   }, []);
   const resetBird = useCallback(() => {
     const s = sim.current;
@@ -306,6 +328,7 @@ const useFlappy = () => {
       bg.currentTime = 0;
       audioRef.current = { jump: null, pass: null, dead: null, bg: null };
       bgStartedRef.current = false;
+      bgStartingRef.current = false;
     };
   }, []);
 
