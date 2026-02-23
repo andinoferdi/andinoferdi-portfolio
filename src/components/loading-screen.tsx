@@ -191,6 +191,10 @@ const useFlappy = () => {
   const deadPlayedRef = useRef(false);
   const bgStartedRef = useRef(false);
   const bgStartingRef = useRef(false);
+  const audioUnlockedRef = useRef(false);
+  const bgStartTimerRef = useRef<number | null>(null);
+  const bgRetryTimerRef = useRef<number | null>(null);
+  const bgRetryCountRef = useRef(0);
   const sim = useRef({
     W: 0, H: 0, x: 0, y: 0, vy: 0, groundH: G.groundH,
     pipes: [] as Pipe[], groundOff: 0, cloudOff: 0, wing: 1 as 0 | 1 | 2, wingT: 0,
@@ -204,22 +208,71 @@ const useFlappy = () => {
   const audioRef = useRef<{ jump: HTMLAudioElement | null; pass: HTMLAudioElement | null; dead: HTMLAudioElement | null; bg: HTMLAudioElement | null }>({
     jump: null, pass: null, dead: null, bg: null,
   });
+  const safePlay = useCallback((audio: HTMLAudioElement): Promise<boolean> => {
+    try {
+      const playResult = audio.play();
+      if (playResult && typeof playResult.then === "function") {
+        return playResult
+          .then(() => true)
+          .catch((error) => {
+            if (error instanceof DOMException && error.name === "AbortError") return false;
+            return false;
+          });
+      }
+      return Promise.resolve(true);
+    } catch {
+      return Promise.resolve(false);
+    }
+  }, []);
   const play = useCallback((k: "jump" | "pass" | "dead") => {
     const a = audioRef.current[k];
     if (!a) return;
-    try { a.currentTime = 0; void a.play(); } catch {}
-  }, []);
+    try { a.currentTime = 0; } catch {}
+    void safePlay(a);
+  }, [safePlay]);
 
   const setPhase = useCallback((s: GameState) => { stateRef.current = s; setState(s); }, []);
+  const clearBackgroundMusicTimers = useCallback(() => {
+    if (bgStartTimerRef.current !== null) {
+      window.clearTimeout(bgStartTimerRef.current);
+      bgStartTimerRef.current = null;
+    }
+    if (bgRetryTimerRef.current !== null) {
+      window.clearTimeout(bgRetryTimerRef.current);
+      bgRetryTimerRef.current = null;
+    }
+  }, []);
+  const unlockAudioOnFirstGesture = useCallback(() => {
+    if (audioUnlockedRef.current) return;
+    const jump = audioRef.current.jump;
+    if (!jump) return;
+    audioUnlockedRef.current = true;
+    const wasMuted = jump.muted;
+    jump.muted = true;
+    jump.currentTime = 0;
+    const resetMute = () => {
+      jump.muted = wasMuted;
+    };
+    jump.addEventListener("ended", resetMute, { once: true });
+    void safePlay(jump).then((ok) => {
+      if (!ok) {
+        audioUnlockedRef.current = false;
+        resetMute();
+      }
+    });
+  }, [safePlay]);
   const stopBackgroundMusic = useCallback(() => {
     const bg = audioRef.current.bg;
+    clearBackgroundMusicTimers();
     if (!bg) return;
     bg.pause();
     bg.currentTime = 0;
     bgStartedRef.current = false;
     bgStartingRef.current = false;
-  }, []);
+    bgRetryCountRef.current = 0;
+  }, [clearBackgroundMusicTimers]);
   const stopAllAudio = useCallback(() => {
+    clearBackgroundMusicTimers();
     const { jump, pass, dead, bg } = audioRef.current;
     jump?.pause();
     pass?.pause();
@@ -230,34 +283,45 @@ const useFlappy = () => {
     }
     bgStartedRef.current = false;
     bgStartingRef.current = false;
-  }, []);
+    bgRetryCountRef.current = 0;
+  }, [clearBackgroundMusicTimers]);
   const startBackgroundMusicForPlaying = useCallback(() => {
-    if (bgStartedRef.current || bgStartingRef.current) return;
-    const bg = audioRef.current.bg;
-    if (!bg) return;
-    bgStartingRef.current = true;
-    try {
-      const playResult = bg.play();
-      if (playResult && typeof playResult.then === "function") {
-        void playResult
-          .then(() => {
+    const attemptStart = () => {
+      if (stateRef.current !== "playing") return;
+      if (bgStartedRef.current || bgStartingRef.current) return;
+      const bg = audioRef.current.bg;
+      if (!bg) return;
+      bgStartingRef.current = true;
+      const onFail = () => {
+        bgStartedRef.current = false;
+        bgStartingRef.current = false;
+        if (stateRef.current !== "playing") return;
+        if (bgRetryCountRef.current >= 5) return;
+        const retryDelayMs = 120 + bgRetryCountRef.current * 140;
+        bgRetryCountRef.current += 1;
+        if (bgRetryTimerRef.current !== null) window.clearTimeout(bgRetryTimerRef.current);
+        bgRetryTimerRef.current = window.setTimeout(() => {
+          bgRetryTimerRef.current = null;
+          attemptStart();
+        }, retryDelayMs);
+      };
+      try {
+        void safePlay(bg).then((ok) => {
+          if (ok) {
             bgStartedRef.current = true;
-          })
-          .catch(() => {
-            bgStartedRef.current = false;
-          })
-          .finally(() => {
-            bgStartingRef.current = false;
-          });
-        return;
+            bgRetryCountRef.current = 0;
+          } else {
+            onFail();
+          }
+        }).finally(() => {
+          bgStartingRef.current = false;
+        });
+      } catch {
+        onFail();
       }
-      bgStartedRef.current = true;
-      bgStartingRef.current = false;
-    } catch {
-      bgStartedRef.current = false;
-      bgStartingRef.current = false;
-    }
-  }, []);
+    };
+    attemptStart();
+  }, [safePlay]);
   const resetBird = useCallback(() => {
     const s = sim.current;
     s.x = s.W * 0.3; s.y = s.H * 0.45; s.vy = 0;
@@ -304,16 +368,22 @@ const useFlappy = () => {
     spawnPipe();
     sim.current.vy = G.flapVy * 0.6;
     setPhase("playing");
+    unlockAudioOnFirstGesture();
     play("jump");
-    startBackgroundMusicForPlaying();
-  }, [play, resetRun, setPhase, spawnPipe, startBackgroundMusicForPlaying]);
+    if (bgStartTimerRef.current !== null) window.clearTimeout(bgStartTimerRef.current);
+    bgStartTimerRef.current = window.setTimeout(() => {
+      bgStartTimerRef.current = null;
+      startBackgroundMusicForPlaying();
+    }, 80);
+  }, [play, resetRun, setPhase, spawnPipe, startBackgroundMusicForPlaying, unlockAudioOnFirstGesture]);
 
   const flap = useCallback(() => {
+    unlockAudioOnFirstGesture();
     const st = stateRef.current;
     if (st === "gameover") return;
     if (st === "idle") { restartToPlaying(); return; }
     sim.current.vy = G.flapVy; sim.current.wing = 0; sim.current.wingT = 0; play("jump");
-  }, [play, restartToPlaying]);
+  }, [play, restartToPlaying, unlockAudioOnFirstGesture]);
 
   const step = useCallback((dt: number) => {
     const s = sim.current;
@@ -449,6 +519,7 @@ const useFlappy = () => {
     return () => {
       preloadAbort.abort();
       audioPreloadAbortRef.current = null;
+      clearBackgroundMusicTimers();
       jump.pause();
       pass.pause();
       dead.pause();
@@ -457,8 +528,10 @@ const useFlappy = () => {
       audioRef.current = { jump: null, pass: null, dead: null, bg: null };
       bgStartedRef.current = false;
       bgStartingRef.current = false;
+      bgRetryCountRef.current = 0;
+      audioUnlockedRef.current = false;
     };
-  }, []);
+  }, [clearBackgroundMusicTimers]);
 
   useEffect(() => {
     const cv = canvasRef.current; if (!cv) return;
