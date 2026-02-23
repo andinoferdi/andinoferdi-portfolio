@@ -25,6 +25,7 @@ const IMAGE_EXTENSIONS = new Set([
 
 const AUDIO_EXTENSIONS = new Set([".mp3", ".wav", ".ogg", ".m4a"]);
 const DOCUMENT_EXTENSIONS = new Set([".pdf"]);
+const EXCLUDED_ROOT_DIRECTORIES = new Set(["flappy-bird"]);
 
 const PUBLIC_DIR = path.join(process.cwd(), "public");
 
@@ -48,7 +49,20 @@ const collectAssets = async (directory: string): Promise<PreloadManifestAsset[]>
 
   for (const entry of entries) {
     const fullPath = path.join(directory, entry.name);
+    const relativePath = path.relative(PUBLIC_DIR, fullPath);
+    const normalizedRelativePath = relativePath.split(path.sep).join("/");
+
     if (entry.isDirectory()) {
+      if (
+        normalizedRelativePath &&
+        [...EXCLUDED_ROOT_DIRECTORIES].some(
+          (dir) =>
+            normalizedRelativePath === dir ||
+            normalizedRelativePath.startsWith(`${dir}/`)
+        )
+      ) {
+        continue;
+      }
       const nestedAssets = await collectAssets(fullPath);
       assets.push(...nestedAssets);
       continue;
@@ -95,4 +109,3 @@ export async function GET() {
     );
   }
 }
-

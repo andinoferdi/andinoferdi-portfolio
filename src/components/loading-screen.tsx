@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { HoverBorderGradient } from "@/components/ui/hover-border-button";
+import { AnimatePresence, motion } from "framer-motion";
 import { Play, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { HoverBorderGradient } from "@/components/ui/hover-border-button";
 import {
   clearInitialPreloadComplete,
   markInitialPreloadComplete,
@@ -22,321 +23,455 @@ interface PreloadManifestResponse {
   totalBytes: number;
 }
 
-let preloadManifestPromise: Promise<PreloadManifestResponse> | null = null;
+type GameState = "idle" | "playing" | "gameover";
 
-const fetchPreloadManifest = async (): Promise<PreloadManifestResponse> => {
-  const response = await fetch("/api/preload-assets", { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`manifest_http_${response.status}`);
-  }
+interface Pipe {
+  x: number;
+  topH: number;
+  botY: number;
+  w: number;
+  capW: number;
+  scored: boolean;
+}
 
-  return (await response.json()) as PreloadManifestResponse;
+const C = {
+  sky1: "#5ec8f0",
+  sky2: "#c4eef9",
+  grass: "#74bf2e",
+  grassDark: "#5fa629",
+  sand1: "#ddd58e",
+  sand2: "#c4a354",
+  pipe: "#72c31d",
+  pipeDark: "#538b15",
+  pipeShine: "#9de542",
 };
 
+const G = {
+  gravity: 1400,
+  deathGravity: 1700,
+  flapVy: -420,
+  speed: 180,
+  gap: 160,
+  minGap: 144,
+  width: 64,
+  minWidth: 52,
+  capW: 76,
+  capH: 28,
+  spawnDist: 280,
+  groundH: 80,
+  birdR: 14,
+  step: 1 / 240,
+  maxDt: 1 / 20,
+};
+
+let preloadManifestPromise: Promise<PreloadManifestResponse> | null = null;
 const getPreloadManifest = (): Promise<PreloadManifestResponse> => {
   if (!preloadManifestPromise) {
-    preloadManifestPromise = fetchPreloadManifest().catch((error) => {
-      preloadManifestPromise = null;
-      throw error;
-    });
+    preloadManifestPromise = fetch("/api/preload-assets", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`manifest_http_${res.status}`);
+        return (await res.json()) as PreloadManifestResponse;
+      })
+      .catch((error) => {
+        preloadManifestPromise = null;
+        throw error;
+      });
   }
-
   return preloadManifestPromise;
 };
-
-const resetPreloadManifestPromise = (): void => {
+const resetPreloadManifestPromise = () => {
   preloadManifestPromise = null;
+};
+
+const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+const rr = (a: number, b: number) => a + Math.random() * (b - a);
+
+const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+  const cr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + cr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, cr);
+  ctx.arcTo(x + w, y + h, x, y + h, cr);
+  ctx.arcTo(x, y + h, x, y, cr);
+  ctx.arcTo(x, y, x + w, y, cr);
+  ctx.closePath();
+};
+
+const hitCircleRect = (cx: number, cy: number, r: number, x: number, y: number, w: number, h: number) => {
+  if (w <= 0 || h <= 0) return false;
+  const nx = Math.max(x, Math.min(cx, x + w));
+  const ny = Math.max(y, Math.min(cy, y + h));
+  const dx = cx - nx;
+  const dy = cy - ny;
+  return dx * dx + dy * dy < r * r;
+};
+
+const useFlappy = () => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const stateRef = useRef<GameState>("idle");
+  const scoreRef = useRef(0);
+  const bestRef = useRef(0);
+  const deadPlayedRef = useRef(false);
+  const bgStartedRef = useRef(false);
+  const sim = useRef({
+    W: 0, H: 0, x: 0, y: 0, vy: 0, groundH: G.groundH,
+    pipes: [] as Pipe[], groundOff: 0, cloudOff: 0, wing: 1 as 0 | 1 | 2, wingT: 0,
+    acc: 0, lastTs: 0, raf: null as number | null, flash: 0, deathVy: 0, deathBounced: false, pop: 1,
+  });
+  const [state, setState] = useState<GameState>("idle");
+  const [score, setScore] = useState(0);
+  const [best, setBest] = useState(0);
+
+  const audioRef = useRef<{ jump: HTMLAudioElement | null; pass: HTMLAudioElement | null; dead: HTMLAudioElement | null; bg: HTMLAudioElement | null }>({
+    jump: null, pass: null, dead: null, bg: null,
+  });
+  const play = useCallback((k: "jump" | "pass" | "dead") => {
+    const a = audioRef.current[k];
+    if (!a) return;
+    try { a.currentTime = 0; void a.play(); } catch {}
+  }, []);
+
+  const setPhase = useCallback((s: GameState) => { stateRef.current = s; setState(s); }, []);
+  const stopAllAudio = useCallback(() => {
+    const { jump, pass, dead, bg } = audioRef.current;
+    jump?.pause();
+    pass?.pause();
+    dead?.pause();
+    if (bg) {
+      bg.pause();
+      bg.currentTime = 0;
+    }
+    bgStartedRef.current = false;
+  }, []);
+  const tryStartBackgroundMusic = useCallback(() => {
+    if (bgStartedRef.current) return;
+    const bg = audioRef.current.bg;
+    if (!bg) return;
+    bgStartedRef.current = true;
+    try { void bg.play(); } catch { bgStartedRef.current = false; }
+  }, []);
+  const resetBird = useCallback(() => {
+    const s = sim.current;
+    s.x = s.W * 0.3; s.y = s.H * 0.45; s.vy = 0;
+  }, []);
+
+  const spawnPipe = useCallback(() => {
+    const s = sim.current;
+    if (s.W <= 0 || s.H <= 0) return;
+    const groundTop = s.H - s.groundH;
+    const w = clamp(s.W * 0.1, G.minWidth, G.width);
+    const capW = Math.max(w + 10, G.capW);
+    const mobileGapBias = s.H < 360 ? 22 : s.H < 430 ? 14 : 0;
+    const gap = clamp(G.gap - mobileGapBias + rr(-12, 14), G.minGap - 12, G.gap + 20);
+    const minCenterRaw = clamp(s.H * 0.1, 56, 92) + gap * 0.5;
+    const maxCenterRaw = groundTop - clamp(s.H * 0.14, 68, 110) - gap * 0.5;
+    const safeMin = Math.max(minCenterRaw, gap * 0.5 + 24);
+    const safeMax = Math.min(maxCenterRaw, groundTop - gap * 0.5 - 24);
+    const center =
+      safeMax > safeMin
+        ? rr(safeMin, safeMax)
+        : clamp((safeMin + safeMax) * 0.5, gap * 0.5 + 24, groundTop - gap * 0.5 - 24);
+    s.pipes.push({ x: s.W + capW, topH: Math.max(0, center - gap * 0.5), botY: center + gap * 0.5, w, capW, scored: false });
+  }, []);
+
+  const resetRun = useCallback(() => {
+    const s = sim.current;
+    resetBird();
+    s.pipes = []; s.groundOff = 0; s.cloudOff = 0; s.acc = 0; s.lastTs = 0; s.wing = 1; s.wingT = 0;
+    s.flash = 0; s.deathVy = 0; s.deathBounced = false; s.pop = 1;
+    deadPlayedRef.current = false; scoreRef.current = 0; setScore(0);
+  }, [resetBird]);
+
+  const gameOver = useCallback(() => {
+    const s = sim.current;
+    setPhase("gameover");
+    s.flash = 0.9; s.deathVy = Math.max(s.vy, -80); s.deathBounced = false;
+    if (!deadPlayedRef.current) { play("dead"); deadPlayedRef.current = true; }
+    if (scoreRef.current > bestRef.current) { bestRef.current = scoreRef.current; setBest(scoreRef.current); }
+  }, [play, setPhase]);
+
+  const restartToPlaying = useCallback(() => {
+    resetRun();
+    spawnPipe();
+    sim.current.vy = G.flapVy * 0.6;
+    setPhase("playing");
+    play("jump");
+    tryStartBackgroundMusic();
+  }, [play, resetRun, setPhase, spawnPipe, tryStartBackgroundMusic]);
+
+  const flap = useCallback(() => {
+    tryStartBackgroundMusic();
+    const st = stateRef.current;
+    if (st === "gameover") return;
+    if (st === "idle") { restartToPlaying(); return; }
+    sim.current.vy = G.flapVy; sim.current.wing = 0; sim.current.wingT = 0; play("jump");
+  }, [play, restartToPlaying, tryStartBackgroundMusic]);
+
+  const step = useCallback((dt: number) => {
+    const s = sim.current;
+    const st = stateRef.current;
+    if (s.W <= 0 || s.H <= 0) return;
+    const groundTop = s.H - s.groundH;
+    s.cloudOff = (s.cloudOff + dt * 30) % (s.W + 200);
+
+    if (st === "idle") {
+      s.wingT += dt; if (s.wingT > 0.18) { s.wingT = 0; s.wing = ((s.wing + 1) % 3) as 0 | 1 | 2; }
+      s.y = s.H * 0.45 + Math.sin(performance.now() * 0.0028) * 8;
+      return;
+    }
+    if (st === "gameover") {
+      s.flash = Math.max(0, s.flash - dt * 3.2); s.deathVy += G.deathGravity * dt; s.y += s.deathVy * dt;
+      if (s.y + G.birdR >= groundTop) { s.y = groundTop - G.birdR; if (!s.deathBounced && s.deathVy > 120) { s.deathVy = -s.deathVy * 0.33; s.deathBounced = true; } else s.deathVy = 0; }
+      return;
+    }
+
+    s.vy += G.gravity * dt; s.y += s.vy * dt;
+    if (s.y - G.birdR < 0) { s.y = G.birdR; s.vy = Math.max(0, s.vy); }
+    if (s.y + G.birdR >= groundTop) { s.y = groundTop - G.birdR; gameOver(); return; }
+    s.wingT += dt; if (s.wingT > (s.vy < 0 ? 0.1 : 0.18)) { s.wingT = 0; s.wing = ((s.wing + 1) % 3) as 0 | 1 | 2; }
+    s.groundOff = (s.groundOff + G.speed * dt) % 48;
+
+    const next: Pipe[] = [];
+    for (const p of s.pipes) {
+      const m: Pipe = { ...p, x: p.x - G.speed * dt };
+      const bL = m.x - m.w * 0.5 - 2, bW = m.w + 4, cL = m.x - m.capW * 0.5 - 2, cW = m.capW + 4;
+      const topBodyH = Math.max(0, m.topH - G.capH), botH = Math.max(0, groundTop - m.botY), botBodyH = Math.max(0, botH - G.capH);
+      const hit =
+        hitCircleRect(s.x, s.y, G.birdR - 2, bL, 0, bW, topBodyH) ||
+        hitCircleRect(s.x, s.y, G.birdR - 2, cL, Math.max(0, m.topH - G.capH), cW, Math.min(G.capH, m.topH)) ||
+        hitCircleRect(s.x, s.y, G.birdR - 2, cL, m.botY, cW, Math.min(G.capH, botH)) ||
+        hitCircleRect(s.x, s.y, G.birdR - 2, bL, m.botY + G.capH, bW, botBodyH);
+      if (hit) { gameOver(); return; }
+      if (!m.scored && m.x + m.capW * 0.5 < s.x - G.birdR) { m.scored = true; scoreRef.current += 1; s.pop = 1.45; setScore(scoreRef.current); play("pass"); }
+      if (m.x + m.capW * 0.5 > -20) next.push(m);
+    }
+    s.pipes = next;
+    s.pop = Math.max(1, s.pop - dt * 6);
+    const last = s.pipes[s.pipes.length - 1];
+    if (!last || last.x < s.W - G.spawnDist) spawnPipe();
+    if (s.pipes.length === 0) spawnPipe();
+  }, [gameOver, play, spawnPipe]);
+
+  const draw = useCallback(() => {
+    const cv = canvasRef.current; if (!cv) return;
+    const ctx = cv.getContext("2d"); if (!ctx) return;
+    const s = sim.current; if (s.W <= 0 || s.H <= 0) return;
+    const groundTop = s.H - s.groundH;
+    const sky = ctx.createLinearGradient(0, 0, 0, groundTop); sky.addColorStop(0, C.sky1); sky.addColorStop(1, C.sky2);
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, s.W, s.H);
+    const cloudX = [0.1, 0.45, 0.75, 0.22], cloudY = [60, 40, 80, 110], cloudS = [1.2, 0.9, 1.05, 0.75];
+    ctx.fillStyle = "rgba(255,255,255,0.88)";
+    for (let i = 0; i < 4; i++) { const x = ((cloudX[i] * s.W - s.cloudOff + s.W * 2) % (s.W + 200)) - 80, y = cloudY[i], k = cloudS[i]; ctx.beginPath(); ctx.arc(x, y, 22 * k, 0, Math.PI * 2); ctx.arc(x + 18 * k, y - 10 * k, 16 * k, 0, Math.PI * 2); ctx.arc(x + 36 * k, y, 20 * k, 0, Math.PI * 2); ctx.arc(x + 18 * k, y + 8 * k, 14 * k, 0, Math.PI * 2); ctx.fill(); }
+    for (const p of s.pipes) {
+      const topH = Math.max(0, p.topH), botH = Math.max(0, groundTop - p.botY), bL = p.x - p.w * 0.5, cL = p.x - p.capW * 0.5;
+      const pg = ctx.createLinearGradient(bL, 0, bL + p.w, 0); pg.addColorStop(0, C.pipeDark); pg.addColorStop(0.25, C.pipeShine); pg.addColorStop(0.55, C.pipe); pg.addColorStop(1, C.pipeDark);
+      if (topH > 0) { ctx.fillStyle = pg; ctx.fillRect(bL, 0, p.w, topH); const cg = ctx.createLinearGradient(cL, 0, cL + p.capW, 0); cg.addColorStop(0, C.pipeDark); cg.addColorStop(0.3, C.pipeShine); cg.addColorStop(0.6, C.pipe); cg.addColorStop(1, C.pipeDark); ctx.fillStyle = cg; roundRect(ctx, cL, Math.max(0, topH - G.capH), p.capW, Math.min(G.capH, topH), 4); ctx.fill(); }
+      if (botH > 0) { ctx.fillStyle = pg; ctx.fillRect(bL, p.botY + G.capH, p.w, Math.max(0, botH - G.capH)); const cg = ctx.createLinearGradient(cL, 0, cL + p.capW, 0); cg.addColorStop(0, C.pipeDark); cg.addColorStop(0.3, C.pipeShine); cg.addColorStop(0.6, C.pipe); cg.addColorStop(1, C.pipeDark); ctx.fillStyle = cg; roundRect(ctx, cL, p.botY, p.capW, Math.min(G.capH, botH), 4); ctx.fill(); }
+    }
+    ctx.fillStyle = C.grassDark; ctx.fillRect(0, groundTop, s.W, 6); ctx.fillStyle = C.grass; ctx.fillRect(0, groundTop + 2, s.W, 10);
+    const sg = ctx.createLinearGradient(0, groundTop + 12, 0, s.H); sg.addColorStop(0, C.sand1); sg.addColorStop(1, C.sand2); ctx.fillStyle = sg; ctx.fillRect(0, groundTop + 12, s.W, s.groundH - 12);
+    ctx.strokeStyle = "rgba(160,120,60,0.4)"; ctx.lineWidth = 1.5; for (let x = -s.groundOff; x < s.W + 48; x += 48) { ctx.beginPath(); ctx.moveTo(x, groundTop + 14); ctx.lineTo(x + 30, groundTop + 14); ctx.stroke(); }
+    const tilt = stateRef.current === "gameover" ? Math.PI * 0.5 : clamp(s.vy * 0.0026, -0.5, Math.PI * 0.42);
+    ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(tilt);
+    const wa = s.wing === 0 ? -0.6 : s.wing === 1 ? 0.1 : 0.55; ctx.save(); ctx.rotate(wa); ctx.fillStyle = "#f5a623"; ctx.beginPath(); ctx.ellipse(-G.birdR * 0.2, G.birdR * 0.15, G.birdR * 0.65, G.birdR * 0.38, -0.3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    const bg = ctx.createRadialGradient(-G.birdR * 0.2, -G.birdR * 0.25, G.birdR * 0.1, 0, 0, G.birdR); bg.addColorStop(0, "#fff8b0"); bg.addColorStop(0.45, "#ffe74c"); bg.addColorStop(1, "#f5c800"); ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, G.birdR, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(G.birdR * 0.32, -G.birdR * 0.22, G.birdR * 0.36, G.birdR * 0.32, 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#1a0a00"; ctx.beginPath(); ctx.arc(G.birdR * 0.42, -G.birdR * 0.18, G.birdR * 0.14, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#f47c0b"; ctx.beginPath(); ctx.moveTo(G.birdR * 0.55, -G.birdR * 0.08); ctx.lineTo(G.birdR * 1.26, G.birdR * 0.08); ctx.lineTo(G.birdR * 0.55, G.birdR * 0.28); ctx.closePath(); ctx.fill(); ctx.restore();
+    if (stateRef.current === "playing" || stateRef.current === "gameover") { ctx.save(); ctx.translate(s.W * 0.5, 62); ctx.scale(s.pop || 1, s.pop || 1); ctx.font = `900 ${Math.min(46, s.W * 0.1)}px 'Press Start 2P','Courier New',monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 8; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.6)"; ctx.strokeText(String(scoreRef.current), 0, 0); ctx.fillStyle = "#fff"; ctx.fillText(String(scoreRef.current), 0, 0); ctx.restore(); }
+    if (s.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${s.flash})`; ctx.fillRect(0, 0, s.W, s.H); }
+    if (stateRef.current === "idle") { ctx.fillStyle = "rgba(0,0,0,0.08)"; ctx.fillRect(0, 0, s.W, s.H); ctx.font = `900 ${Math.min(34, s.W * 0.09)}px 'Press Start 2P','Courier New',monospace`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineWidth = 6; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.strokeText("GET READY!", s.W * 0.5, s.H * 0.3); ctx.fillStyle = "#fff"; ctx.fillText("GET READY!", s.W * 0.5, s.H * 0.3); }
+  }, []);
+
+  useEffect(() => {
+    const jump = new Audio("/flappy-bird/jump.mp3");
+    const pass = new Audio("/flappy-bird/pass.mp3");
+    const dead = new Audio("/flappy-bird/dead.mp3");
+    const bg = new Audio("/flappy-bird/background.mp3");
+    jump.preload = "auto";
+    pass.preload = "auto";
+    dead.preload = "auto";
+    bg.preload = "auto";
+    bg.loop = true;
+    jump.volume = 1;
+    pass.volume = 1;
+    dead.volume = 1;
+    bg.volume = 1;
+    audioRef.current = { jump, pass, dead, bg };
+    return () => {
+      jump.pause();
+      pass.pause();
+      dead.pause();
+      bg.pause();
+      bg.currentTime = 0;
+      audioRef.current = { jump: null, pass: null, dead: null, bg: null };
+      bgStartedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const cv = canvasRef.current; if (!cv) return;
+    const resize = () => {
+      const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+      const ctx = cv.getContext("2d"); if (!ctx) return; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      sim.current.W = w; sim.current.H = h; sim.current.groundH = clamp(h * 0.16, 62, G.groundH);
+      if (stateRef.current === "idle") resetBird();
+      draw();
+    };
+    resize();
+    const ro = new ResizeObserver(resize); ro.observe(cv);
+    const simState = sim.current;
+    const tick = (ts: number) => {
+      const s = simState, prev = s.lastTs || ts; s.lastTs = ts; s.acc += Math.min(G.maxDt, Math.max(0, (ts - prev) / 1000));
+      while (s.acc >= G.step) { step(G.step); s.acc -= G.step; }
+      draw(); s.raf = requestAnimationFrame(tick);
+    };
+    simState.raf = requestAnimationFrame(tick);
+    return () => { ro.disconnect(); if (simState.raf) cancelAnimationFrame(simState.raf); simState.raf = null; };
+  }, [draw, resetBird, step]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyR") return;
+      if (e.code === "Space") { e.preventDefault(); flap(); return; }
+      if (e.code === "KeyR") { e.preventDefault(); restartToPlaying(); }
+    };
+    window.addEventListener("keydown", onKey, { passive: false });
+    return () => window.removeEventListener("keydown", onKey);
+  }, [flap, restartToPlaying]);
+
+  return {
+    canvasRef, state, score, best, medal: useMemo(() => (score >= 10 ? "MEDAL" : null), [score]),
+    onTap: flap,
+    onRestart: () => { resetRun(); setPhase("idle"); tryStartBackgroundMusic(); },
+    onReplay: restartToPlaying,
+    stopAllAudio,
+  };
 };
 
 export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showStartButton, setShowStartButton] = useState(false);
-  const [statusText, setStatusText] = useState("Preparing your experience...");
+  const [statusText, setStatusText] = useState("Fetching preload manifest...");
   const [totalAssets, setTotalAssets] = useState(0);
   const [loadedAssets, setLoadedAssets] = useState(0);
   const [failedAssets, setFailedAssets] = useState<PreloadResult[]>([]);
   const [manifestError, setManifestError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
+  const [isExiting, setIsExiting] = useState(false);
+  const game = useFlappy();
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "unset";
-    };
+    return () => { document.body.style.overflow = "unset"; };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     const preloadController = new AbortController();
-
     const preloadAssets = async () => {
-      clearInitialPreloadComplete();
-      setIsLoading(true);
-      setShowStartButton(false);
-      setManifestError(null);
-      setFailedAssets([]);
-      setProgress(0);
-      setTotalAssets(0);
-      setLoadedAssets(0);
-      setStatusText("Fetching preload manifest...");
-
+      clearInitialPreloadComplete(); setIsLoading(true); setShowStartButton(false); setManifestError(null); setFailedAssets([]); setProgress(0); setTotalAssets(0); setLoadedAssets(0); setStatusText("Fetching preload manifest...");
       try {
-        const manifest = await getPreloadManifest();
-        if (cancelled) return;
-
-        const assets = manifest.assets ?? [];
-
-        setTotalAssets(manifest.totalCount ?? assets.length);
-        setStatusText("Downloading all assets...");
-
-        if (!assets.length) {
-          setProgress(100);
-          setIsLoading(false);
-          setShowStartButton(true);
-          markInitialPreloadComplete();
-          return;
-        }
-
+        const manifest = await getPreloadManifest(); if (cancelled) return;
+        const assets = manifest.assets ?? []; setTotalAssets(manifest.totalCount ?? assets.length); setStatusText("Downloading assets...");
+        if (!assets.length) { setProgress(100); setLoadedAssets(0); setIsLoading(false); setShowStartButton(true); setStatusText("All assets loaded successfully."); markInitialPreloadComplete(); return; }
         const result = await runStrictPreload(assets, {
           signal: preloadController.signal,
-          onProgress: (state) => {
-            if (cancelled) return;
-
-            setLoadedAssets(state.succeeded);
-            const progressByBytes =
-              state.totalBytes > 0
-                ? Math.floor((state.loadedBytes / state.totalBytes) * 100)
-                : Math.floor((state.succeeded / state.total) * 100);
-
-            setProgress(Math.min(100, Math.max(0, progressByBytes)));
-            setStatusText(
-              state.retrying
-                ? "Retrying failed downloads..."
-                : "Downloading all assets..."
-            );
-          },
+          onProgress: (s) => { if (cancelled) return; setLoadedAssets(s.succeeded); const p = s.totalBytes > 0 ? Math.floor((s.loadedBytes / s.totalBytes) * 100) : Math.floor((s.succeeded / s.total) * 100); setProgress(Math.min(100, Math.max(0, p))); setStatusText(s.retrying ? "Retrying failed downloads..." : "Downloading assets..."); },
         });
-
         if (cancelled) return;
-
-        const failures = result.outcomes.filter((outcome) => !outcome.success);
-        setFailedAssets(failures);
-
-        if (!failures.length) {
-          setProgress(100);
-          setIsLoading(false);
-          setShowStartButton(true);
-          setStatusText("All assets loaded successfully.");
-          markInitialPreloadComplete();
-          return;
-        }
-
-        setIsLoading(false);
-        setShowStartButton(false);
-        setStatusText("Some assets failed to preload.");
+        const failures = result.outcomes.filter((o) => !o.success); setFailedAssets(failures);
+        if (!failures.length) { setProgress(100); setLoadedAssets(manifest.totalCount ?? assets.length); setIsLoading(false); setShowStartButton(true); setStatusText("All assets loaded successfully."); markInitialPreloadComplete(); return; }
+        setIsLoading(false); setShowStartButton(false); setStatusText("Some assets failed to preload.");
       } catch (error) {
         if (cancelled) return;
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-        setManifestError(
-          error instanceof Error ? error.message : "Failed to load manifest"
-        );
-        setIsLoading(false);
-        setShowStartButton(false);
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setManifestError(error instanceof Error ? error.message : "Failed to load manifest."); setIsLoading(false); setShowStartButton(false);
       }
     };
-
     void preloadAssets();
-
-    return () => {
-      cancelled = true;
-      preloadController.abort();
-    };
+    return () => { cancelled = true; preloadController.abort(); };
   }, [retryToken]);
 
-  const handleStart = () => {
+  const handleStartExperience = () => {
+    if (isExiting) return;
+    game.stopAllAudio();
+    setIsExiting(true);
     setShowStartButton(false);
-    setTimeout(() => {
-      onComplete();
-    }, 300);
+    setTimeout(() => onComplete(), 420);
   };
+  const handleRetry = () => { resetPreloadManifestPromise(); setRetryToken((p) => p + 1); };
 
-  const handleRetry = () => {
-    resetPreloadManifestPromise();
-    setRetryToken((prev) => prev + 1);
-  };
+  const preloadSummary = useMemo(() => {
+    if (manifestError) return `Manifest error: ${manifestError}`;
+    if (failedAssets.length > 0 && !showStartButton) return `${failedAssets.length} assets failed to preload.`;
+    if (showStartButton && progress >= 100) return "All assets loaded successfully.";
+    return statusText;
+  }, [failedAssets.length, manifestError, progress, showStartButton, statusText]);
 
   return (
     <AnimatePresence>
-      {isLoading && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-background"
-        >
-          <div className="relative z-10 mx-auto max-w-md px-6 text-center">
-            <div className="flex flex-col items-center justify-center space-y-8">
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2, duration: 0.6 }}
-                className="text-center"
-              >
-                <h1 className="mb-2 text-4xl font-bold text-foreground md:text-6xl">
-                  Loading
-                </h1>
-                <p className="text-lg text-muted-foreground">
-                  Downloading all assets from public directory...
-                </p>
-              </motion.div>
-
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.4, duration: 0.6 }}
-                className="w-full max-w-sm"
-              >
-                <div className="mb-4 text-sm text-muted-foreground">
-                  {statusText}
-                </div>
-
-                <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
-                  <motion.div
-                    className="h-full rounded-full bg-linear-to-r from-primary to-primary/80"
-                    initial={{ width: "0%" }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 0.1, ease: "easeOut" }}
-                  />
-                  <motion.div
-                    className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent"
-                    animate={{ x: ["-100%", "100%"] }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    }}
-                  />
-                </div>
-
-                <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                  <div className="flex items-center justify-between">
-                    <span>{progress}%</span>
-                    <span>
-                      {loadedAssets}/{totalAssets} assets
-                    </span>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={isExiting ? { opacity: 0, scale: 0.985, filter: "blur(4px)" } : { opacity: 1, scale: 1, filter: "blur(0px)" }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: isExiting ? 0.38 : 0.3, ease: "easeInOut" }}
+        className="fixed inset-0 z-50 overflow-y-auto bg-background"
+      >
+        <style>{"@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');"}</style>
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8" style={{ paddingTop: "max(1.25rem, calc(env(safe-area-inset-top) + 0.75rem))", paddingBottom: "max(1.25rem, calc(env(safe-area-inset-bottom) + 1.25rem))" }}>
+          <div className="flex min-h-screen flex-col justify-center gap-6 py-6 sm:gap-7 sm:py-8 lg:py-10" style={{ minHeight: "100dvh" }}>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+              <section className="min-w-0">
+                <div className="relative w-full overflow-hidden rounded-2xl border border-border/60" style={{ aspectRatio: "16 / 9", maxHeight: "min(68dvh, 620px)", minHeight: "clamp(320px, 60dvh, 560px)" }} onPointerDown={game.onTap}>
+                  <canvas ref={game.canvasRef} className="absolute inset-0 h-full w-full touch-manipulation" aria-label="Flappy Bird loading game" />
+                  <div className="pointer-events-none absolute inset-0">
+                    {game.best > 0 && <div className="absolute right-3 top-4 text-[10px] text-white/95 sm:right-4 sm:text-xs" style={{ fontFamily: "'Press Start 2P', 'Courier New', monospace", textShadow: "0 2px 8px rgba(0,0,0,0.65)" }}>BEST: {game.best}</div>}
+                    {game.state === "gameover" && (
+                      <div className="pointer-events-auto absolute inset-0 flex items-center justify-center p-4">
+                        <div className="w-full max-w-sm rounded-2xl border border-[#8b6914] bg-[linear-gradient(180deg,#deb887_0%,#c8966f_100%)] px-4 py-5 text-center shadow-[0_8px_0_#6b4f10,0_12px_32px_rgba(0,0,0,0.35)]" onPointerDown={(e) => e.stopPropagation()}>
+                          <p className="text-xl text-white sm:text-2xl" style={{ fontFamily: "'Press Start 2P', 'Courier New', monospace", textShadow: "0 4px 0 #8b2000, 0 6px 16px rgba(0,0,0,0.5)" }}>GAME OVER</p>
+                          <div className="mt-4 rounded-lg border border-black/15 bg-black/10 px-4 py-3 text-left">
+                            <div className="mb-2 flex items-center justify-between"><span className="text-[10px] text-[#5a3a10]" style={{ fontFamily: "'Press Start 2P', 'Courier New', monospace" }}>SCORE</span><span className="text-base text-white" style={{ fontFamily: "'Press Start 2P', 'Courier New', monospace", textShadow: "0 2px 0 #8b4500" }}>{game.score}</span></div>
+                            <div className="flex items-center justify-between"><span className="text-[10px] text-[#5a3a10]" style={{ fontFamily: "'Press Start 2P', 'Courier New', monospace" }}>BEST</span><span className="text-base text-white" style={{ fontFamily: "'Press Start 2P', 'Courier New', monospace", textShadow: "0 2px 0 #8b4500" }}>{game.best}</span></div>
+                          </div>
+                          <div className="mt-4 flex justify-center gap-2">
+                            <button type="button" onClick={game.onReplay} className="rounded-md border border-[#3d7a10] bg-[linear-gradient(180deg,#7dce2c_0%,#5aaa18_100%)] px-3 py-2 text-[10px] text-white shadow-[0_4px_0_#3d7a10]" style={{ fontFamily: "'Press Start 2P', 'Courier New', monospace" }}>OK</button>
+                            <button type="button" onClick={game.onRestart} className="rounded-md border border-[#a07800] bg-[linear-gradient(180deg,#f5c842_0%,#d4a010_100%)] px-3 py-2 text-[10px] text-white shadow-[0_4px_0_#a07800]" style={{ fontFamily: "'Press Start 2P', 'Courier New', monospace" }}>HOME</button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </motion.div>
+              </section>
+
+              <div className="mt-1 space-y-4 lg:mt-0 lg:self-center">
+                <header className="mx-auto w-full max-w-sm space-y-2 text-center">
+                  <h1 className="text-3xl font-bold leading-tight text-foreground sm:text-4xl">Loading Experience</h1>
+                  <p className="text-sm text-muted-foreground sm:text-base">Play Flappy Bird while your assets are downloading.</p>
+                </header>
+
+                <section className="w-full space-y-3 rounded-2xl border border-border/50 bg-background/70 p-4 backdrop-blur">
+                  <p className="text-sm text-muted-foreground">{preloadSummary}</p>
+                  <div className="relative h-3 overflow-hidden rounded-full bg-muted">
+                    <motion.div className="h-full rounded-full bg-linear-to-r from-primary to-primary/80" initial={{ width: "0%" }} animate={{ width: `${progress}%` }} transition={{ duration: 0.1, ease: "easeOut" }} />
+                    {isLoading && <motion.div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent" animate={{ x: ["-100%", "100%"] }} transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }} />}
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-muted-foreground"><span>{progress}%</span><span>{loadedAssets}/{totalAssets} assets</span></div>
+                  <div className="pt-1">
+                    {(failedAssets.length > 0 || manifestError) && !showStartButton && <HoverBorderGradient as="button" onClick={handleRetry} containerClassName="w-full rounded-full" className="flex min-h-11 w-full items-center justify-center gap-2 px-6 py-2.5 text-sm font-medium"><RefreshCw className="h-4 w-4" />Retry Failed Download</HoverBorderGradient>}
+                    {showStartButton && <HoverBorderGradient as="button" onClick={handleStartExperience} containerClassName="w-full rounded-full" className="flex min-h-11 w-full items-center justify-center gap-2 px-6 py-3 text-base font-medium"><Play className="h-5 w-5" />Start Experience</HoverBorderGradient>}
+                  </div>
+                </section>
+              </div>
             </div>
           </div>
-        </motion.div>
-      )}
-
-      {!isLoading && !showStartButton && (failedAssets.length > 0 || manifestError) && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-background"
-        >
-          <div className="relative z-10 mx-auto max-w-xl px-6 text-center">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="flex flex-col items-center justify-center space-y-5"
-            >
-              <h1 className="text-3xl font-bold text-foreground md:text-5xl">
-                Preload Failed
-              </h1>
-
-              <p className="max-w-lg text-sm text-muted-foreground md:text-base">
-                {manifestError
-                  ? `Manifest error: ${manifestError}`
-                  : `${failedAssets.length} asset(s) failed to download. Please retry.`}
-              </p>
-
-              <HoverBorderGradient
-                as="button"
-                onClick={handleRetry}
-                containerClassName="rounded-full"
-                className="flex items-center justify-center gap-2 px-8 py-3 text-lg font-medium"
-              >
-                <RefreshCw className="h-5 w-5" />
-                Retry Failed
-              </HoverBorderGradient>
-            </motion.div>
-          </div>
-        </motion.div>
-      )}
-
-      {showStartButton && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-background"
-        >
-          <div className="relative z-10 mx-auto max-w-md px-6 text-center">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-              className="flex flex-col items-center justify-center space-y-6"
-            >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
-                className="flex h-20 w-20 items-center justify-center rounded-full bg-linear-to-r from-primary to-primary/80"
-              >
-                <Play className="ml-1 h-8 w-8 text-primary-foreground" />
-              </motion.div>
-
-              <motion.h1
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4, duration: 0.6, ease: "easeOut" }}
-                className="text-center text-4xl font-bold text-foreground md:text-6xl"
-              >
-                Ready!
-              </motion.h1>
-
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6, duration: 0.6, ease: "easeOut" }}
-                className="text-center text-lg text-muted-foreground"
-              >
-                All assets loaded successfully
-              </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8, duration: 0.6, ease: "easeOut" }}
-                className="flex justify-center"
-              >
-                <HoverBorderGradient
-                  as="button"
-                  onClick={handleStart}
-                  containerClassName="rounded-full"
-                  className="flex items-center justify-center gap-2 px-8 py-3 text-lg font-medium"
-                >
-                  <Play className="h-5 w-5" />
-                  Start Experience
-                </HoverBorderGradient>
-              </motion.div>
-            </motion.div>
-          </div>
-        </motion.div>
-      )}
+        </div>
+      </motion.div>
     </AnimatePresence>
   );
 };
