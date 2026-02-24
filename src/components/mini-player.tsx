@@ -17,6 +17,15 @@ import { cn } from "@/lib/utils";
 import { formatTime } from "@/services/music";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 
+const SEEK_KEYS = new Set([
+  "ArrowLeft",
+  "ArrowRight",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
+
 function SmartImage({
   src,
   alt,
@@ -77,6 +86,7 @@ export const MiniPlayer: React.FC = () => {
     volume,
     isExpanded,
     isTrackLoading,
+    isEngineTransitioning,
     volumePercent,
     handlePlayPause,
     handleNext,
@@ -145,7 +155,6 @@ export const MiniPlayer: React.FC = () => {
       }}
       style={{
         willChange: "transform, opacity",
-        transform: "translateZ(0)",
       }}
       className="fixed right-2 sm:right-4 top-24 sm:top-20 z-40"
     >
@@ -171,6 +180,7 @@ export const MiniPlayer: React.FC = () => {
             onExpand={toggleExpanded}
             isMobile={isMobile}
             prefersReducedMotion={prefersReducedMotion}
+            isEngineTransitioning={isEngineTransitioning}
           />
         ) : (
           <MiniPlayerExpanded
@@ -188,6 +198,7 @@ export const MiniPlayer: React.FC = () => {
             onCollapse={toggleExpanded}
             isMobile={isMobile}
             prefersReducedMotion={prefersReducedMotion}
+            isEngineTransitioning={isEngineTransitioning}
           />
         )}
       </AnimatePresence>
@@ -202,6 +213,7 @@ interface MiniPlayerCollapsedProps {
   onExpand: () => void;
   isMobile: boolean;
   prefersReducedMotion: boolean;
+  isEngineTransitioning: boolean;
 }
 
 const MiniPlayerCollapsed: React.FC<MiniPlayerCollapsedProps> = ({
@@ -211,6 +223,7 @@ const MiniPlayerCollapsed: React.FC<MiniPlayerCollapsedProps> = ({
   onExpand,
   isMobile,
   prefersReducedMotion,
+  isEngineTransitioning,
 }) => (
   <motion.div
     key="mini"
@@ -223,7 +236,6 @@ const MiniPlayerCollapsed: React.FC<MiniPlayerCollapsedProps> = ({
     }}
     style={{
       willChange: "transform, opacity",
-      transform: "translateZ(0)",
     }}
     className="bg-background rounded-xl shadow-2xl border border-border p-2 w-48 sm:w-56 md:w-64 cursor-pointer"
     onClick={onExpand}
@@ -288,7 +300,11 @@ const MiniPlayerCollapsed: React.FC<MiniPlayerCollapsedProps> = ({
             e.stopPropagation();
             onPlayPause();
           }}
-          className="p-2 rounded-full bg-foreground text-background hover:bg-foreground/80 transition-colors cursor-pointer"
+          onKeyDown={(e) => {
+            e.stopPropagation();
+          }}
+          disabled={isEngineTransitioning}
+          className="p-2 rounded-full bg-foreground text-background hover:bg-foreground/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label={isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? (
@@ -319,6 +335,7 @@ interface MiniPlayerExpandedProps {
   onCollapse: () => void;
   isMobile: boolean;
   prefersReducedMotion: boolean;
+  isEngineTransitioning: boolean;
 }
 
 const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
@@ -336,6 +353,7 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
   onCollapse,
   isMobile,
   prefersReducedMotion,
+  isEngineTransitioning,
 }) => {
   const TRACK_TRANSITION_MS = 180;
   const PREV_RESTART_THRESHOLD = 3;
@@ -346,17 +364,9 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
   const [isMuted, setIsMuted] = useState(volume <= 0.001);
   const transitionRafRef = useRef<number | null>(null);
   const transitionTimeoutRef = useRef<number | null>(null);
+  const prevTrackIdRef = useRef(currentTrack.id);
+  const isSeekingRef = useRef(false);
   const lastNonZeroVolumeRef = useRef(volume > 0.001 ? volume : 0.2);
-  const autoAdvanceTriggeredRef = useRef(false);
-
-  const seekKeys = new Set([
-    "ArrowLeft",
-    "ArrowRight",
-    "Home",
-    "End",
-    "PageUp",
-    "PageDown",
-  ]);
 
   useEffect(() => {
     if (!isSeeking && !isTrackTransitioning) {
@@ -388,6 +398,37 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
       }
     };
   }, []);
+
+  useEffect(() => {
+    isSeekingRef.current = isSeeking;
+  }, [isSeeking]);
+
+  useEffect(() => {
+    const trackChanged = prevTrackIdRef.current !== currentTrack.id;
+    prevTrackIdRef.current = currentTrack.id;
+
+    if (!isTrackTransitioning || !trackChanged) return;
+
+    if (transitionTimeoutRef.current) {
+      window.clearTimeout(transitionTimeoutRef.current);
+    }
+    transitionTimeoutRef.current = window.setTimeout(() => {
+      setIsTrackTransitioning(false);
+      transitionTimeoutRef.current = null;
+    }, prefersReducedMotion ? 0 : TRACK_TRANSITION_MS);
+
+    return () => {
+      if (transitionTimeoutRef.current) {
+        window.clearTimeout(transitionTimeoutRef.current);
+        transitionTimeoutRef.current = null;
+      }
+    };
+  }, [
+    TRACK_TRANSITION_MS,
+    currentTrack.id,
+    isTrackTransitioning,
+    prefersReducedMotion,
+  ]);
 
   const animateDisplayTimeToZero = useCallback(
     (fromTime: number, onDone: () => void) => {
@@ -434,7 +475,7 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
         transitionTimeoutRef.current = window.setTimeout(() => {
           setIsTrackTransitioning(false);
           transitionTimeoutRef.current = null;
-        }, prefersReducedMotion ? 0 : TRACK_TRANSITION_MS);
+        }, prefersReducedMotion ? 0 : TRACK_TRANSITION_MS * 3);
       });
     },
     [
@@ -461,11 +502,15 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
 
   const handlePreviousClick = useCallback(() => {
     if (currentTime > PREV_RESTART_THRESHOLD) {
-      onPrevious();
+      isSeekingRef.current = false;
+      setIsSeeking(false);
+      setSeekValue(0);
+      setDisplayTime(0);
+      onSeek(0);
       return;
     }
     runTrackChangeTransition(onPrevious);
-  }, [currentTime, onPrevious, runTrackChangeTransition]);
+  }, [currentTime, onPrevious, onSeek, runTrackChangeTransition]);
 
   const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
   const rawDisplayTime = isSeeking ? seekValue : displayTime;
@@ -477,40 +522,28 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
     safeDuration > 0
       ? Math.min(100, Math.max(0, (safeDisplayTime / safeDuration) * 100))
       : 0;
-
-  useEffect(() => {
-    autoAdvanceTriggeredRef.current = false;
-  }, [currentTrack.id]);
-
-  useEffect(() => {
-    if (!isPlaying || isSeeking || isTrackTransitioning) return;
-    if (!safeDuration || safeDuration <= 0) return;
-
-    const remaining = safeDuration - currentTime;
-    const endThreshold = 0.12;
-
-    if (remaining <= endThreshold && currentTime > 0 && !autoAdvanceTriggeredRef.current) {
-      autoAdvanceTriggeredRef.current = true;
-      runTrackChangeTransition(onNext);
-    }
-  }, [
-    currentTime,
-    isPlaying,
-    isSeeking,
-    isTrackTransitioning,
-    onNext,
-    runTrackChangeTransition,
-    safeDuration,
-  ]);
+  const controlsLocked = isTrackTransitioning || isEngineTransitioning;
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSeekValue(parseFloat(e.target.value));
   };
 
-  const commitSeek = () => {
-    onSeek(seekValue);
+  const commitSeek = useCallback(() => {
+    if (!isSeekingRef.current) return;
+
+    isSeekingRef.current = false;
     setIsSeeking(false);
-  };
+    if (safeDuration <= 0 || isTrackTransitioning) {
+      setSeekValue(0);
+      setDisplayTime(0);
+      return;
+    }
+
+    const nextTime = Math.min(Math.max(0, seekValue), safeDuration);
+    setSeekValue(nextTime);
+    setDisplayTime(nextTime);
+    onSeek(nextTime);
+  }, [isTrackTransitioning, onSeek, safeDuration, seekValue]);
 
   return (
     <motion.div
@@ -524,7 +557,6 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
       }}
       style={{
         willChange: "transform, opacity",
-        transform: "translateZ(0)",
       }}
       className="bg-background rounded-2xl shadow-2xl border border-border overflow-hidden w-48 sm:w-52 md:w-56"
       role="dialog"
@@ -572,38 +604,46 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
           <span>{formatTime(safeDuration)}</span>
         </motion.div>
 
-        <input
-          type="range"
-          min="0"
-          max={safeDuration}
-          value={safeDisplayTime}
-          onChange={handleSeekChange}
-          onPointerDown={() => setIsSeeking(true)}
-          onPointerUp={commitSeek}
-          onPointerCancel={commitSeek}
-          onBlur={() => {
-            if (!isSeeking) return;
-            commitSeek();
-          }}
-          onKeyDown={(e) => {
-            if (!seekKeys.has(e.key)) return;
-            setIsSeeking(true);
-          }}
-          onKeyUp={(e) => {
-            if (!seekKeys.has(e.key)) return;
-            commitSeek();
-          }}
-          className="w-full h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{
-            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${displayProgress}%, rgba(150, 150, 150, 0.3) ${displayProgress}%, rgba(150, 150, 150, 0.3) 100%)`,
-          }}
-          aria-label="Seek track"
-        />
+        <motion.div
+          animate={{ opacity: isTrackTransitioning ? 0.2 : 1 }}
+          transition={{ duration: prefersReducedMotion ? 0 : TRACK_TRANSITION_MS / 1000, ease: "easeInOut" }}
+        >
+          <input
+            type="range"
+            min="0"
+            max={safeDuration}
+            value={safeDisplayTime}
+            disabled={safeDuration <= 0 || controlsLocked}
+            onChange={handleSeekChange}
+            onPointerDown={() => {
+              isSeekingRef.current = true;
+              setIsSeeking(true);
+            }}
+            onPointerUp={commitSeek}
+            onPointerCancel={commitSeek}
+            onBlur={commitSeek}
+            onKeyDown={(e) => {
+              if (!SEEK_KEYS.has(e.key)) return;
+              isSeekingRef.current = true;
+              setIsSeeking(true);
+            }}
+            onKeyUp={(e) => {
+              if (!SEEK_KEYS.has(e.key)) return;
+              commitSeek();
+            }}
+            className="w-full h-1.5 sm:h-2 bg-muted rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${displayProgress}%, rgba(150, 150, 150, 0.3) ${displayProgress}%, rgba(150, 150, 150, 0.3) 100%)`,
+            }}
+            aria-label="Seek track"
+          />
+        </motion.div>
 
         <div className="flex items-center justify-center gap-1.5 sm:gap-2">
           <button
             onClick={handlePreviousClick}
-            className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+            disabled={controlsLocked}
+            className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Previous track"
           >
             <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-foreground" />
@@ -611,7 +651,8 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
 
           <button
             onClick={onPlayPause}
-            className="p-1.5 sm:p-2 rounded-full bg-foreground hover:bg-foreground/90 transition-colors cursor-pointer"
+            disabled={isEngineTransitioning}
+            className="p-1.5 sm:p-2 rounded-full bg-foreground hover:bg-foreground/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? (
@@ -623,7 +664,8 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
 
           <button
             onClick={() => runTrackChangeTransition(onNext)}
-            className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+            disabled={controlsLocked}
+            className="p-0.5 sm:p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Next track"
           >
             <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-foreground" />

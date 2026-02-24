@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Play, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { HoverBorderGradient } from "@/components/ui/hover-border-button";
 import {
@@ -192,9 +192,11 @@ const useFlappy = () => {
   const bgStartedRef = useRef(false);
   const bgStartingRef = useRef(false);
   const audioUnlockedRef = useRef(false);
-  const bgStartTimerRef = useRef<number | null>(null);
+  const audioUnlockingRef = useRef(false);
+  const bgAttemptTokenRef = useRef(0);
   const bgRetryTimerRef = useRef<number | null>(null);
   const bgRetryCountRef = useRef(0);
+  const primeTimerIdsRef = useRef<number[]>([]);
   const sim = useRef({
     W: 0, H: 0, x: 0, y: 0, vy: 0, groundH: G.groundH,
     pipes: [] as Pipe[], groundOff: 0, cloudOff: 0, wing: 1 as 0 | 1 | 2, wingT: 0,
@@ -203,7 +205,6 @@ const useFlappy = () => {
   const [state, setState] = useState<GameState>("idle");
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(0);
-  const audioPreloadAbortRef = useRef<AbortController | null>(null);
 
   const audioRef = useRef<{ jump: HTMLAudioElement | null; pass: HTMLAudioElement | null; dead: HTMLAudioElement | null; bg: HTMLAudioElement | null }>({
     jump: null, pass: null, dead: null, bg: null,
@@ -232,79 +233,94 @@ const useFlappy = () => {
   }, [safePlay]);
 
   const setPhase = useCallback((s: GameState) => { stateRef.current = s; setState(s); }, []);
-  const clearBackgroundMusicTimers = useCallback(() => {
-    if (bgStartTimerRef.current !== null) {
-      window.clearTimeout(bgStartTimerRef.current);
-      bgStartTimerRef.current = null;
+  const clearPrimeTimers = useCallback(() => {
+    if (!primeTimerIdsRef.current.length) return;
+    for (const timerId of primeTimerIdsRef.current) {
+      window.clearTimeout(timerId);
     }
+    primeTimerIdsRef.current = [];
+  }, []);
+  const clearBackgroundMusicTimers = useCallback(() => {
     if (bgRetryTimerRef.current !== null) {
       window.clearTimeout(bgRetryTimerRef.current);
       bgRetryTimerRef.current = null;
     }
   }, []);
   const unlockAudioOnFirstGesture = useCallback(() => {
-    if (audioUnlockedRef.current) return;
-    const { jump, pass, dead } = audioRef.current;
-    if (!jump || !pass || !dead) return;
-    audioUnlockedRef.current = true;
+    if (audioUnlockedRef.current || audioUnlockingRef.current) return;
+    const { pass, dead } = audioRef.current;
+    if (!pass || !dead) return;
+    audioUnlockingRef.current = true;
 
-    const primeSfx = (audio: HTMLAudioElement) => {
+    const primeSfx = async (audio: HTMLAudioElement): Promise<boolean> => {
       const wasMuted = audio.muted;
       try { audio.currentTime = 0; } catch {}
       audio.muted = true;
-      void safePlay(audio)
-        .then((ok) => {
-          if (!ok) {
-            audio.muted = wasMuted;
-            return;
-          }
-          window.setTimeout(() => {
-            audio.pause();
-            try { audio.currentTime = 0; } catch {}
-            audio.muted = wasMuted;
-          }, 40);
-        })
-        .catch(() => {
+      try {
+        const ok = await safePlay(audio);
+        if (!ok) {
           audio.muted = wasMuted;
-        });
+          return false;
+        }
+        const timerId = window.setTimeout(() => {
+          audio.pause();
+          try { audio.currentTime = 0; } catch {}
+          audio.muted = wasMuted;
+          primeTimerIdsRef.current = primeTimerIdsRef.current.filter((id) => id !== timerId);
+        }, 40);
+        primeTimerIdsRef.current.push(timerId);
+        return true;
+      } catch {
+        audio.muted = wasMuted;
+        return false;
+      }
     };
 
-    primeSfx(jump);
-    primeSfx(pass);
-    primeSfx(dead);
+    void Promise.allSettled([primeSfx(pass), primeSfx(dead)]).then((results) => {
+      const anySuccess = results.some(
+        (result) => result.status === "fulfilled" && result.value
+      );
+      audioUnlockedRef.current = anySuccess;
+      audioUnlockingRef.current = false;
+    });
   }, [safePlay]);
   const stopBackgroundMusic = useCallback(() => {
     const bg = audioRef.current.bg;
     clearBackgroundMusicTimers();
+    bgAttemptTokenRef.current += 1;
     if (!bg) return;
     bg.pause();
-    bg.currentTime = 0;
+    try { bg.currentTime = 0; } catch {}
     bgStartedRef.current = false;
     bgStartingRef.current = false;
     bgRetryCountRef.current = 0;
   }, [clearBackgroundMusicTimers]);
   const stopAllAudio = useCallback(() => {
     clearBackgroundMusicTimers();
+    clearPrimeTimers();
+    bgAttemptTokenRef.current += 1;
     const { jump, pass, dead, bg } = audioRef.current;
     jump?.pause();
     pass?.pause();
     dead?.pause();
     if (bg) {
       bg.pause();
-      bg.currentTime = 0;
+      try { bg.currentTime = 0; } catch {}
     }
     bgStartedRef.current = false;
     bgStartingRef.current = false;
     bgRetryCountRef.current = 0;
-  }, [clearBackgroundMusicTimers]);
+  }, [clearBackgroundMusicTimers, clearPrimeTimers]);
   const startBackgroundMusicForPlaying = useCallback(() => {
     const attemptStart = () => {
       if (stateRef.current !== "playing") return;
       if (bgStartedRef.current || bgStartingRef.current) return;
       const bg = audioRef.current.bg;
       if (!bg) return;
+      const attemptToken = ++bgAttemptTokenRef.current;
       bgStartingRef.current = true;
       const onFail = () => {
+        if (bgAttemptTokenRef.current !== attemptToken) return;
         bgStartedRef.current = false;
         bgStartingRef.current = false;
         if (stateRef.current !== "playing") return;
@@ -314,11 +330,13 @@ const useFlappy = () => {
         if (bgRetryTimerRef.current !== null) window.clearTimeout(bgRetryTimerRef.current);
         bgRetryTimerRef.current = window.setTimeout(() => {
           bgRetryTimerRef.current = null;
+          if (bgAttemptTokenRef.current !== attemptToken || bgStartingRef.current) return;
           attemptStart();
         }, retryDelayMs);
       };
       try {
         void safePlay(bg).then((ok) => {
+          if (bgAttemptTokenRef.current !== attemptToken) return;
           if (ok) {
             bgStartedRef.current = true;
             bgRetryCountRef.current = 0;
@@ -326,6 +344,7 @@ const useFlappy = () => {
             onFail();
           }
         }).finally(() => {
+          if (bgAttemptTokenRef.current !== attemptToken) return;
           bgStartingRef.current = false;
         });
       } catch {
@@ -390,8 +409,11 @@ const useFlappy = () => {
     const st = stateRef.current;
     if (st === "gameover") return;
     if (st === "idle") { restartToPlaying(); return; }
+    if (!bgStartedRef.current && !bgStartingRef.current) {
+      startBackgroundMusicForPlaying();
+    }
     sim.current.vy = G.flapVy; sim.current.wing = 0; sim.current.wingT = 0; play("jump");
-  }, [play, restartToPlaying, unlockAudioOnFirstGesture]);
+  }, [play, restartToPlaying, startBackgroundMusicForPlaying, unlockAudioOnFirstGesture]);
 
   const step = useCallback((dt: number) => {
     const s = sim.current;
@@ -512,34 +534,24 @@ const useFlappy = () => {
     dead.volume = 1;
     bg.volume = 1;
 
-    const preloadAbort = new AbortController();
-    audioPreloadAbortRef.current = preloadAbort;
-    const urls = ["/flappy-bird/jump.mp3", "/flappy-bird/pass.mp3", "/flappy-bird/dead.mp3", "/flappy-bird/background.mp3"];
-    void Promise.allSettled(
-      urls.map(async (url) => {
-        const response = await fetch(url, { cache: "force-cache", signal: preloadAbort.signal });
-        if (!response.ok) return;
-        await response.arrayBuffer();
-      })
-    );
-
     audioRef.current = { jump, pass, dead, bg };
     return () => {
-      preloadAbort.abort();
-      audioPreloadAbortRef.current = null;
       clearBackgroundMusicTimers();
+      clearPrimeTimers();
+      bgAttemptTokenRef.current += 1;
       jump.pause();
       pass.pause();
       dead.pause();
       bg.pause();
-      bg.currentTime = 0;
+      try { bg.currentTime = 0; } catch {}
       audioRef.current = { jump: null, pass: null, dead: null, bg: null };
       bgStartedRef.current = false;
       bgStartingRef.current = false;
       bgRetryCountRef.current = 0;
       audioUnlockedRef.current = false;
+      audioUnlockingRef.current = false;
     };
-  }, [clearBackgroundMusicTimers]);
+  }, [clearBackgroundMusicTimers, clearPrimeTimers]);
 
   useEffect(() => {
     const cv = canvasRef.current; if (!cv) return;
@@ -564,7 +576,14 @@ const useFlappy = () => {
   }, [draw, resetBird, step]);
 
   useEffect(() => {
+    const isEditableTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName.toLowerCase();
+      if (target.isContentEditable) return true;
+      return tag === "input" || tag === "textarea" || tag === "select" || tag === "button";
+    };
     const onKey = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return;
       if (e.repeat) return;
       if ((e.ctrlKey || e.metaKey) && e.code === "KeyR") return;
       if (e.code === "Space") { e.preventDefault(); flap(); return; }
@@ -594,11 +613,22 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   const [manifestError, setManifestError] = useState<string | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
+  const exitTimerRef = useRef<number | null>(null);
   const game = useFlappy();
 
   useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = "unset"; };
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (exitTimerRef.current !== null) {
+        window.clearTimeout(exitTimerRef.current);
+        exitTimerRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -633,9 +663,20 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
     game.stopAllAudio();
     setIsExiting(true);
     setShowStartButton(false);
-    setTimeout(() => onComplete(), 420);
+    if (exitTimerRef.current !== null) {
+      window.clearTimeout(exitTimerRef.current);
+    }
+    exitTimerRef.current = window.setTimeout(() => {
+      onComplete();
+      exitTimerRef.current = null;
+    }, 420);
   };
   const handleRetry = () => { resetPreloadManifestPromise(); setRetryToken((p) => p + 1); };
+  const handleGamePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.isPrimary === false) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    game.onTap();
+  }, [game]);
 
   const preloadSummary = useMemo(() => {
     if (manifestError) return `Manifest error: ${manifestError}`;
@@ -658,7 +699,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           <div className="flex min-h-screen flex-col justify-center gap-6 py-6 sm:gap-7 sm:py-8 lg:py-10" style={{ minHeight: "100dvh" }}>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
               <section className="min-w-0">
-                <div className="relative w-full overflow-hidden rounded-2xl border border-border/60" style={{ aspectRatio: "16 / 9", maxHeight: "min(68dvh, 620px)", minHeight: "clamp(320px, 60dvh, 560px)" }} onPointerDown={game.onTap}>
+                <div className="relative w-full overflow-hidden rounded-2xl border border-border/60" style={{ aspectRatio: "16 / 9", maxHeight: "min(68dvh, 620px)", minHeight: "clamp(320px, 60dvh, 560px)" }} onPointerDown={handleGamePointerDown}>
                   <canvas ref={game.canvasRef} className="absolute inset-0 h-full w-full touch-manipulation" aria-label="Flappy Bird loading game" />
                   <div className="pointer-events-none absolute inset-0">
                     {game.best > 0 && <div className="absolute right-3 top-4 text-[10px] text-white/95 sm:right-4 sm:text-xs" style={{ fontFamily: "'Press Start 2P', 'Courier New', monospace", textShadow: "0 2px 8px rgba(0,0,0,0.65)" }}>BEST: {game.best}</div>}

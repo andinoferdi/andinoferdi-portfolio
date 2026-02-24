@@ -45,8 +45,9 @@ export const useAudioPlayer = () => {
   const changeTokenRef = useRef(0);
   const transitioningRef = useRef(false);
   const isPlayingRef = useRef(false);
-
-  const volumeRef = useRef(loadStoredVolume());
+  const [isEngineTransitioning, setIsEngineTransitioning] = useState(false);
+  const initialVolume = useMemo(() => loadStoredVolume(), []);
+  const volumeRef = useRef(initialVolume);
   const durationRef = useRef(0);
 
   const shuffledPlaylist = useMemo(() => {
@@ -62,7 +63,7 @@ export const useAudioPlayer = () => {
     isPlaying: false,
     currentTime: 0,
     duration: 0,
-    volume: volumeRef.current,
+    volume: initialVolume,
     isShuffled: true,
     repeatMode: "none",
     playlist: shuffledPlaylist,
@@ -73,10 +74,15 @@ export const useAudioPlayer = () => {
 
   const { currentTrack, isPlaying, currentTime, duration, volume } =
     playerState;
+  const playerStateRef = useRef(playerState);
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
+
+  useEffect(() => {
+    playerStateRef.current = playerState;
+  }, [playerState]);
 
   useEffect(() => {
     durationRef.current = duration;
@@ -148,10 +154,12 @@ export const useAudioPlayer = () => {
     const releaseTransition = () => {
       if (changeTokenRef.current === token) {
         transitioningRef.current = false;
+        setIsEngineTransitioning(false);
       }
     };
 
     transitioningRef.current = true;
+    setIsEngineTransitioning(true);
 
     durationRef.current = 0;
 
@@ -360,20 +368,23 @@ export const useAudioPlayer = () => {
 
   const handleNext = useCallback(() => {
     if (transitioningRef.current) return;
-    const wasPlaying = isPlayingRef.current;
+    const snapshot = playerStateRef.current;
+    if (!snapshot.playlist.length) return;
 
-    setPlayerState((prev) => {
-      const nextIndex = (prev.currentTrackIndex + 1) % prev.playlist.length;
-      const nextTrack = prev.playlist[nextIndex]!;
-      changeTrack(nextTrack, wasPlaying);
-      return {
-        ...prev,
-        currentTrackIndex: nextIndex,
-        currentTrack: nextTrack,
-        currentTime: 0,
-        duration: 0,
-      };
-    });
+    const wasPlaying = isPlayingRef.current;
+    const nextIndex = (snapshot.currentTrackIndex + 1) % snapshot.playlist.length;
+    const nextTrack = snapshot.playlist[nextIndex];
+    if (!nextTrack) return;
+
+    setPlayerState((prev) => ({
+      ...prev,
+      currentTrackIndex: nextIndex,
+      currentTrack: nextTrack,
+      currentTime: 0,
+      duration: 0,
+    }));
+
+    void changeTrack(nextTrack, wasPlaying);
   }, [changeTrack]);
 
   const PREV_RESTART_THRESHOLD = 3;
@@ -381,33 +392,36 @@ export const useAudioPlayer = () => {
     if (transitioningRef.current) return;
 
     const audio = audioRef.current;
-    if (!audio) return;
+    const snapshot = playerStateRef.current;
+    if (!snapshot.playlist.length) return;
 
-    setPlayerState((prev) => {
-      if ((prev.currentTime || 0) > PREV_RESTART_THRESHOLD) {
+    if ((snapshot.currentTime || 0) > PREV_RESTART_THRESHOLD) {
+      if (audio) {
         try {
           audio.currentTime = 0;
         } catch {}
-        return { ...prev, currentTime: 0 };
       }
+      setPlayerState((prev) => ({ ...prev, currentTime: 0 }));
+      return;
+    }
 
-      const wasPlaying = isPlayingRef.current;
-      const prevIndex =
-        prev.currentTrackIndex === 0
-          ? prev.playlist.length - 1
-          : prev.currentTrackIndex - 1;
+    const wasPlaying = isPlayingRef.current;
+    const prevIndex =
+      snapshot.currentTrackIndex === 0
+        ? snapshot.playlist.length - 1
+        : snapshot.currentTrackIndex - 1;
+    const prevTrack = snapshot.playlist[prevIndex];
+    if (!prevTrack) return;
 
-      const prevTrack = prev.playlist[prevIndex]!;
-      changeTrack(prevTrack, wasPlaying);
+    setPlayerState((prev) => ({
+      ...prev,
+      currentTrackIndex: prevIndex,
+      currentTrack: prevTrack,
+      currentTime: 0,
+      duration: 0,
+    }));
 
-      return {
-        ...prev,
-        currentTrackIndex: prevIndex,
-        currentTrack: prevTrack,
-        currentTime: 0,
-        duration: 0,
-      };
-    });
+    void changeTrack(prevTrack, wasPlaying);
   }, [changeTrack]);
 
   const handleSeek = useCallback((newTime: number) => {
@@ -456,6 +470,7 @@ export const useAudioPlayer = () => {
     volume,
     isExpanded: playerState.isExpanded,
     isTrackLoading: playerState.isTrackLoading,
+    isEngineTransitioning,
     progressPercent,
     volumePercent,
     handlePlayPause,
