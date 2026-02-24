@@ -254,7 +254,10 @@ const useFlappy = () => {
       audio.muted = true;
       void safePlay(audio)
         .then((ok) => {
-          if (!ok) return;
+          if (!ok) {
+            audio.muted = wasMuted;
+            return;
+          }
           window.setTimeout(() => {
             audio.pause();
             try { audio.currentTime = 0; } catch {}
