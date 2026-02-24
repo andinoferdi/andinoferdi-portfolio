@@ -20,7 +20,7 @@ export const HeroSection = ({ data }: HeroSectionProps) => {
       <div className="text-center space-y-8 max-w-4xl mx-auto">
         <div className="space-y-4">
           <h1 
-            className="text-4xl md:text-7xl font-bold font-sans"
+            className="mb-4 text-4xl font-bold text-foreground md:text-6xl"
             data-aos="fade-down"
           >
             {data.greeting}

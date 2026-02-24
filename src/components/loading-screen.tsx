@@ -244,22 +244,31 @@ const useFlappy = () => {
   }, []);
   const unlockAudioOnFirstGesture = useCallback(() => {
     if (audioUnlockedRef.current) return;
-    const jump = audioRef.current.jump;
-    if (!jump) return;
+    const { jump, pass, dead } = audioRef.current;
+    if (!jump || !pass || !dead) return;
     audioUnlockedRef.current = true;
-    const wasMuted = jump.muted;
-    jump.muted = true;
-    jump.currentTime = 0;
-    const resetMute = () => {
-      jump.muted = wasMuted;
+
+    const primeSfx = (audio: HTMLAudioElement) => {
+      const wasMuted = audio.muted;
+      try { audio.currentTime = 0; } catch {}
+      audio.muted = true;
+      void safePlay(audio)
+        .then((ok) => {
+          if (!ok) return;
+          window.setTimeout(() => {
+            audio.pause();
+            try { audio.currentTime = 0; } catch {}
+            audio.muted = wasMuted;
+          }, 40);
+        })
+        .catch(() => {
+          audio.muted = wasMuted;
+        });
     };
-    jump.addEventListener("ended", resetMute, { once: true });
-    void safePlay(jump).then((ok) => {
-      if (!ok) {
-        audioUnlockedRef.current = false;
-        resetMute();
-      }
-    });
+
+    primeSfx(jump);
+    primeSfx(pass);
+    primeSfx(dead);
   }, [safePlay]);
   const stopBackgroundMusic = useCallback(() => {
     const bg = audioRef.current.bg;
@@ -370,11 +379,7 @@ const useFlappy = () => {
     setPhase("playing");
     unlockAudioOnFirstGesture();
     play("jump");
-    if (bgStartTimerRef.current !== null) window.clearTimeout(bgStartTimerRef.current);
-    bgStartTimerRef.current = window.setTimeout(() => {
-      bgStartTimerRef.current = null;
-      startBackgroundMusicForPlaying();
-    }, 80);
+    startBackgroundMusicForPlaying();
   }, [play, resetRun, setPhase, spawnPipe, startBackgroundMusicForPlaying, unlockAudioOnFirstGesture]);
 
   const flap = useCallback(() => {

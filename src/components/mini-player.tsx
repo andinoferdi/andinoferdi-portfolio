@@ -347,6 +347,7 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
   const transitionRafRef = useRef<number | null>(null);
   const transitionTimeoutRef = useRef<number | null>(null);
   const lastNonZeroVolumeRef = useRef(volume > 0.001 ? volume : 0.2);
+  const autoAdvanceTriggeredRef = useRef(false);
 
   const seekKeys = new Set([
     "ArrowLeft",
@@ -476,6 +477,31 @@ const MiniPlayerExpanded: React.FC<MiniPlayerExpandedProps> = ({
     safeDuration > 0
       ? Math.min(100, Math.max(0, (safeDisplayTime / safeDuration) * 100))
       : 0;
+
+  useEffect(() => {
+    autoAdvanceTriggeredRef.current = false;
+  }, [currentTrack.id]);
+
+  useEffect(() => {
+    if (!isPlaying || isSeeking || isTrackTransitioning) return;
+    if (!safeDuration || safeDuration <= 0) return;
+
+    const remaining = safeDuration - currentTime;
+    const endThreshold = 0.12;
+
+    if (remaining <= endThreshold && currentTime > 0 && !autoAdvanceTriggeredRef.current) {
+      autoAdvanceTriggeredRef.current = true;
+      runTrackChangeTransition(onNext);
+    }
+  }, [
+    currentTime,
+    isPlaying,
+    isSeeking,
+    isTrackTransitioning,
+    onNext,
+    runTrackChangeTransition,
+    safeDuration,
+  ]);
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSeekValue(parseFloat(e.target.value));
