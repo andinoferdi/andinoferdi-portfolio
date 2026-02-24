@@ -34,13 +34,22 @@ type ResolvedUpstream = {
   probeResult: ProbeResult;
 };
 
-type RouteErrorCode = "AUTH_ERROR" | "MODEL_ERROR" | "QUOTA_EXCEEDED";
+type RouteErrorCode =
+  | "AUTH_ERROR"
+  | "QUOTA_EXCEEDED"
+  | "RATE_LIMITED"
+  | "PROVIDER_UNAVAILABLE"
+  | "BAD_REQUEST"
+  | "UPSTREAM_ERROR"
+  | "TIMEOUT";
 
 type RouteError = Error & {
   code: RouteErrorCode;
   attempts: number;
   fallbackIndex: number;
   modelUsed?: string;
+  statusCode: number;
+  retryAfterMs?: number;
 };
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
@@ -66,11 +75,11 @@ const MAX_MODEL_INPUT_TEXT_CHARS = 1800;
 const MAX_TEXT_PART_CHARS = 700;
 const SYSTEM_PROMPT_MAX_CHARS = 2200;
 const MAX_STREAM_OUTPUT_CHARS = 16_000;
-const TOTAL_BUDGET_MS = 22_000;
-const REQUEST_CONNECT_TIMEOUT_MS = 4_000;
-const FIRST_TOKEN_TIMEOUT_MS = 12_000;
-const STREAM_STALL_TIMEOUT_MS = 8_000;
-const ATTEMPT_COOLDOWN_MS = 150;
+const TOTAL_BUDGET_MS = 60_000;
+const REQUEST_CONNECT_TIMEOUT_MS = 12_000;
+const FIRST_TOKEN_TIMEOUT_MS = 30_000;
+const STREAM_STALL_TIMEOUT_MS = 15_000;
+const ERROR_LOG_TEXT_MAX_CHARS = 320;
 
 const createRouteError = (options: {
   code: RouteErrorCode;
@@ -78,12 +87,16 @@ const createRouteError = (options: {
   attempts: number;
   fallbackIndex: number;
   modelUsed?: string;
+  statusCode: number;
+  retryAfterMs?: number;
 }): RouteError => {
   const error = new Error(options.message) as RouteError;
   error.code = options.code;
   error.attempts = options.attempts;
   error.fallbackIndex = options.fallbackIndex;
   error.modelUsed = options.modelUsed;
+  error.statusCode = options.statusCode;
+  error.retryAfterMs = options.retryAfterMs;
   return error;
 };
 
@@ -95,10 +108,15 @@ const isRouteError = (error: unknown): error is RouteError => {
   const candidate = error as Partial<RouteError>;
   return (
     (candidate.code === "AUTH_ERROR" ||
-      candidate.code === "MODEL_ERROR" ||
-      candidate.code === "QUOTA_EXCEEDED") &&
+      candidate.code === "QUOTA_EXCEEDED" ||
+      candidate.code === "RATE_LIMITED" ||
+      candidate.code === "PROVIDER_UNAVAILABLE" ||
+      candidate.code === "BAD_REQUEST" ||
+      candidate.code === "UPSTREAM_ERROR" ||
+      candidate.code === "TIMEOUT") &&
     typeof candidate.attempts === "number" &&
-    typeof candidate.fallbackIndex === "number"
+    typeof candidate.fallbackIndex === "number" &&
+    typeof candidate.statusCode === "number"
   );
 };
 
@@ -394,6 +412,31 @@ const readSafeText = async (response: Response): Promise<string> => {
 
 const getRemainingBudgetMs = (routeStartedAt: number): number => {
   return Math.max(0, TOTAL_BUDGET_MS - (Date.now() - routeStartedAt));
+};
+
+const getAttemptBackoffMs = (attempts: number): number => {
+  if (attempts <= 1) return 1000;
+  if (attempts === 2) return 2500;
+  return 5000;
+};
+
+const parseRetryAfterMs = (headerValue: string | null): number | null => {
+  if (!headerValue) return null;
+
+  const asSeconds = Number.parseFloat(headerValue);
+  if (Number.isFinite(asSeconds) && asSeconds >= 0) {
+    return Math.round(asSeconds * 1000);
+  }
+
+  const asDate = Date.parse(headerValue);
+  if (Number.isNaN(asDate)) return null;
+
+  const deltaMs = asDate - Date.now();
+  return deltaMs > 0 ? deltaMs : 0;
+};
+
+const toLogText = (value: string): string => {
+  return clampText(value, ERROR_LOG_TEXT_MAX_CHARS);
 };
 
 const readWithTimeout = async (
@@ -756,7 +799,8 @@ const resolveUpstreamStream = async (
   routeStartedAt: number
 ): Promise<ResolvedUpstream> => {
   let attempts = 0;
-  let lastError: Error | null = null;
+  let lastError: RouteError | null = null;
+  let nextRetryAfterMs: number | null = null;
 
   for (let index = 0; index < modelOrder.length; index += 1) {
     if (requestSignal.aborted) {
@@ -780,6 +824,18 @@ const resolveUpstreamStream = async (
 
       if (!upstream.ok) {
         const errorText = await readSafeText(upstream);
+        const retryAfterMs = parseRetryAfterMs(upstream.headers.get("retry-after"));
+        nextRetryAfterMs = retryAfterMs;
+
+        console.error("[chatbot][upstream-fail]", {
+          status: upstream.status,
+          model,
+          attempts,
+          fallbackIndex: index,
+          elapsedMs: Date.now() - routeStartedAt,
+          retryAfterMs,
+          errorText: toLogText(errorText || "No detail"),
+        });
 
         if (upstream.status === 401 || upstream.status === 403) {
           throw createRouteError({
@@ -788,6 +844,7 @@ const resolveUpstreamStream = async (
             attempts,
             fallbackIndex: index,
             modelUsed: model,
+            statusCode: 401,
           });
         }
 
@@ -798,12 +855,56 @@ const resolveUpstreamStream = async (
             attempts,
             fallbackIndex: index,
             modelUsed: model,
+            statusCode: 429,
+            retryAfterMs: retryAfterMs ?? undefined,
           });
         }
 
-        lastError = new Error(
-          `MODEL_ERROR (${model}, ${upstream.status}): ${errorText || "No detail"}`
-        );
+        if (upstream.status === 429) {
+          lastError = createRouteError({
+            code: "RATE_LIMITED",
+            message: `RATE_LIMITED (${model}): ${errorText || "Rate limit reached"}`,
+            attempts,
+            fallbackIndex: index,
+            modelUsed: model,
+            statusCode: 429,
+            retryAfterMs: retryAfterMs ?? undefined,
+          });
+          continue;
+        }
+
+        if (upstream.status === 503) {
+          lastError = createRouteError({
+            code: "PROVIDER_UNAVAILABLE",
+            message: `PROVIDER_UNAVAILABLE (${model}): ${errorText || "Provider unavailable"}`,
+            attempts,
+            fallbackIndex: index,
+            modelUsed: model,
+            statusCode: 503,
+          });
+          continue;
+        }
+
+        if (upstream.status === 400) {
+          lastError = createRouteError({
+            code: "BAD_REQUEST",
+            message: `BAD_REQUEST (${model}): ${errorText || "Invalid payload"}`,
+            attempts,
+            fallbackIndex: index,
+            modelUsed: model,
+            statusCode: 400,
+          });
+          continue;
+        }
+
+        lastError = createRouteError({
+          code: "UPSTREAM_ERROR",
+          message: `UPSTREAM_ERROR (${model}, ${upstream.status}): ${errorText || "No detail"}`,
+          attempts,
+          fallbackIndex: index,
+          modelUsed: model,
+          statusCode: upstream.status >= 500 ? 500 : upstream.status,
+        });
       } else {
         const probeResult = await probeFirstVisibleContent(
           upstream,
@@ -823,35 +924,71 @@ const resolveUpstreamStream = async (
         throw error;
       }
 
-      if (
-        isRouteError(error) &&
-        (error.code === "AUTH_ERROR" || error.code === "QUOTA_EXCEEDED")
-      ) {
+      if (isRouteError(error) && (
+        error.code === "AUTH_ERROR" ||
+        error.code === "QUOTA_EXCEEDED"
+      )) {
         throw error;
       }
 
-      lastError = error instanceof Error ? error : new Error(String(error));
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const timeoutLikeError =
+        errorMessage === "CONNECT_TIMEOUT" ||
+        errorMessage === "FIRST_TOKEN_TIMEOUT" ||
+        errorMessage === "STREAM_STALL_TIMEOUT" ||
+        errorMessage === "TOTAL_BUDGET_TIMEOUT" ||
+        errorMessage === "EMPTY_STREAM";
+
+      lastError = isRouteError(error)
+        ? error
+        : createRouteError({
+            code: timeoutLikeError ? "TIMEOUT" : "UPSTREAM_ERROR",
+            message: timeoutLikeError
+              ? `TIMEOUT (${model}): ${errorMessage}`
+              : `UPSTREAM_ERROR (${model}): ${errorMessage}`,
+            attempts,
+            fallbackIndex: index,
+            modelUsed: model,
+            statusCode: timeoutLikeError ? 500 : 500,
+          });
+
+      console.error("[chatbot][attempt-error]", {
+        model,
+        attempts,
+        fallbackIndex: index,
+        elapsedMs: Date.now() - routeStartedAt,
+        code: lastError.code,
+        message: toLogText(lastError.message),
+      });
     }
 
     if (index < modelOrder.length - 1) {
       const remainingBudgetMs = getRemainingBudgetMs(routeStartedAt);
       if (remainingBudgetMs > 0) {
-        await wait(Math.min(ATTEMPT_COOLDOWN_MS, remainingBudgetMs));
+        const cooldownMs = Math.max(
+          nextRetryAfterMs ?? 0,
+          getAttemptBackoffMs(attempts)
+        );
+        nextRetryAfterMs = null;
+        await wait(Math.min(cooldownMs, remainingBudgetMs));
       }
     }
   }
 
+  if (lastError) {
+    throw lastError;
+  }
+
   throw createRouteError({
-    code: "MODEL_ERROR",
-    message:
-      lastError?.message ||
-      "Semua model gratis gagal merespons dalam batas waktu.",
+    code: "TIMEOUT",
+    message: "Semua model gratis gagal merespons dalam batas waktu.",
     attempts,
     fallbackIndex: attempts > 0 ? Math.min(attempts - 1, modelOrder.length - 1) : -1,
     modelUsed:
       attempts > 0
         ? modelOrder[Math.min(attempts - 1, modelOrder.length - 1)]
         : undefined,
+    statusCode: 500,
   });
 };
 
@@ -917,54 +1054,87 @@ export async function POST(request: NextRequest) {
     const attempts = routeError?.attempts ?? 0;
     const fallbackIndex = routeError?.fallbackIndex ?? -1;
     const modelUsed = routeError?.modelUsed;
+    const statusCode = routeError?.statusCode ?? 500;
+    const retryAfterMs = routeError?.retryAfterMs;
     const message = error instanceof Error ? error.message : String(error);
+    const elapsedMs = String(Date.now() - routeStartedAt);
 
-    if (routeError?.code === "AUTH_ERROR" || message.startsWith("AUTH_ERROR:")) {
-      return new Response("Autentikasi model gagal di server.", {
-        status: 401,
-        headers: {
-          ...(modelUsed ? { "x-chatbot-model-used": modelUsed } : {}),
-          "x-chatbot-attempts": String(attempts),
-          "x-chatbot-fallback-index": String(fallbackIndex),
-          "x-chatbot-failure-reason": "auth_error",
-          "x-chatbot-route-time-ms": String(Date.now() - routeStartedAt),
-        },
-      });
+    const diagnosticHeaders: Record<string, string> = {
+      ...(modelUsed ? { "x-chatbot-model-used": modelUsed } : {}),
+      "x-chatbot-attempts": String(attempts),
+      "x-chatbot-fallback-index": String(fallbackIndex),
+      "x-chatbot-route-time-ms": elapsedMs,
+    };
+    if (retryAfterMs && retryAfterMs > 0) {
+      diagnosticHeaders["retry-after"] = String(Math.ceil(retryAfterMs / 1000));
     }
 
-    if (
-      routeError?.code === "QUOTA_EXCEEDED" ||
-      message.startsWith("QUOTA_EXCEEDED:")
-    ) {
-      return new Response(
-        "Kuota harian model gratis habis. Tunggu reset kuota OpenRouter atau tambahkan kredit.",
-        {
-          status: 429,
-          headers: {
-            ...(modelUsed ? { "x-chatbot-model-used": modelUsed } : {}),
-            "x-chatbot-attempts": String(attempts),
-            "x-chatbot-fallback-index": String(fallbackIndex),
-            "x-chatbot-failure-reason": "quota_exceeded",
-            "x-chatbot-route-time-ms": String(Date.now() - routeStartedAt),
-          },
-        }
+    const respond = (status: number, failureReason: string, body: string) => {
+      console.error("[chatbot][route-fail]", {
+        status,
+        failureReason,
+        attempts,
+        fallbackIndex,
+        modelUsed,
+        elapsedMs: Number(elapsedMs),
+        message: toLogText(message),
+      });
+      return new Response(body, {
+        status,
+        headers: {
+          ...diagnosticHeaders,
+          "x-chatbot-failure-reason": failureReason,
+        },
+      });
+    };
+
+    if (routeError?.code === "AUTH_ERROR" || message.startsWith("AUTH_ERROR:")) {
+      return respond(401, "auth_error", "Autentikasi model gagal di server.");
+    }
+
+    if (routeError?.code === "QUOTA_EXCEEDED" || message.startsWith("QUOTA_EXCEEDED:")) {
+      return respond(
+        429,
+        "quota_exceeded",
+        "Kuota harian model gratis habis. Tunggu reset kuota OpenRouter atau tambahkan kredit."
       );
     }
 
-    console.error("Chatbot route error:", error);
+    if (routeError?.code === "RATE_LIMITED" || message.startsWith("RATE_LIMITED")) {
+      return respond(
+        429,
+        "rate_limited",
+        "Rate limit OpenRouter tercapai. Tunggu sebentar lalu coba lagi."
+      );
+    }
 
-    return new Response(
-      "Model gratis sedang padat atau timeout. Silakan coba lagi sebentar.",
-      {
-        status: 503,
-        headers: {
-          ...(modelUsed ? { "x-chatbot-model-used": modelUsed } : {}),
-          "x-chatbot-attempts": String(attempts),
-          "x-chatbot-fallback-index": String(fallbackIndex),
-          "x-chatbot-failure-reason": "model_unavailable",
-          "x-chatbot-route-time-ms": String(Date.now() - routeStartedAt),
-        },
-      }
+    if (
+      routeError?.code === "PROVIDER_UNAVAILABLE" ||
+      message.startsWith("PROVIDER_UNAVAILABLE")
+    ) {
+      return respond(
+        503,
+        "provider_unavailable",
+        "Provider model gratis sedang tidak tersedia untuk request ini. Silakan coba lagi beberapa saat."
+      );
+    }
+
+    if (routeError?.code === "BAD_REQUEST" || message.startsWith("BAD_REQUEST")) {
+      return respond(400, "bad_request", "Payload chatbot tidak valid.");
+    }
+
+    if (routeError?.code === "TIMEOUT" || message.startsWith("TIMEOUT")) {
+      return respond(
+        500,
+        "timeout",
+        "Permintaan chatbot timeout di server. Silakan coba lagi."
+      );
+    }
+
+    return respond(
+      statusCode >= 400 && statusCode < 600 ? statusCode : 500,
+      "upstream_error",
+      "Server chatbot sementara bermasalah. Silakan coba lagi."
     );
   }
 }

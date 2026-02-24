@@ -279,12 +279,12 @@ const mapStatusError = (status: number, errorText: string): Error => {
         "FREE_MODEL_QUOTA_EXCEEDED: Kuota harian model gratis habis."
       );
     }
-    return new Error("RATE_LIMITED: Antrian chatbot sedang padat.");
+    return new Error("RATE_LIMITED: Rate limit OpenRouter tercapai.");
   }
 
   if (status === 503) {
     return new Error(
-      "FREE_MODEL_UNAVAILABLE: Model gratis sedang padat atau timeout."
+      "PROVIDER_UNAVAILABLE: Provider model gratis sedang tidak tersedia."
     );
   }
 
@@ -366,7 +366,7 @@ export const sendChatMessage = async (
         errorMessage.startsWith("IMAGE_PAYLOAD_TOO_LARGE:") ||
         errorMessage.startsWith("FREE_MODEL_QUOTA_EXCEEDED:") ||
         errorMessage.startsWith("RATE_LIMITED:") ||
-        errorMessage.startsWith("FREE_MODEL_UNAVAILABLE:") ||
+        errorMessage.startsWith("PROVIDER_UNAVAILABLE:") ||
         errorMessage.startsWith("SERVER_ERROR:") ||
         errorMessage.startsWith("API_ERROR");
 
@@ -497,17 +497,22 @@ export const handleModelFallback = async (
         "Kuota harian model gratis habis. Tunggu reset kuota OpenRouter atau tambahkan kredit."
       );
     }
-    if (
-      errorMessage.startsWith("RATE_LIMITED:") ||
-      errorMessage.startsWith("FREE_MODEL_UNAVAILABLE:")
-    ) {
-      throw new Error("Model gratis sedang padat. Coba lagi beberapa saat.");
+    if (errorMessage.startsWith("RATE_LIMITED:")) {
+      throw new Error("Rate limit OpenRouter tercapai. Tunggu sebentar lalu coba lagi.");
+    }
+    if (errorMessage.startsWith("PROVIDER_UNAVAILABLE:")) {
+      throw new Error(
+        "Provider model gratis sedang tidak tersedia untuk request ini. Coba lagi beberapa saat."
+      );
     }
     if (errorMessage.startsWith("EMPTY_RESPONSE:")) {
       throw new Error("Chatbot mengembalikan respons kosong. Silakan coba lagi.");
     }
+    if (errorMessage.startsWith("API_ERROR (400):")) {
+      throw new Error("Permintaan tidak valid. Periksa format teks atau gambar lalu coba lagi.");
+    }
     if (errorMessage.startsWith("SERVER_ERROR:")) {
-      throw new Error("Server chatbot sementara bermasalah. Silakan coba lagi.");
+      throw new Error("Server chatbot sementara bermasalah. Silakan coba lagi nanti.");
     }
 
     throw (error instanceof Error ? error : new Error(errorMessage));
