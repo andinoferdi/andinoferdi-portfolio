@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
+import Cerebras from "@cerebras/cerebras_cloud_sdk";
 import { getProjectsData } from "@/services/projects";
 import { getExperienceData } from "@/services/journey";
 import { getProfileData } from "@/services/profile";
 import { getTechStackData } from "@/services/techstack";
-import { type MessageContent, type StreamChunk } from "@/types/chatbot";
+import { type MessageContent } from "@/types/chatbot";
 
 type IncomingMessage = {
   role?: string;
@@ -15,23 +16,14 @@ type ModelMessage = {
   content: string | MessageContent[];
 };
 
-type ParseState = {
-  buffer: string;
-  decoder: TextDecoder;
-  isEventStream: boolean;
+type ProviderMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
 };
 
-type ProbeResult = {
-  parseState: ParseState;
+type ProviderProbeResult = {
   prefetchedContent: string;
-  reader: ReadableStreamDefaultReader<Uint8Array>;
-};
-
-type ResolvedUpstream = {
-  attempts: number;
-  fallbackIndex: number;
-  modelUsed: string;
-  probeResult: ProbeResult;
+  iterator: AsyncIterator<unknown> | null;
 };
 
 type RouteErrorCode =
@@ -52,22 +44,32 @@ type RouteError = Error & {
   retryAfterMs?: number;
 };
 
-const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || "AndinoFerdi Portfolio";
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-
-const DEFAULT_PRIMARY_MODEL = "openrouter/free";
-const DEFAULT_FALLBACK_MODELS = [
-  "mistralai/mistral-small-3.1-24b-instruct:free",
-  "google/gemma-3-12b-it:free",
-  "nvidia/nemotron-nano-12b-v2-vl:free",
+const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY;
+const DEFAULT_CEREBRAS_MODEL = "gpt-oss-120b";
+const DEFAULT_CEREBRAS_FALLBACK_MODELS = [
+  "llama3.1-8b",
+  "zai-glm-4.7",
+  "qwen-3-235b-a22b-instruct-2507",
 ];
-const ROUTER_FREE_MODELS = new Set(["openrouter/free", "openrouter/auto"]);
+const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL?.trim() || DEFAULT_CEREBRAS_MODEL;
+const CEREBRAS_MODEL_FALLBACKS = process.env.CEREBRAS_MODEL_FALLBACKS;
+const cerebrasClient = CEREBRAS_API_KEY
+  ? new Cerebras({ apiKey: CEREBRAS_API_KEY })
+  : null;
+
 const QUOTA_EXCEEDED_MARKERS = [
-  "free-models-per-day",
-  "unlock 1000 free model requests per day",
-  "daily rate limit",
+  "quota",
+  "insufficient",
+  "credit",
+  "free tier",
+  "free plan",
+];
+const AUTH_ERROR_MARKERS = [
+  "invalid api key",
+  "unauthorized",
+  "forbidden",
+  "authentication",
+  "api key",
 ];
 
 const MAX_CONTEXT_MESSAGES = 6;
@@ -120,11 +122,6 @@ const isRouteError = (error: unknown): error is RouteError => {
   );
 };
 
-const wait = (ms: number): Promise<void> =>
-  new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-
 const normalizeWhitespace = (value: string): string => {
   return value.replace(/\s+/g, " ").trim();
 };
@@ -168,8 +165,9 @@ const sanitizeIncomingMessages = (messages: IncomingMessage[]): ModelMessage[] =
         return null;
       }
 
-      const sanitizedParts: MessageContent[] = [];
+      const textParts: string[] = [];
       let remainingTextBudget = MAX_MODEL_INPUT_TEXT_CHARS;
+      let hasImage = false;
 
       for (const part of content) {
         if (part.type === "text" && typeof part.text === "string") {
@@ -180,10 +178,7 @@ const sanitizeIncomingMessages = (messages: IncomingMessage[]): ModelMessage[] =
           );
           if (limitedText.length === 0) continue;
 
-          sanitizedParts.push({
-            type: "text",
-            text: limitedText,
-          });
+          textParts.push(limitedText);
           remainingTextBudget -= limitedText.length;
           continue;
         }
@@ -193,26 +188,32 @@ const sanitizeIncomingMessages = (messages: IncomingMessage[]): ModelMessage[] =
           typeof part.image_url?.url === "string" &&
           part.image_url.url.length > 0
         ) {
-          sanitizedParts.push({
-            type: "image_url",
-            image_url: { url: part.image_url.url },
-          });
+          hasImage = true;
         }
       }
 
-      if (sanitizedParts.length === 0) {
-        const fallbackText = extractTextFromContent(content);
-        if (!fallbackText) return null;
-
+      const combinedText = normalizeWhitespace(textParts.join(" "));
+      if (combinedText.length > 0) {
         return {
           role,
-          content: clampText(fallbackText, MAX_MODEL_INPUT_TEXT_CHARS),
+          content: combinedText,
         } as ModelMessage;
       }
 
+      if (hasImage) {
+        return {
+          role,
+          content:
+            "[Pengguna mengirim gambar. Fitur gambar chatbot saat ini dinonaktifkan.]",
+        } as ModelMessage;
+      }
+
+      const fallbackText = extractTextFromContent(content);
+      if (!fallbackText) return null;
+
       return {
         role,
-        content: sanitizedParts,
+        content: clampText(fallbackText, MAX_MODEL_INPUT_TEXT_CHARS),
       } as ModelMessage;
     })
     .filter((message): message is ModelMessage => message !== null);
@@ -331,7 +332,7 @@ Rules:
 - Use headings, numbered steps, and examples when they improve clarity.
 - Use only portfolio facts for personal/project history.
 - If data is unavailable, state it clearly.
-- If image identity is unclear, ask short clarification.
+- Image input is currently disabled in this chatbot.
 
 Profile:
 ${profiles.map((profile) => `- ${profile.name}: ${clampText(profile.quote, 90)}`).join("\n")}
@@ -353,47 +354,6 @@ Photo policy:
   return clampText(prompt, SYSTEM_PROMPT_MAX_CHARS);
 };
 
-const parseModelList = (value?: string): string[] => {
-  if (!value) return [];
-  return value
-    .split(",")
-    .map((model) => model.trim())
-    .filter((model) => model.length > 0);
-};
-
-const isRouteModelAllowed = (model: string): boolean => {
-  const normalized = model.toLowerCase();
-  return normalized.endsWith(":free") || ROUTER_FREE_MODELS.has(normalized);
-};
-
-const isQuotaExceededError = (errorText: string): boolean => {
-  const normalized = errorText.toLowerCase();
-  return QUOTA_EXCEEDED_MARKERS.some((marker) => normalized.includes(marker));
-};
-
-const unique = (list: string[]): string[] => {
-  return Array.from(new Set(list));
-};
-
-const resolveModelOrder = (): string[] => {
-  const envPrimary = process.env.CHATBOT_MODEL_PRIMARY?.trim();
-  const envFallbacks = parseModelList(process.env.CHATBOT_MODEL_FALLBACKS);
-
-  const primary = envPrimary && isRouteModelAllowed(envPrimary)
-    ? envPrimary
-    : DEFAULT_PRIMARY_MODEL;
-  const fallbacks = envFallbacks.length > 0
-    ? envFallbacks.filter(isRouteModelAllowed)
-    : DEFAULT_FALLBACK_MODELS;
-
-  const order = unique([primary, ...fallbacks]);
-  if (order.length > 0) {
-    return order;
-  }
-
-  return unique([DEFAULT_PRIMARY_MODEL, ...DEFAULT_FALLBACK_MODELS]);
-};
-
 const buildModelMessages = (messages: ModelMessage[]): ModelMessage[] => {
   const conversation = messages.filter((message) => message.role !== "system");
   const trimmedConversation = conversation.slice(-MAX_CONTEXT_MESSAGES);
@@ -402,286 +362,362 @@ const buildModelMessages = (messages: ModelMessage[]): ModelMessage[] => {
   return [{ role: "system", content: prompt }, ...trimmedConversation];
 };
 
-const readSafeText = async (response: Response): Promise<string> => {
-  try {
-    return (await response.text()).trim();
-  } catch {
-    return "";
-  }
+const toProviderMessages = (messages: ModelMessage[]): ProviderMessage[] => {
+  return messages
+    .map((message) => {
+      const text = clampText(
+        extractTextFromContent(message.content),
+        MAX_MODEL_INPUT_TEXT_CHARS
+      );
+      if (!text) return null;
+      return {
+        role: message.role,
+        content: text,
+      };
+    })
+    .filter((message): message is ProviderMessage => message !== null);
 };
 
 const getRemainingBudgetMs = (routeStartedAt: number): number => {
   return Math.max(0, TOTAL_BUDGET_MS - (Date.now() - routeStartedAt));
 };
 
-const getAttemptBackoffMs = (attempts: number): number => {
-  if (attempts <= 1) return 1000;
-  if (attempts === 2) return 2500;
-  return 5000;
-};
-
-const parseRetryAfterMs = (headerValue: string | null): number | null => {
-  if (!headerValue) return null;
-
-  const asSeconds = Number.parseFloat(headerValue);
-  if (Number.isFinite(asSeconds) && asSeconds >= 0) {
-    return Math.round(asSeconds * 1000);
-  }
-
-  const asDate = Date.parse(headerValue);
-  if (Number.isNaN(asDate)) return null;
-
-  const deltaMs = asDate - Date.now();
-  return deltaMs > 0 ? deltaMs : 0;
-};
-
 const toLogText = (value: string): string => {
   return clampText(value, ERROR_LOG_TEXT_MAX_CHARS);
 };
 
-const readWithTimeout = async (
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-  timeoutMs: number,
-  timeoutLabel: string
-): Promise<ReadableStreamReadResult<Uint8Array>> => {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-  try {
-    const readPromise = reader.read();
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => {
-        reject(new Error(timeoutLabel));
-      }, timeoutMs);
-    });
-
-    return await Promise.race([readPromise, timeoutPromise]);
-  } finally {
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId);
-    }
-  }
+const isAsyncIterable = (value: unknown): value is AsyncIterable<unknown> => {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Symbol.asyncIterator in value &&
+    typeof (value as AsyncIterable<unknown>)[Symbol.asyncIterator] === "function"
+  );
 };
 
-const extractTextFromChunk = (chunk: StreamChunk): string => {
-  const choice = chunk.choices?.[0];
-  if (!choice) return "";
-
-  const deltaContent = choice.delta?.content as unknown;
-  if (typeof deltaContent === "string") {
-    return deltaContent;
+const extractTextFromUnknown = (value: unknown): string => {
+  if (typeof value === "string") {
+    return value;
   }
 
-  if (Array.isArray(deltaContent)) {
-    return deltaContent
-      .map((item) => {
-        if (typeof item === "string") return item;
-        if (
-          item &&
-          typeof item === "object" &&
-          "type" in item &&
-          (item as { type?: string }).type === "text" &&
-          "text" in item &&
-          typeof (item as { text?: unknown }).text === "string"
-        ) {
-          return (item as { text: string }).text;
-        }
-        return "";
-      })
-      .join("");
+  if (Array.isArray(value)) {
+    return value.map((item) => extractTextFromUnknown(item)).join("");
   }
 
-  const messageContent = (choice as { message?: { content?: unknown } }).message
-    ?.content;
-  if (typeof messageContent === "string") {
-    return messageContent;
-  }
+  if (value && typeof value === "object") {
+    const candidate = value as { type?: unknown; text?: unknown };
 
-  if (Array.isArray(messageContent)) {
-    return messageContent
-      .map((item) => {
-        if (typeof item === "string") return item;
-        if (
-          item &&
-          typeof item === "object" &&
-          "type" in item &&
-          (item as { type?: string }).type === "text" &&
-          "text" in item &&
-          typeof (item as { text?: unknown }).text === "string"
-        ) {
-          return (item as { text: string }).text;
-        }
-        return "";
-      })
-      .join("");
-  }
+    if (candidate.type === "text" && typeof candidate.text === "string") {
+      return candidate.text;
+    }
 
-  const directText = (choice as { text?: unknown }).text;
-  if (typeof directText === "string") {
-    return directText;
+    if (typeof candidate.text === "string") {
+      return candidate.text;
+    }
   }
 
   return "";
 };
 
-const extractSseContent = (payload: string): string => {
-  if (!payload || payload === "[DONE]") return "";
-
-  try {
-    const parsed: StreamChunk = JSON.parse(payload);
-    return extractTextFromChunk(parsed);
-  } catch {
-    return "";
-  }
-};
-
-const extractContentFromChunkText = (
-  chunkText: string,
-  parseState: ParseState
-): string => {
-  if (!parseState.isEventStream) {
-    return chunkText;
-  }
-
-  parseState.buffer += chunkText;
-  const lines = parseState.buffer.split("\n");
-  parseState.buffer = lines.pop() || "";
-
-  let content = "";
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line.startsWith("data:")) continue;
-    const payload = line.slice(5).trim();
-    content += extractSseContent(payload);
-  }
-
-  return content;
-};
-
-const flushParseState = (parseState: ParseState): string => {
-  if (!parseState.isEventStream) {
+const extractTextFromProviderChunk = (chunk: unknown): string => {
+  if (!chunk || typeof chunk !== "object") {
     return "";
   }
 
-  const line = parseState.buffer.trim();
-  parseState.buffer = "";
+  const asChunk = chunk as {
+    choices?: Array<{
+      delta?: { content?: unknown };
+      message?: { content?: unknown };
+      text?: unknown;
+    }>;
+    output_text?: unknown;
+    content?: unknown;
+  };
 
-  if (!line.startsWith("data:")) {
-    return "";
+  if (Array.isArray(asChunk.choices) && asChunk.choices.length > 0) {
+    return asChunk.choices
+      .map((choice) => {
+        if (choice.delta) {
+          const deltaText = extractTextFromUnknown(choice.delta.content);
+          if (deltaText.length > 0) return deltaText;
+        }
+
+        if (choice.message) {
+          const messageText = extractTextFromUnknown(choice.message.content);
+          if (messageText.length > 0) return messageText;
+        }
+
+        return extractTextFromUnknown(choice.text);
+      })
+      .join("");
   }
 
-  const payload = line.slice(5).trim();
-  return extractSseContent(payload);
+  const outputText = extractTextFromUnknown(asChunk.output_text);
+  if (outputText.length > 0) {
+    return outputText;
+  }
+
+  return extractTextFromUnknown(asChunk.content);
 };
 
-const requestUpstream = async (
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return "Unknown error";
+};
+
+const getErrorStatusCode = (error: unknown): number | null => {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const candidate = error as {
+    status?: unknown;
+    statusCode?: unknown;
+    response?: { status?: unknown };
+    error?: { status?: unknown; statusCode?: unknown };
+  };
+
+  const possibleStatus = [
+    candidate.status,
+    candidate.statusCode,
+    candidate.response?.status,
+    candidate.error?.status,
+    candidate.error?.statusCode,
+  ];
+
+  for (const value of possibleStatus) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
+const isQuotaExceededError = (errorText: string): boolean => {
+  const normalized = errorText.toLowerCase();
+  return QUOTA_EXCEEDED_MARKERS.some((marker) => normalized.includes(marker));
+};
+
+const isAuthErrorText = (errorText: string): boolean => {
+  const normalized = errorText.toLowerCase();
+  return AUTH_ERROR_MARKERS.some((marker) => normalized.includes(marker));
+};
+
+const createAbortError = (): DOMException => {
+  return new DOMException("Client aborted request", "AbortError");
+};
+
+const parseModelList = (value?: string): string[] => {
+  if (!value) return [];
+  return value
+    .split(",")
+    .map((model) => model.trim())
+    .filter((model) => model.length > 0);
+};
+
+const unique = (list: string[]): string[] => {
+  return Array.from(new Set(list));
+};
+
+const resolveModelOrder = (): string[] => {
+  const envPrimary = process.env.CEREBRAS_MODEL?.trim();
+  const envFallbacks = parseModelList(CEREBRAS_MODEL_FALLBACKS);
+
+  const primary = envPrimary || DEFAULT_CEREBRAS_MODEL;
+  const fallbacks =
+    envFallbacks.length > 0 ? envFallbacks : DEFAULT_CEREBRAS_FALLBACK_MODELS;
+
+  return unique([primary, ...fallbacks]);
+};
+
+const requestCerebrasCompletion = async (
   model: string,
-  modelMessages: ModelMessage[],
+  messages: ProviderMessage[],
   requestSignal: AbortSignal,
   routeStartedAt: number
-): Promise<Response> => {
+): Promise<unknown> => {
+  if (!cerebrasClient) {
+    throw createRouteError({
+      code: "AUTH_ERROR",
+      message: "AUTH_ERROR: CEREBRAS_API_KEY belum diset di server.",
+      attempts: 1,
+      fallbackIndex: 0,
+      modelUsed: model,
+      statusCode: 500,
+    });
+  }
+
+  if (requestSignal.aborted) {
+    throw createAbortError();
+  }
+
   const remainingBudgetMs = getRemainingBudgetMs(routeStartedAt);
   if (remainingBudgetMs <= 0) {
     throw new Error("TOTAL_BUDGET_TIMEOUT");
   }
 
   const connectTimeoutMs = Math.min(REQUEST_CONNECT_TIMEOUT_MS, remainingBudgetMs);
-  const connectSignal = AbortSignal.timeout(connectTimeoutMs);
-  const combinedSignal = AbortSignal.any([requestSignal, connectSignal]);
 
-  try {
-    return await fetch(OPENROUTER_ENDPOINT, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": SITE_URL,
-        "X-Title": SITE_NAME,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+  return await new Promise<unknown>((resolve, reject) => {
+    let settled = false;
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      requestSignal.removeEventListener("abort", onAbort);
+    };
+
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(createAbortError());
+    };
+
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error("CONNECT_TIMEOUT"));
+    }, connectTimeoutMs);
+
+    requestSignal.addEventListener("abort", onAbort, { once: true });
+
+    cerebrasClient.chat.completions
+      .create({
         model,
-        messages: modelMessages,
+        messages,
         stream: true,
+        max_completion_tokens: 1800,
         temperature: 0.4,
-        max_tokens: 1800,
-        reasoning: {
-          effort: "none",
-          exclude: true,
-        },
-      }),
-      signal: combinedSignal,
-    });
-  } catch (error) {
-    if (requestSignal.aborted) {
-      throw new DOMException("Client aborted request", "AbortError");
-    }
+        top_p: 1,
+      })
+      .then((completion) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(completion);
+      })
+      .catch((error: unknown) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      });
+  });
+};
 
-    if (connectSignal.aborted) {
-      throw new Error("CONNECT_TIMEOUT");
-    }
-
-    throw error instanceof Error ? error : new Error(String(error));
+const readIteratorNextWithTimeout = async (
+  iterator: AsyncIterator<unknown>,
+  timeoutMs: number,
+  signal: AbortSignal,
+  timeoutLabel: string
+): Promise<IteratorResult<unknown>> => {
+  if (signal.aborted) {
+    throw createAbortError();
   }
+
+  return await new Promise<IteratorResult<unknown>>((resolve, reject) => {
+    let settled = false;
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      signal.removeEventListener("abort", onAbort);
+    };
+
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(createAbortError());
+    };
+
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error(timeoutLabel));
+    }, timeoutMs);
+
+    signal.addEventListener("abort", onAbort, { once: true });
+
+    iterator
+      .next()
+      .then((result) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(result);
+      })
+      .catch((error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      });
+  });
 };
 
 const probeFirstVisibleContent = async (
-  upstream: Response,
+  completion: unknown,
   requestSignal: AbortSignal,
   routeStartedAt: number
-): Promise<ProbeResult> => {
-  const reader = upstream.body?.getReader();
-  if (!reader) {
+): Promise<ProviderProbeResult> => {
+  if (isAsyncIterable(completion)) {
+    const iterator = completion[Symbol.asyncIterator]();
+
+    while (true) {
+      if (requestSignal.aborted) {
+        throw createAbortError();
+      }
+
+      const remainingBudgetMs = getRemainingBudgetMs(routeStartedAt);
+      if (remainingBudgetMs <= 0) {
+        throw new Error("TOTAL_BUDGET_TIMEOUT");
+      }
+
+      const readTimeoutMs = Math.min(FIRST_TOKEN_TIMEOUT_MS, remainingBudgetMs);
+      const result = await readIteratorNextWithTimeout(
+        iterator,
+        readTimeoutMs,
+        requestSignal,
+        "FIRST_TOKEN_TIMEOUT"
+      );
+
+      if (result.done) {
+        throw new Error("EMPTY_STREAM");
+      }
+
+      const content = extractTextFromProviderChunk(result.value);
+      if (content.length > 0) {
+        return {
+          prefetchedContent: content,
+          iterator,
+        };
+      }
+    }
+  }
+
+  const content = extractTextFromProviderChunk(completion);
+  if (content.length === 0) {
     throw new Error("EMPTY_STREAM");
   }
 
-  const parseState: ParseState = {
-    buffer: "",
-    decoder: new TextDecoder(),
-    isEventStream: (upstream.headers.get("content-type") || "").includes(
-      "text/event-stream"
-    ),
+  return {
+    prefetchedContent: content,
+    iterator: null,
   };
-
-  while (true) {
-    if (requestSignal.aborted) {
-      throw new DOMException("Client aborted request", "AbortError");
-    }
-
-    const remainingBudgetMs = getRemainingBudgetMs(routeStartedAt);
-    if (remainingBudgetMs <= 0) {
-      throw new Error("TOTAL_BUDGET_TIMEOUT");
-    }
-
-    const readTimeoutMs = Math.min(FIRST_TOKEN_TIMEOUT_MS, remainingBudgetMs);
-    const result = await readWithTimeout(reader, readTimeoutMs, "FIRST_TOKEN_TIMEOUT");
-
-    if (result.done) {
-      const flushed = flushParseState(parseState);
-      if (flushed.length > 0) {
-        return {
-          parseState,
-          prefetchedContent: flushed,
-          reader,
-        };
-      }
-
-      throw new Error("EMPTY_STREAM");
-    }
-
-    const chunkText = parseState.decoder.decode(result.value, { stream: true });
-    const content = extractContentFromChunkText(chunkText, parseState);
-
-    if (content.length > 0) {
-      return {
-        parseState,
-        prefetchedContent: content,
-        reader,
-      };
-    }
-  }
 };
 
 const createPlainTextStream = (
-  probeResult: ProbeResult,
+  probeResult: ProviderProbeResult,
   options: {
     clientSignal: AbortSignal;
     routeStartedAt: number;
@@ -690,42 +726,56 @@ const createPlainTextStream = (
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       const encoder = new TextEncoder();
-      const { parseState, reader } = probeResult;
       let emittedChars = 0;
 
-      if (probeResult.prefetchedContent.length > 0) {
-        const prefetched = probeResult.prefetchedContent.slice(
-          0,
-          Math.max(0, MAX_STREAM_OUTPUT_CHARS - emittedChars)
-        );
-        if (prefetched.length > 0) {
-          controller.enqueue(encoder.encode(prefetched));
-          emittedChars += prefetched.length;
+      const emitChunk = (content: string) => {
+        if (!content) return;
+
+        const remainingChars = MAX_STREAM_OUTPUT_CHARS - emittedChars;
+        if (remainingChars <= 0) return;
+
+        const safeContent = content.slice(0, Math.max(0, remainingChars));
+        if (safeContent.length <= 0) return;
+
+        controller.enqueue(encoder.encode(safeContent));
+        emittedChars += safeContent.length;
+      };
+
+      const closeIterator = async () => {
+        if (!probeResult.iterator?.return) {
+          return;
         }
-        if (emittedChars >= MAX_STREAM_OUTPUT_CHARS) {
+
+        try {
+          await probeResult.iterator.return();
+        } catch {
+          // Ignore iterator close errors.
+        }
+      };
+
+      try {
+        emitChunk(probeResult.prefetchedContent);
+
+        if (!probeResult.iterator || emittedChars >= MAX_STREAM_OUTPUT_CHARS) {
           controller.close();
           return;
         }
-      }
 
-      try {
         while (true) {
           if (options.clientSignal.aborted) {
-            await reader.cancel();
-            controller.close();
-            return;
+            throw createAbortError();
           }
 
           const remainingBudgetMs = getRemainingBudgetMs(options.routeStartedAt);
           if (remainingBudgetMs <= 0) {
-            controller.close();
-            return;
+            throw new Error("TOTAL_BUDGET_TIMEOUT");
           }
 
           const readTimeoutMs = Math.min(STREAM_STALL_TIMEOUT_MS, remainingBudgetMs);
-          const result = await readWithTimeout(
-            reader,
+          const result = await readIteratorNextWithTimeout(
+            probeResult.iterator,
             readTimeoutMs,
+            options.clientSignal,
             "STREAM_STALL_TIMEOUT"
           );
 
@@ -733,270 +783,125 @@ const createPlainTextStream = (
             break;
           }
 
-          const chunkText = parseState.decoder.decode(result.value, { stream: true });
-          const content = extractContentFromChunkText(chunkText, parseState);
+          const content = extractTextFromProviderChunk(result.value);
+          emitChunk(content);
 
-          if (content.length > 0) {
-            const remaining = MAX_STREAM_OUTPUT_CHARS - emittedChars;
-            if (remaining <= 0) {
-              controller.close();
-              return;
-            }
-            const safeContent = content.slice(0, remaining);
-            if (safeContent.length > 0) {
-              controller.enqueue(encoder.encode(safeContent));
-              emittedChars += safeContent.length;
-            }
-            if (emittedChars >= MAX_STREAM_OUTPUT_CHARS) {
-              controller.close();
-              return;
-            }
-          }
-        }
-
-        const decoderTail = parseState.decoder.decode();
-        if (decoderTail.length > 0) {
-          const tailContent = extractContentFromChunkText(decoderTail, parseState);
-          if (tailContent.length > 0) {
-            const remaining = MAX_STREAM_OUTPUT_CHARS - emittedChars;
-            const safeTail = tailContent.slice(0, Math.max(0, remaining));
-            if (safeTail.length > 0) {
-              controller.enqueue(encoder.encode(safeTail));
-              emittedChars += safeTail.length;
-            }
-          }
-        }
-
-        const flushed = flushParseState(parseState);
-        if (flushed.length > 0) {
-          const remaining = MAX_STREAM_OUTPUT_CHARS - emittedChars;
-          const safeFlushed = flushed.slice(0, Math.max(0, remaining));
-          if (safeFlushed.length > 0) {
-            controller.enqueue(encoder.encode(safeFlushed));
+          if (emittedChars >= MAX_STREAM_OUTPUT_CHARS) {
+            break;
           }
         }
 
         controller.close();
       } catch {
-        try {
-          await reader.cancel();
-        } catch {
-          // Ignore cancel error.
-        }
-
+        await closeIterator();
         controller.close();
-      } finally {
-        reader.releaseLock();
       }
     },
   });
 };
 
-const resolveUpstreamStream = async (
-  modelOrder: string[],
-  modelMessages: ModelMessage[],
-  requestSignal: AbortSignal,
-  routeStartedAt: number
-): Promise<ResolvedUpstream> => {
-  let attempts = 0;
-  let lastError: RouteError | null = null;
-  let nextRetryAfterMs: number | null = null;
-
-  for (let index = 0; index < modelOrder.length; index += 1) {
-    if (requestSignal.aborted) {
-      throw new DOMException("Client aborted request", "AbortError");
-    }
-
-    if (getRemainingBudgetMs(routeStartedAt) <= 0) {
-      break;
-    }
-
-    const model = modelOrder[index];
-    attempts += 1;
-
-    try {
-      const upstream = await requestUpstream(
-        model,
-        modelMessages,
-        requestSignal,
-        routeStartedAt
-      );
-
-      if (!upstream.ok) {
-        const errorText = await readSafeText(upstream);
-        const retryAfterMs = parseRetryAfterMs(upstream.headers.get("retry-after"));
-        nextRetryAfterMs = retryAfterMs;
-
-        console.error("[chatbot][upstream-fail]", {
-          status: upstream.status,
-          model,
-          attempts,
-          fallbackIndex: index,
-          elapsedMs: Date.now() - routeStartedAt,
-          retryAfterMs,
-          errorText: toLogText(errorText || "No detail"),
-        });
-
-        if (upstream.status === 401 || upstream.status === 403) {
-          throw createRouteError({
-            code: "AUTH_ERROR",
-            message: `AUTH_ERROR: ${errorText || "Invalid API key"}`,
-            attempts,
-            fallbackIndex: index,
-            modelUsed: model,
-            statusCode: 401,
-          });
-        }
-
-        if (upstream.status === 429 && isQuotaExceededError(errorText)) {
-          throw createRouteError({
-            code: "QUOTA_EXCEEDED",
-            message: `QUOTA_EXCEEDED: ${errorText || "Daily free quota reached"}`,
-            attempts,
-            fallbackIndex: index,
-            modelUsed: model,
-            statusCode: 429,
-            retryAfterMs: retryAfterMs ?? undefined,
-          });
-        }
-
-        if (upstream.status === 429) {
-          lastError = createRouteError({
-            code: "RATE_LIMITED",
-            message: `RATE_LIMITED (${model}): ${errorText || "Rate limit reached"}`,
-            attempts,
-            fallbackIndex: index,
-            modelUsed: model,
-            statusCode: 429,
-            retryAfterMs: retryAfterMs ?? undefined,
-          });
-          continue;
-        }
-
-        if (upstream.status === 503) {
-          lastError = createRouteError({
-            code: "PROVIDER_UNAVAILABLE",
-            message: `PROVIDER_UNAVAILABLE (${model}): ${errorText || "Provider unavailable"}`,
-            attempts,
-            fallbackIndex: index,
-            modelUsed: model,
-            statusCode: 503,
-          });
-          continue;
-        }
-
-        if (upstream.status === 400) {
-          lastError = createRouteError({
-            code: "BAD_REQUEST",
-            message: `BAD_REQUEST (${model}): ${errorText || "Invalid payload"}`,
-            attempts,
-            fallbackIndex: index,
-            modelUsed: model,
-            statusCode: 400,
-          });
-          continue;
-        }
-
-        lastError = createRouteError({
-          code: "UPSTREAM_ERROR",
-          message: `UPSTREAM_ERROR (${model}, ${upstream.status}): ${errorText || "No detail"}`,
-          attempts,
-          fallbackIndex: index,
-          modelUsed: model,
-          statusCode: upstream.status >= 500 ? 500 : upstream.status,
-        });
-      } else {
-        const probeResult = await probeFirstVisibleContent(
-          upstream,
-          requestSignal,
-          routeStartedAt
-        );
-
-        return {
-          attempts,
-          fallbackIndex: index,
-          modelUsed: model,
-          probeResult,
-        };
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        throw error;
-      }
-
-      if (isRouteError(error) && (
-        error.code === "AUTH_ERROR" ||
-        error.code === "QUOTA_EXCEEDED"
-      )) {
-        throw error;
-      }
-
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const timeoutLikeError =
-        errorMessage === "CONNECT_TIMEOUT" ||
-        errorMessage === "FIRST_TOKEN_TIMEOUT" ||
-        errorMessage === "STREAM_STALL_TIMEOUT" ||
-        errorMessage === "TOTAL_BUDGET_TIMEOUT" ||
-        errorMessage === "EMPTY_STREAM";
-
-      lastError = isRouteError(error)
-        ? error
-        : createRouteError({
-            code: timeoutLikeError ? "TIMEOUT" : "UPSTREAM_ERROR",
-            message: timeoutLikeError
-              ? `TIMEOUT (${model}): ${errorMessage}`
-              : `UPSTREAM_ERROR (${model}): ${errorMessage}`,
-            attempts,
-            fallbackIndex: index,
-            modelUsed: model,
-            statusCode: timeoutLikeError ? 500 : 500,
-          });
-
-      console.error("[chatbot][attempt-error]", {
-        model,
-        attempts,
-        fallbackIndex: index,
-        elapsedMs: Date.now() - routeStartedAt,
-        code: lastError.code,
-        message: toLogText(lastError.message),
-      });
-    }
-
-    if (index < modelOrder.length - 1) {
-      const remainingBudgetMs = getRemainingBudgetMs(routeStartedAt);
-      if (remainingBudgetMs > 0) {
-        const cooldownMs = Math.max(
-          nextRetryAfterMs ?? 0,
-          getAttemptBackoffMs(attempts)
-        );
-        nextRetryAfterMs = null;
-        await wait(Math.min(cooldownMs, remainingBudgetMs));
-      }
-    }
+const mapProviderErrorToRouteError = (
+  error: unknown,
+  model: string,
+  attempts: number,
+  fallbackIndex: number
+): RouteError => {
+  if (isRouteError(error)) {
+    return error;
   }
 
-  if (lastError) {
-    throw lastError;
+  const message = getErrorMessage(error);
+  const statusCode = getErrorStatusCode(error);
+  const normalizedMessage = message.toLowerCase();
+
+  const timeoutLikeError =
+    message === "CONNECT_TIMEOUT" ||
+    message === "FIRST_TOKEN_TIMEOUT" ||
+    message === "STREAM_STALL_TIMEOUT" ||
+    message === "TOTAL_BUDGET_TIMEOUT" ||
+    message === "EMPTY_STREAM";
+
+  if (timeoutLikeError) {
+    return createRouteError({
+      code: "TIMEOUT",
+      message: `TIMEOUT (${model}): ${message}`,
+      attempts,
+      fallbackIndex,
+      modelUsed: model,
+      statusCode: 500,
+    });
   }
 
-  throw createRouteError({
-    code: "TIMEOUT",
-    message: "Semua model gratis gagal merespons dalam batas waktu.",
+  if (statusCode === 401 || statusCode === 403 || isAuthErrorText(normalizedMessage)) {
+    return createRouteError({
+      code: "AUTH_ERROR",
+      message: `AUTH_ERROR: ${message}`,
+      attempts,
+      fallbackIndex,
+      modelUsed: model,
+      statusCode: 401,
+    });
+  }
+
+  if (statusCode === 429 && isQuotaExceededError(normalizedMessage)) {
+    return createRouteError({
+      code: "QUOTA_EXCEEDED",
+      message: `QUOTA_EXCEEDED: ${message}`,
+      attempts,
+      fallbackIndex,
+      modelUsed: model,
+      statusCode: 429,
+    });
+  }
+
+  if (statusCode === 429) {
+    return createRouteError({
+      code: "RATE_LIMITED",
+      message: `RATE_LIMITED (${model}): ${message}`,
+      attempts,
+      fallbackIndex,
+      modelUsed: model,
+      statusCode: 429,
+    });
+  }
+
+  if (statusCode === 400) {
+    return createRouteError({
+      code: "BAD_REQUEST",
+      message: `BAD_REQUEST (${model}): ${message}`,
+      attempts,
+      fallbackIndex,
+      modelUsed: model,
+      statusCode: 400,
+    });
+  }
+
+  if (statusCode === 503 || statusCode === 502 || statusCode === 504) {
+    return createRouteError({
+      code: "PROVIDER_UNAVAILABLE",
+      message: `PROVIDER_UNAVAILABLE (${model}): ${message}`,
+      attempts,
+      fallbackIndex,
+      modelUsed: model,
+      statusCode: 503,
+    });
+  }
+
+  return createRouteError({
+    code: "UPSTREAM_ERROR",
+    message: `UPSTREAM_ERROR (${model}): ${message}`,
     attempts,
-    fallbackIndex: attempts > 0 ? Math.min(attempts - 1, modelOrder.length - 1) : -1,
-    modelUsed:
-      attempts > 0
-        ? modelOrder[Math.min(attempts - 1, modelOrder.length - 1)]
-        : undefined,
-    statusCode: 500,
+    fallbackIndex,
+    modelUsed: model,
+    statusCode: statusCode && statusCode >= 400 && statusCode < 600 ? statusCode : 500,
   });
 };
 
 export async function POST(request: NextRequest) {
   const routeStartedAt = Date.now();
 
-  if (!OPENROUTER_API_KEY) {
-    return new Response("OPENROUTER_API_KEY belum diset di server.", {
+  if (!CEREBRAS_API_KEY || !cerebrasClient) {
+    return new Response("CEREBRAS_API_KEY belum diset di server.", {
       status: 500,
     });
   }
@@ -1019,43 +924,105 @@ export async function POST(request: NextRequest) {
   }
 
   const modelMessages = buildModelMessages(sanitizedMessages);
-  const modelOrder = resolveModelOrder();
+  const providerMessages = toProviderMessages(modelMessages);
+
+  if (providerMessages.length === 0) {
+    return new Response("messages tidak memiliki konten teks valid.", {
+      status: 400,
+    });
+  }
 
   try {
-    const resolved = await resolveUpstreamStream(
-      modelOrder,
-      modelMessages,
-      request.signal,
-      routeStartedAt
+    const modelOrder = resolveModelOrder();
+    let lastError: RouteError | null = null;
+
+    for (let index = 0; index < modelOrder.length; index += 1) {
+      const model = modelOrder[index];
+      const attempts = index + 1;
+
+      try {
+        const completion = await requestCerebrasCompletion(
+          model,
+          providerMessages,
+          request.signal,
+          routeStartedAt
+        );
+
+        const probeResult = await probeFirstVisibleContent(
+          completion,
+          request.signal,
+          routeStartedAt
+        );
+
+        const stream = createPlainTextStream(probeResult, {
+          clientSignal: request.signal,
+          routeStartedAt,
+        });
+
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Cache-Control": "no-cache, no-transform",
+            Connection: "keep-alive",
+            "x-chatbot-model-used": model,
+            "x-chatbot-attempts": String(attempts),
+            "x-chatbot-fallback-index": String(index),
+            "x-chatbot-route-time-ms": String(Date.now() - routeStartedAt),
+          },
+        });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          throw error;
+        }
+
+        const mappedError = mapProviderErrorToRouteError(
+          error,
+          model,
+          attempts,
+          index
+        );
+
+        console.error("[chatbot][model-attempt-fail]", {
+          model,
+          attempts,
+          fallbackIndex: index,
+          code: mappedError.code,
+          message: toLogText(mappedError.message),
+        });
+
+        // Error yang tidak akan terselesaikan dengan fallback model.
+        if (mappedError.code === "AUTH_ERROR" || mappedError.code === "BAD_REQUEST") {
+          throw mappedError;
+        }
+
+        lastError = mappedError;
+      }
+    }
+
+    throw (
+      lastError ||
+      createRouteError({
+        code: "UPSTREAM_ERROR",
+        message: "UPSTREAM_ERROR: Semua model fallback gagal merespons.",
+        attempts: 1,
+        fallbackIndex: 0,
+        modelUsed: modelOrder[0] || CEREBRAS_MODEL,
+        statusCode: 500,
+      })
     );
-
-    const stream = createPlainTextStream(resolved.probeResult, {
-      clientSignal: request.signal,
-      routeStartedAt,
-    });
-
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
-        "x-chatbot-model-used": resolved.modelUsed,
-        "x-chatbot-attempts": String(resolved.attempts),
-        "x-chatbot-fallback-index": String(resolved.fallbackIndex),
-        "x-chatbot-route-time-ms": String(Date.now() - routeStartedAt),
-      },
-    });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       return new Response(null, { status: 499 });
     }
 
-    const routeError = isRouteError(error) ? error : null;
-    const attempts = routeError?.attempts ?? 0;
-    const fallbackIndex = routeError?.fallbackIndex ?? -1;
-    const modelUsed = routeError?.modelUsed;
-    const statusCode = routeError?.statusCode ?? 500;
-    const retryAfterMs = routeError?.retryAfterMs;
+    const routeError = isRouteError(error)
+      ? error
+      : mapProviderErrorToRouteError(error, CEREBRAS_MODEL, 1, 0);
+    const attempts = routeError.attempts;
+    const fallbackIndex = routeError.fallbackIndex;
+    const modelUsed = routeError.modelUsed;
+    const statusCode = routeError.statusCode;
+    const retryAfterMs = routeError.retryAfterMs;
     const message = error instanceof Error ? error.message : String(error);
     const elapsedMs = String(Date.now() - routeStartedAt);
 
@@ -1069,7 +1036,7 @@ export async function POST(request: NextRequest) {
       diagnosticHeaders["retry-after"] = String(Math.ceil(retryAfterMs / 1000));
     }
 
-    const respond = (status: number, failureReason: string, body: string) => {
+    const respond = (status: number, failureReason: string, bodyText: string) => {
       console.error("[chatbot][route-fail]", {
         status,
         failureReason,
@@ -1079,7 +1046,8 @@ export async function POST(request: NextRequest) {
         elapsedMs: Number(elapsedMs),
         message: toLogText(message),
       });
-      return new Response(body, {
+
+      return new Response(bodyText, {
         status,
         headers: {
           ...diagnosticHeaders,
@@ -1088,42 +1056,39 @@ export async function POST(request: NextRequest) {
       });
     };
 
-    if (routeError?.code === "AUTH_ERROR" || message.startsWith("AUTH_ERROR:")) {
+    if (routeError.code === "AUTH_ERROR") {
       return respond(401, "auth_error", "Autentikasi model gagal di server.");
     }
 
-    if (routeError?.code === "QUOTA_EXCEEDED" || message.startsWith("QUOTA_EXCEEDED:")) {
+    if (routeError.code === "QUOTA_EXCEEDED") {
       return respond(
         429,
         "quota_exceeded",
-        "Kuota harian model gratis habis. Tunggu reset kuota OpenRouter atau tambahkan kredit."
+        "Kuota gratis Cerebras habis. Tunggu reset kuota atau gunakan model lain yang tersedia."
       );
     }
 
-    if (routeError?.code === "RATE_LIMITED" || message.startsWith("RATE_LIMITED")) {
+    if (routeError.code === "RATE_LIMITED") {
       return respond(
         429,
         "rate_limited",
-        "Rate limit OpenRouter tercapai. Tunggu sebentar lalu coba lagi."
+        "Rate limit Cerebras tercapai. Tunggu sebentar lalu coba lagi."
       );
     }
 
-    if (
-      routeError?.code === "PROVIDER_UNAVAILABLE" ||
-      message.startsWith("PROVIDER_UNAVAILABLE")
-    ) {
+    if (routeError.code === "PROVIDER_UNAVAILABLE") {
       return respond(
         503,
         "provider_unavailable",
-        "Provider model gratis sedang tidak tersedia untuk request ini. Silakan coba lagi beberapa saat."
+        "Provider model sedang tidak tersedia untuk request ini. Silakan coba lagi beberapa saat."
       );
     }
 
-    if (routeError?.code === "BAD_REQUEST" || message.startsWith("BAD_REQUEST")) {
+    if (routeError.code === "BAD_REQUEST") {
       return respond(400, "bad_request", "Payload chatbot tidak valid.");
     }
 
-    if (routeError?.code === "TIMEOUT" || message.startsWith("TIMEOUT")) {
+    if (routeError.code === "TIMEOUT") {
       return respond(
         500,
         "timeout",

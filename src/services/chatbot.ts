@@ -13,9 +13,11 @@ const MAX_OLD_ASSISTANT_CHARS = 1000;
 const MAX_NETWORK_RETRIES = 2;
 const RETRY_DELAY_MS = 250;
 const FREE_MODEL_QUOTA_MARKERS = [
-  "free-models-per-day",
-  "unlock 1000 free model requests per day",
-  "kuota harian model gratis habis",
+  "quota",
+  "insufficient",
+  "credit",
+  "free tier",
+  "kuota",
 ];
 
 export const TEXT_MODELS: string[] = [DEFAULT_ROUTE_MODEL];
@@ -279,7 +281,7 @@ const mapStatusError = (status: number, errorText: string): Error => {
         "FREE_MODEL_QUOTA_EXCEEDED: Kuota harian model gratis habis."
       );
     }
-    return new Error("RATE_LIMITED: Rate limit OpenRouter tercapai.");
+    return new Error("RATE_LIMITED: Rate limit provider model tercapai.");
   }
 
   if (status === 503) {
@@ -494,11 +496,11 @@ export const handleModelFallback = async (
     }
     if (errorMessage.startsWith("FREE_MODEL_QUOTA_EXCEEDED:")) {
       throw new Error(
-        "Kuota harian model gratis habis. Tunggu reset kuota OpenRouter atau tambahkan kredit."
+        "Kuota model gratis habis. Tunggu reset kuota provider atau gunakan model lain yang tersedia."
       );
     }
     if (errorMessage.startsWith("RATE_LIMITED:")) {
-      throw new Error("Rate limit OpenRouter tercapai. Tunggu sebentar lalu coba lagi.");
+      throw new Error("Rate limit provider model tercapai. Tunggu sebentar lalu coba lagi.");
     }
     if (errorMessage.startsWith("PROVIDER_UNAVAILABLE:")) {
       throw new Error(

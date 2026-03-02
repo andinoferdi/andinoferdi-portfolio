@@ -12,8 +12,6 @@ import {
   X,
   RotateCcw,
   AlertCircle,
-  Image as ImageIcon,
-  ZoomIn,
   Pencil,
   Copy,
 } from "lucide-react";
@@ -21,29 +19,26 @@ import { useChatbot } from "@/hooks/useChatbot";
 import {
   formatTimestamp,
   getModelDisplayName,
-  imageToBase64,
 } from "@/services/chatbot";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Message } from "@/types/chatbot";
 import ReactMarkdown from "react-markdown";
-import Image from "next/image";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { validateImageFileStrict } from "@/lib/file-validation";
 
 export const ChatbotSection = () => {
   const [inputValue, setInputValue] = useState("");
-  const [selectedImages, setSelectedImages] = useState<string[]>([]);
-  const [selectedImageModal, setSelectedImageModal] = useState<string | null>(
-    null
-  );
+  // TODO_CEREBRAS_IMAGE_DISABLED: fitur gambar chatbot dinonaktifkan sementara.
+  // const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  // const [selectedImageModal, setSelectedImageModal] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState<string>("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // TODO_CEREBRAS_IMAGE_DISABLED: fitur gambar chatbot dinonaktifkan sementara.
+  // const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -76,69 +71,61 @@ export const ChatbotSection = () => {
     scrollToBottom(behavior);
   }, [messages]);
 
-  const validateFileType = async (
-    file: File
-  ): Promise<{ isValid: boolean; reason?: string }> => {
-    try {
-      const result = await validateImageFileStrict(file);
-      return result;
-    } catch (error) {
-      console.error("File validation error:", error);
-      return { isValid: false, reason: "File validation failed" };
-    }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    if (selectedImages.length + files.length > 10) {
-      toast.error("Maksimal 10 images yang bisa diupload");
-      return;
-    }
-
-    const imagePromises = Array.from(files).map(async (file) => {
-      // Enhanced validation with magic number detection
-      const validationResult = await validateFileType(file);
-      if (!validationResult.isValid) {
-        toast.error(
-          `File ${file.name} tidak didukung: ${validationResult.reason}`
-        );
-        return null;
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error(`File ${file.name} terlalu besar. Maksimal 5MB`);
-        return null;
-      }
-
-      const base64 = await imageToBase64(file);
-      return base64;
-    });
-
-    const images = await Promise.all(imagePromises);
-    const validImages = images.filter((img) => img !== null) as string[];
-    setSelectedImages((prev) => [...prev, ...validImages]);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
+  // TODO_CEREBRAS_IMAGE_DISABLED: handler upload gambar dinonaktifkan sementara.
+  // const validateFileType = async (file: File): Promise<{ isValid: boolean; reason?: string }> => {
+  //   try {
+  //     const result = await validateImageFileStrict(file);
+  //     return result;
+  //   } catch (error) {
+  //     console.error("File validation error:", error);
+  //     return { isValid: false, reason: "File validation failed" };
+  //   }
+  // };
+  //
+  // const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const files = e.target.files;
+  //   if (!files) return;
+  //
+  //   if (selectedImages.length + files.length > 10) {
+  //     toast.error("Maksimal 10 images yang bisa diupload");
+  //     return;
+  //   }
+  //
+  //   const imagePromises = Array.from(files).map(async (file) => {
+  //     const validationResult = await validateFileType(file);
+  //     if (!validationResult.isValid) {
+  //       toast.error(`File ${file.name} tidak didukung: ${validationResult.reason}`);
+  //       return null;
+  //     }
+  //
+  //     if (file.size > 5 * 1024 * 1024) {
+  //       toast.error(`File ${file.name} terlalu besar. Maksimal 5MB`);
+  //       return null;
+  //     }
+  //
+  //     const base64 = await imageToBase64(file);
+  //     return base64;
+  //   });
+  //
+  //   const images = await Promise.all(imagePromises);
+  //   const validImages = images.filter((img) => img !== null) as string[];
+  //   setSelectedImages((prev) => [...prev, ...validImages]);
+  //
+  //   if (fileInputRef.current) {
+  //     fileInputRef.current.value = "";
+  //   }
+  // };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!inputValue.trim() && selectedImages.length === 0) || isLoading)
-      return;
+    if (!inputValue.trim() || isLoading) return;
 
     const message = inputValue.trim();
-    const images = [...selectedImages];
 
     setInputValue("");
-    setSelectedImages([]);
 
     await sendMessage({
       content: message || "",
-      images: images,
       onComplete: () => {
         inputRef.current?.focus();
       },
@@ -232,7 +219,6 @@ export const ChatbotSection = () => {
   const handleClearMessages = () => {
     clearMessages();
     setInputValue("");
-    setSelectedImages([]);
     setEditingMessageId(null);
     setEditingContent("");
   };
@@ -257,7 +243,7 @@ export const ChatbotSection = () => {
     const timestamp = formatTimestamp(message.timestamp);
 
     if (isUser) {
-      const hasImages = message.images && message.images.length > 0;
+      const hasLegacyImages = Boolean(message.images && message.images.length > 0);
       const hasText =
         typeof message.content === "string"
           ? message.content.trim()
@@ -265,41 +251,7 @@ export const ChatbotSection = () => {
 
       return (
         <div key={message.id}>
-          {hasImages && (
-            <motion.div
-              key={`${message.id}-images`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.1 }}
-              className="flex gap-3 justify-end mb-2"
-            >
-              <div className="flex gap-2 md:gap-3 max-w-[90%] md:max-w-[80%] flex-row-reverse">
-                <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
-                  <User className="h-3 w-3 md:h-4 md:w-4" />
-                </div>
-                <div className="flex flex-col gap-2 md:flex-row md:gap-2 md:overflow-x-auto md:pb-2 md:scrollbar-thin md:scrollbar-thumb-gray-300 md:scrollbar-track-transparent">
-                  {message.images?.map((img, idx) => (
-                    <div
-                      key={idx}
-                      className="relative group cursor-pointer shrink-0"
-                      onClick={() => setSelectedImageModal(img)}
-                    >
-                      <Image
-                        src={img}
-                        alt="uploaded"
-                        width={150}
-                        height={150}
-                        className="rounded-lg border object-cover shadow-sm transition-transform group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center">
-                        <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
+          {/* TODO_CEREBRAS_IMAGE_DISABLED: rendering gambar user dinonaktifkan sementara. */}
 
           {hasText && (
             <motion.div
@@ -308,7 +260,7 @@ export const ChatbotSection = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{
                 duration: 0.3,
-                delay: index * 0.1 + (hasImages ? 0.1 : 0),
+                delay: index * 0.1,
               }}
               className="flex gap-3 justify-end"
             >
@@ -392,7 +344,7 @@ export const ChatbotSection = () => {
                         >
                           <Copy className="h-3 w-3 text-muted-foreground" />
                         </button>
-                        {!hasImages && (
+                        {!hasLegacyImages && (
                           <button
                             onClick={() => handleEditMessage(message.id)}
                             className="p-1.5 bg-muted hover:bg-muted/80 rounded-full transition-colors cursor-pointer"
@@ -677,62 +629,19 @@ export const ChatbotSection = () => {
             </RightScrollBar>
 
             <div className="shrink-0 p-3 md:p-6 border-t">
-              {selectedImages.length > 0 && (
-                <div className="flex flex-col gap-2 mb-2 md:flex-row md:gap-2 md:overflow-x-auto md:pb-2 md:scrollbar-thin md:scrollbar-thumb-gray-300 md:scrollbar-track-transparent">
-                  {selectedImages.map((img, idx) => (
-                    <div
-                      key={idx}
-                      className="relative w-20 h-20 rounded-md overflow-hidden border shrink-0"
-                    >
-                      <Image
-                        src={img}
-                        alt="upload"
-                        width={80}
-                        height={80}
-                        className="w-full h-full object-cover"
-                      />
-                      <button
-                        onClick={() =>
-                          setSelectedImages((prev) =>
-                            prev.filter((_, i) => i !== idx)
-                          )
-                        }
-                        className="absolute top-0 right-0 bg-gray-500/80 text-white rounded-full p-1 cursor-pointer hover:bg-gray-600/80"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* TODO_CEREBRAS_IMAGE_DISABLED: preview gambar yang dipilih dinonaktifkan sementara. */}
 
               <form onSubmit={handleSubmit} className="relative">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageUpload}
-                  accept="image/*,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,.webp,.heic,.heif,.svg,.avif"
-                  multiple
-                  className="hidden"
-                />
+                {/* TODO_CEREBRAS_IMAGE_DISABLED: input upload gambar dinonaktifkan sementara. */}
                 <div className="relative flex items-center">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Upload image"
-                    className="absolute left-2 top-1/2 -translate-y-1/2 cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full w-10 h-10 p-0 z-10"
-                  >
-                    <ImageIcon className="h-5 w-5" />
-                  </Button>
+                  {/* TODO_CEREBRAS_IMAGE_DISABLED: tombol upload gambar dinonaktifkan sementara. */}
                   <Textarea
                     ref={inputRef}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask me anything..."
-                    className="flex-1 min-h-14 max-h-32 resize-none right-scrollbar pl-18 pr-18 py-4"
+                    className="flex-1 min-h-14 max-h-32 resize-none right-scrollbar px-4 py-4 pr-18"
                     disabled={isLoading}
                     autoResize={true}
                     maxHeight={128}
@@ -740,11 +649,7 @@ export const ChatbotSection = () => {
                   />
                   <Button
                     type={isLoading && isStreaming ? "button" : "submit"}
-                    disabled={
-                      !isLoading &&
-                      !inputValue.trim() &&
-                      selectedImages.length === 0
-                    }
+                    disabled={!isLoading && !inputValue.trim()}
                     onClick={
                       isLoading && isStreaming ? handleCancelRequest : undefined
                     }
@@ -752,9 +657,7 @@ export const ChatbotSection = () => {
                       "absolute right-2 top-1/2 -translate-y-1/2 rounded-full w-9 h-9 p-0",
                       isLoading && isStreaming
                         ? "cursor-pointer"
-                        : !isLoading &&
-                          !inputValue.trim() &&
-                          selectedImages.length === 0
+                        : !isLoading && !inputValue.trim()
                         ? "cursor-not-allowed"
                         : "cursor-pointer"
                     )}
@@ -772,42 +675,7 @@ export const ChatbotSection = () => {
         </Card>
       </div>
 
-      {/* Image Modal */}
-      <AnimatePresence>
-        {selectedImageModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setSelectedImageModal(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              className="relative max-w-4xl max-h-[90vh] w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-2 right-2 md:-top-12 md:right-0 text-white hover:bg-white/20 bg-black/50 md:bg-transparent"
-                onClick={() => setSelectedImageModal(null)}
-              >
-                <X className="h-6 w-6" />
-              </Button>
-              <Image
-                src={selectedImageModal}
-                alt="Full size"
-                width={800}
-                height={600}
-                className="w-full h-auto max-h-[90vh] object-contain rounded-lg shadow-2xl"
-              />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* TODO_CEREBRAS_IMAGE_DISABLED: modal gambar chatbot dinonaktifkan sementara. */}
     </section>
   );
 };

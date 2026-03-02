@@ -56,13 +56,16 @@ Chat dengan AI yang mengetahui tentang:
 - Informasi CV dan kontak
 
 Chatbot sekarang memakai route internal `POST /api/chatbot` agar request model tidak langsung dari browser.
-Pemilihan model bersifat deterministik dengan primary + fallback dari environment server.
+Provider model sekarang menggunakan Cerebras dengan strategi single-provider execution.
+Eksekusi model memakai fallback chain otomatis jika model aktif gagal merespons.
+Model default yang dipakai adalah `gpt-oss-120b`, dan bisa dioverride lewat environment server.
+Fitur gambar di chatbot saat ini dinonaktifkan sementara.
 
 Troubleshooting chatbot:
-- Pastikan `OPENROUTER_API_KEY` terisi dan valid di server
-- Opsional atur `CHATBOT_MODEL_PRIMARY` dan `CHATBOT_MODEL_FALLBACKS`
-- Maksimal 3 gambar per request
-- Jika total payload gambar terlalu besar, kompres gambar atau kirim bertahap
+- Pastikan `CEREBRAS_API_KEY` terisi dan valid di server
+- Opsional atur `CEREBRAS_MODEL` (default: `gpt-oss-120b`)
+- Opsional atur `CEREBRAS_MODEL_FALLBACKS` (comma-separated). Default fallback: `llama3.1-8b,zai-glm-4.7,qwen-3-235b-a22b-instruct-2507`
+- Jika terjadi rate limit, tunggu sebentar lalu coba lagi
 
 ## Visit Notification (Brevo)
 

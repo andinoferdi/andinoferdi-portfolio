@@ -2,6 +2,7 @@
 
 import { getHomePageData } from "@/services/hero";
 import { HeroSection } from "./hero-section";
+import { IntroductionSection } from "./Introduction-section";
 import { ProjectsSection } from "./projects-section";
 import { ExperienceSection } from "./journey-section";
 import { TechStackCertificateSection } from "./techstack-&-certificate-section";
@@ -33,6 +34,22 @@ export default function Home() {
         }
       >
         <HeroSection data={data.hero} />
+      </ErrorBoundary>
+      <ErrorBoundary
+        fallback={
+          <div className="py-20 px-4">
+            <div className="max-w-7xl mx-auto text-center">
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Introduction section temporarily unavailable
+              </h2>
+              <p className="text-muted-foreground">
+                We&apos;re having trouble loading the introduction video. Please refresh the page.
+              </p>
+            </div>
+          </div>
+        }
+      >
+        <IntroductionSection />
       </ErrorBoundary>
       <ErrorBoundary
         fallback={

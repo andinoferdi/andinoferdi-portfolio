@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { type AnchorHTMLAttributes } from "react";
 import { getProjectsData } from "@/services/projects";
 import { ProjectCard } from "@/components/project-card";
 import { HoverBorderGradient } from "@/components/ui/hover-border-button";
@@ -47,7 +48,7 @@ export const ProjectsSection = () => {
             href="/projects"
             containerClassName="rounded-full"
             className="flex items-center gap-2 px-6 py-2.5 text-base font-medium sm:px-8 sm:py-3 sm:text-lg"
-            {...({} as React.AnchorHTMLAttributes<HTMLAnchorElement>)}
+            {...({} as AnchorHTMLAttributes<HTMLAnchorElement>)}
           >
             View All Projects
             <ExternalLink className="h-5 w-5" />
