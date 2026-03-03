@@ -45,7 +45,9 @@ export const useAudioPlayer = () => {
   const changeTokenRef = useRef(0);
   const transitioningRef = useRef(false);
   const isPlayingRef = useRef(false);
+  const loadedTrackIdRef = useRef<string | null>(null);
   const [isEngineTransitioning, setIsEngineTransitioning] = useState(false);
+  const [hasPlaybackStarted, setHasPlaybackStarted] = useState(false);
   const initialVolume = useMemo(() => loadStoredVolume(), []);
   const volumeRef = useRef(initialVolume);
   const durationRef = useRef(0);
@@ -179,6 +181,7 @@ export const useAudioPlayer = () => {
       getPreloadedAudioObjectUrl(track.audioUrl) ||
       getPreloadedAudioObjectUrl(normalizedTrackUrl);
     const encodedUrl = preloadedAudioUrl || encodeURI(normalizedTrackUrl);
+    loadedTrackIdRef.current = null;
 
     audio.pause();
     try {
@@ -192,6 +195,7 @@ export const useAudioPlayer = () => {
       await waitCanPlay(audio, token);
     } catch {
       if (changeTokenRef.current !== token) return;
+      loadedTrackIdRef.current = null;
       releaseTransition();
       setPlayerState((prev) => ({
         ...prev,
@@ -202,6 +206,7 @@ export const useAudioPlayer = () => {
     }
 
     if (changeTokenRef.current !== token) return;
+    loadedTrackIdRef.current = track.id;
 
     const quickDur =
       Number.isFinite(audio.duration) && audio.duration > 0
@@ -240,6 +245,9 @@ export const useAudioPlayer = () => {
 
       if (changeTokenRef.current !== token) return;
       setPlayerState((prev) => ({ ...prev, isPlaying: played }));
+      if (played) {
+        setHasPlaybackStarted(true);
+      }
     } finally {
       releaseTransition();
     }
@@ -254,7 +262,7 @@ export const useAudioPlayer = () => {
 
   useEffect(() => {
     const audio = new Audio();
-    audio.preload = "auto";
+    audio.preload = "none";
     audio.crossOrigin = "anonymous";
     (audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
     audio.volume = clamp01(volumeRef.current);
@@ -313,10 +321,6 @@ export const useAudioPlayer = () => {
     audio.addEventListener("durationchange", onDurationChange);
     audio.addEventListener("ended", onEnded);
 
-    if (playerState.currentTrack) {
-      changeTrack(playerState.currentTrack, false);
-    }
-
     return () => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
@@ -326,20 +330,20 @@ export const useAudioPlayer = () => {
       audio.pause();
       audio.src = "";
       audio.load();
+      loadedTrackIdRef.current = null;
       audioRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!playerState.currentTrack || !playerState.playlist.length) return;
-
-    warmupTrackAudioObjectUrl(playerState.currentTrack);
+    if (!hasPlaybackStarted || !playerState.playlist.length) return;
 
     const nextIndex = (playerState.currentTrackIndex + 1) % playerState.playlist.length;
     const nextTrack = playerState.playlist[nextIndex] ?? null;
     warmupTrackAudioObjectUrl(nextTrack);
   }, [
+    hasPlaybackStarted,
     playerState.currentTrack,
     playerState.currentTrackIndex,
     playerState.playlist,
@@ -358,13 +362,22 @@ export const useAudioPlayer = () => {
 
     if (transitioningRef.current) return;
 
+    const activeTrack = playerStateRef.current.currentTrack;
+    if (!activeTrack) return;
+
+    if (loadedTrackIdRef.current !== activeTrack.id) {
+      await changeTrack(activeTrack, true);
+      return;
+    }
+
     try {
       await audio.play();
+      setHasPlaybackStarted(true);
       setPlayerState((prev) => ({ ...prev, isPlaying: true }));
     } catch {
       setPlayerState((prev) => ({ ...prev, isPlaying: false }));
     }
-  }, []);
+  }, [changeTrack]);
 
   const handleNext = useCallback(() => {
     if (transitioningRef.current) return;

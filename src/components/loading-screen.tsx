@@ -85,6 +85,13 @@ const resetPreloadManifestPromise = () => {
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 const rr = (a: number, b: number) => a + Math.random() * (b - a);
+const isDeferredMusicAsset = (asset: PreloadAsset): boolean => {
+  return (
+    asset.kind === "audio" &&
+    asset.url.startsWith("/music/") &&
+    asset.url.toLowerCase().endsWith(".mp3")
+  );
+};
 
 const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
   const cr = Math.min(r, w / 2, h / 2);
@@ -611,6 +618,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   const [loadedAssets, setLoadedAssets] = useState(0);
   const [failedAssets, setFailedAssets] = useState<PreloadResult[]>([]);
   const [manifestError, setManifestError] = useState<string | null>(null);
+  const [deferredMusicCount, setDeferredMusicCount] = useState(0);
   const [retryToken, setRetryToken] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
   const exitTimerRef = useRef<number | null>(null);
@@ -634,24 +642,90 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   useEffect(() => {
     let cancelled = false;
     const preloadController = new AbortController();
+
+    const getSuccessStatusText = (deferredCount: number): string => {
+      if (deferredCount > 0) {
+        return "Essential assets loaded. Music will load when you press play.";
+      }
+      return "All assets loaded successfully.";
+    };
+
     const preloadAssets = async () => {
-      clearInitialPreloadComplete(); setIsLoading(true); setShowStartButton(false); setManifestError(null); setFailedAssets([]); setProgress(0); setTotalAssets(0); setLoadedAssets(0); setStatusText("Fetching preload manifest...");
+      clearInitialPreloadComplete();
+      setIsLoading(true);
+      setShowStartButton(false);
+      setManifestError(null);
+      setFailedAssets([]);
+      setDeferredMusicCount(0);
+      setProgress(0);
+      setTotalAssets(0);
+      setLoadedAssets(0);
+      setStatusText("Fetching preload manifest...");
       try {
-        const manifest = await getPreloadManifest(); if (cancelled) return;
-        const assets = manifest.assets ?? []; setTotalAssets(manifest.totalCount ?? assets.length); setStatusText("Downloading assets...");
-        if (!assets.length) { setProgress(100); setLoadedAssets(0); setIsLoading(false); setShowStartButton(true); setStatusText("All assets loaded successfully."); markInitialPreloadComplete(); return; }
-        const result = await runStrictPreload(assets, {
+        const manifest = await getPreloadManifest();
+        if (cancelled) return;
+
+        const manifestAssets = manifest.assets ?? [];
+        const deferredMusicAssets = manifestAssets.filter(isDeferredMusicAsset);
+        const initialAssets = manifestAssets.filter((asset) => !isDeferredMusicAsset(asset));
+
+        setDeferredMusicCount(deferredMusicAssets.length);
+        setTotalAssets(initialAssets.length);
+        setStatusText("Downloading essential assets...");
+
+        if (!initialAssets.length) {
+          setProgress(100);
+          setLoadedAssets(0);
+          setIsLoading(false);
+          setShowStartButton(true);
+          setStatusText(getSuccessStatusText(deferredMusicAssets.length));
+          markInitialPreloadComplete();
+          return;
+        }
+
+        const result = await runStrictPreload(initialAssets, {
           signal: preloadController.signal,
-          onProgress: (s) => { if (cancelled) return; setLoadedAssets(s.succeeded); const p = s.totalBytes > 0 ? Math.floor((s.loadedBytes / s.totalBytes) * 100) : Math.floor((s.succeeded / s.total) * 100); setProgress(Math.min(100, Math.max(0, p))); setStatusText(s.retrying ? "Retrying failed downloads..." : "Downloading assets..."); },
+          onProgress: (s) => {
+            if (cancelled) return;
+            setLoadedAssets(s.succeeded);
+            const p =
+              s.totalBytes > 0
+                ? Math.floor((s.loadedBytes / s.totalBytes) * 100)
+                : Math.floor((s.succeeded / s.total) * 100);
+            setProgress(Math.min(100, Math.max(0, p)));
+            setStatusText(
+              s.retrying
+                ? "Retrying failed essential assets..."
+                : "Downloading essential assets..."
+            );
+          },
         });
         if (cancelled) return;
-        const failures = result.outcomes.filter((o) => !o.success); setFailedAssets(failures);
-        if (!failures.length) { setProgress(100); setLoadedAssets(manifest.totalCount ?? assets.length); setIsLoading(false); setShowStartButton(true); setStatusText("All assets loaded successfully."); markInitialPreloadComplete(); return; }
-        setIsLoading(false); setShowStartButton(false); setStatusText("Some assets failed to preload.");
+
+        const failures = result.outcomes.filter((o) => !o.success);
+        setFailedAssets(failures);
+
+        if (!failures.length) {
+          setProgress(100);
+          setLoadedAssets(initialAssets.length);
+          setIsLoading(false);
+          setShowStartButton(true);
+          setStatusText(getSuccessStatusText(deferredMusicAssets.length));
+          markInitialPreloadComplete();
+          return;
+        }
+
+        setIsLoading(false);
+        setShowStartButton(false);
+        setStatusText("Some essential assets failed to preload.");
       } catch (error) {
         if (cancelled) return;
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setManifestError(error instanceof Error ? error.message : "Failed to load manifest."); setIsLoading(false); setShowStartButton(false);
+        setManifestError(
+          error instanceof Error ? error.message : "Failed to load manifest."
+        );
+        setIsLoading(false);
+        setShowStartButton(false);
       }
     };
     void preloadAssets();
@@ -681,9 +755,21 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   const preloadSummary = useMemo(() => {
     if (manifestError) return `Manifest error: ${manifestError}`;
     if (failedAssets.length > 0 && !showStartButton) return `${failedAssets.length} assets failed to preload.`;
-    if (showStartButton && progress >= 100) return "All assets loaded successfully.";
+    if (showStartButton && progress >= 100) {
+      if (deferredMusicCount > 0) {
+        return "Essential assets loaded. Music will load when you press play.";
+      }
+      return "All assets loaded successfully.";
+    }
     return statusText;
-  }, [failedAssets.length, manifestError, progress, showStartButton, statusText]);
+  }, [
+    deferredMusicCount,
+    failedAssets.length,
+    manifestError,
+    progress,
+    showStartButton,
+    statusText,
+  ]);
 
   return (
     <AnimatePresence>

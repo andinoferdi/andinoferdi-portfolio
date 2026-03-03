@@ -1,1105 +1,453 @@
-import { NextRequest } from "next/server";
-import Cerebras from "@cerebras/cerebras_cloud_sdk";
+import { NextRequest, NextResponse } from "next/server";
+import { streamText } from "ai";
+import { createCerebras } from "@ai-sdk/cerebras";
+import { z } from "zod";
 import { getProjectsData } from "@/services/projects";
 import { getExperienceData } from "@/services/journey";
 import { getProfileData } from "@/services/profile";
 import { getTechStackData } from "@/services/techstack";
-import { type MessageContent } from "@/types/chatbot";
-
-type IncomingMessage = {
-  role?: string;
-  content?: string | MessageContent[];
-};
-
-type ModelMessage = {
-  role: "user" | "assistant" | "system";
-  content: string | MessageContent[];
-};
-
-type ProviderMessage = {
-  role: "user" | "assistant" | "system";
-  content: string;
-};
-
-type ProviderProbeResult = {
-  prefetchedContent: string;
-  iterator: AsyncIterator<unknown> | null;
-};
-
-type RouteErrorCode =
-  | "AUTH_ERROR"
-  | "QUOTA_EXCEEDED"
-  | "RATE_LIMITED"
-  | "PROVIDER_UNAVAILABLE"
-  | "BAD_REQUEST"
-  | "UPSTREAM_ERROR"
-  | "TIMEOUT";
-
-type RouteError = Error & {
-  code: RouteErrorCode;
-  attempts: number;
-  fallbackIndex: number;
-  modelUsed?: string;
-  statusCode: number;
-  retryAfterMs?: number;
-};
-
-const CEREBRAS_API_KEY = process.env.CEREBRAS_API_KEY;
-const DEFAULT_CEREBRAS_MODEL = "gpt-oss-120b";
-const DEFAULT_CEREBRAS_FALLBACK_MODELS = [
-  "llama3.1-8b",
-  "zai-glm-4.7",
-  "qwen-3-235b-a22b-instruct-2507",
-];
-const CEREBRAS_MODEL = process.env.CEREBRAS_MODEL?.trim() || DEFAULT_CEREBRAS_MODEL;
-const CEREBRAS_MODEL_FALLBACKS = process.env.CEREBRAS_MODEL_FALLBACKS;
-const cerebrasClient = CEREBRAS_API_KEY
-  ? new Cerebras({ apiKey: CEREBRAS_API_KEY })
-  : null;
-
-const QUOTA_EXCEEDED_MARKERS = [
-  "quota",
-  "insufficient",
-  "credit",
-  "free tier",
-  "free plan",
-];
-const AUTH_ERROR_MARKERS = [
-  "invalid api key",
-  "unauthorized",
-  "forbidden",
-  "authentication",
-  "api key",
-];
-
-const MAX_CONTEXT_MESSAGES = 6;
-const MAX_MODEL_INPUT_TEXT_CHARS = 1800;
-const MAX_TEXT_PART_CHARS = 700;
-const SYSTEM_PROMPT_MAX_CHARS = 2200;
-const MAX_STREAM_OUTPUT_CHARS = 16_000;
-const TOTAL_BUDGET_MS = 60_000;
-const REQUEST_CONNECT_TIMEOUT_MS = 12_000;
-const FIRST_TOKEN_TIMEOUT_MS = 30_000;
-const STREAM_STALL_TIMEOUT_MS = 15_000;
-const ERROR_LOG_TEXT_MAX_CHARS = 320;
-
-const createRouteError = (options: {
-  code: RouteErrorCode;
-  message: string;
-  attempts: number;
-  fallbackIndex: number;
-  modelUsed?: string;
-  statusCode: number;
-  retryAfterMs?: number;
-}): RouteError => {
-  const error = new Error(options.message) as RouteError;
-  error.code = options.code;
-  error.attempts = options.attempts;
-  error.fallbackIndex = options.fallbackIndex;
-  error.modelUsed = options.modelUsed;
-  error.statusCode = options.statusCode;
-  error.retryAfterMs = options.retryAfterMs;
-  return error;
-};
-
-const isRouteError = (error: unknown): error is RouteError => {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const candidate = error as Partial<RouteError>;
-  return (
-    (candidate.code === "AUTH_ERROR" ||
-      candidate.code === "QUOTA_EXCEEDED" ||
-      candidate.code === "RATE_LIMITED" ||
-      candidate.code === "PROVIDER_UNAVAILABLE" ||
-      candidate.code === "BAD_REQUEST" ||
-      candidate.code === "UPSTREAM_ERROR" ||
-      candidate.code === "TIMEOUT") &&
-    typeof candidate.attempts === "number" &&
-    typeof candidate.fallbackIndex === "number" &&
-    typeof candidate.statusCode === "number"
-  );
-};
-
-const normalizeWhitespace = (value: string): string => {
-  return value.replace(/\s+/g, " ").trim();
-};
-
-const clampText = (value: string, maxChars: number): string => {
-  const clean = normalizeWhitespace(value);
-  if (clean.length <= maxChars) return clean;
-  return `${clean.slice(0, maxChars)}...[ringkas]`;
-};
-
-const extractTextFromContent = (content: string | MessageContent[]): string => {
-  if (typeof content === "string") {
-    return normalizeWhitespace(content);
-  }
-
-  const textSegments = content
-    .filter((item) => item.type === "text" && typeof item.text === "string")
-    .map((item) => item.text || "")
-    .filter((text) => text.trim().length > 0);
-
-  return normalizeWhitespace(textSegments.join(" "));
-};
-
-const sanitizeIncomingMessages = (messages: IncomingMessage[]): ModelMessage[] => {
-  return messages
-    .map((message) => {
-      const role = message.role;
-      const content = message.content;
-
-      if (role !== "user" && role !== "assistant" && role !== "system") {
-        return null;
-      }
-
-      if (typeof content === "string") {
-        const clean = clampText(content, MAX_MODEL_INPUT_TEXT_CHARS);
-        if (clean.length === 0) return null;
-        return { role, content: clean } as ModelMessage;
-      }
-
-      if (!Array.isArray(content)) {
-        return null;
-      }
-
-      const textParts: string[] = [];
-      let remainingTextBudget = MAX_MODEL_INPUT_TEXT_CHARS;
-      let hasImage = false;
-
-      for (const part of content) {
-        if (part.type === "text" && typeof part.text === "string") {
-          if (remainingTextBudget <= 0) continue;
-          const limitedText = clampText(
-            part.text,
-            Math.min(remainingTextBudget, MAX_TEXT_PART_CHARS)
-          );
-          if (limitedText.length === 0) continue;
-
-          textParts.push(limitedText);
-          remainingTextBudget -= limitedText.length;
-          continue;
-        }
-
-        if (
-          part.type === "image_url" &&
-          typeof part.image_url?.url === "string" &&
-          part.image_url.url.length > 0
-        ) {
-          hasImage = true;
-        }
-      }
-
-      const combinedText = normalizeWhitespace(textParts.join(" "));
-      if (combinedText.length > 0) {
-        return {
-          role,
-          content: combinedText,
-        } as ModelMessage;
-      }
-
-      if (hasImage) {
-        return {
-          role,
-          content:
-            "[Pengguna mengirim gambar. Fitur gambar chatbot saat ini dinonaktifkan.]",
-        } as ModelMessage;
-      }
-
-      const fallbackText = extractTextFromContent(content);
-      if (!fallbackText) return null;
-
-      return {
-        role,
-        content: clampText(fallbackText, MAX_MODEL_INPUT_TEXT_CHARS),
-      } as ModelMessage;
-    })
-    .filter((message): message is ModelMessage => message !== null);
-};
-
-const getLatestUserText = (messages: ModelMessage[]): string => {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (messages[index].role === "user") {
-      return extractTextFromContent(messages[index].content);
-    }
-  }
-  return "";
-};
-
-const extractKeywords = (input: string): string[] => {
-  const stopWords = new Set([
-    "yang",
-    "dan",
-    "atau",
-    "untuk",
-    "dengan",
-    "tentang",
-    "please",
-    "tolong",
-    "apa",
-    "bagaimana",
-    "jelaskan",
-    "the",
-    "and",
-    "from",
-    "into",
-    "your",
-    "anda",
-    "kamu",
-    "saya",
-    "ini",
-    "itu",
-  ]);
-
-  return Array.from(
-    new Set(
-      input
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, " ")
-        .split(/\s+/)
-        .map((token) => token.trim())
-        .filter((token) => token.length >= 3 && !stopWords.has(token))
-    )
-  ).slice(0, 10);
-};
-
-const scoreByKeywords = (text: string, keywords: string[]): number => {
-  if (keywords.length === 0) return 0;
-  const haystack = text.toLowerCase();
-  return keywords.reduce((total, keyword) => {
-    return total + (haystack.includes(keyword) ? 1 : 0);
-  }, 0);
-};
-
-const buildSystemPrompt = (messages: ModelMessage[]): string => {
-  const projects = getProjectsData().projects;
-  const experiences = getExperienceData().experiences;
-  const profiles = getProfileData().profiles;
-  const techStack = getTechStackData().categories;
-
-  const latestUserText = getLatestUserText(messages);
-  const keywords = extractKeywords(latestUserText);
-
-  const rankedProjects = [...projects]
-    .map((project) => ({
-      project,
-      score: scoreByKeywords(
-        `${project.title} ${project.description} ${project.technologies.join(" ")}`,
-        keywords
-      ),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 2)
-    .map(({ project }) => {
-      return `- ${project.title}: ${clampText(project.description, 100)} | Tech: ${project.technologies
-        .slice(0, 4)
-        .join(", ")}`;
-    });
-
-  const rankedExperiences = [...experiences]
-    .map((experience) => ({
-      experience,
-      score: scoreByKeywords(
-        `${experience.title} ${experience.company} ${experience.description} ${experience.technologies.join(" ")}`,
-        keywords
-      ),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 1)
-    .map(({ experience }) => {
-      return `- ${experience.title} at ${experience.company} (${experience.period.start} - ${experience.period.end})`;
-    });
-
-  const skillSummary = techStack
-    .slice(0, 2)
-    .map((category) => {
-      return `${category.name}: ${category.technologies
-        .slice(0, 4)
-        .map((technology) => technology.name)
-        .join(", ")}`;
-    })
-    .join(" | ");
-
-  const prompt = `
-You are AndinoBot for Andino Ferdiansah portfolio.
-
-Rules:
-- Reply in the same language as user.
-- Default to complete, structured, and thorough answers.
-- Use concise answers only when user explicitly asks for short reply.
-- Use headings, numbered steps, and examples when they improve clarity.
-- Use only portfolio facts for personal/project history.
-- If data is unavailable, state it clearly.
-- Image input is currently disabled in this chatbot.
-
-Profile:
-${profiles.map((profile) => `- ${profile.name}: ${clampText(profile.quote, 90)}`).join("\n")}
-
-Relevant projects:
-${rankedProjects.join("\n")}
-
-Relevant experience:
-${rankedExperiences.join("\n")}
-
-Skill highlights:
-${skillSummary}
-
-Photo policy:
-- Solo photos: /images/self/1.jpg to /images/self/4.jpg.
-- Other gallery photos may include groups.
-`.trim();
-
-  return clampText(prompt, SYSTEM_PROMPT_MAX_CHARS);
-};
-
-const buildModelMessages = (messages: ModelMessage[]): ModelMessage[] => {
-  const conversation = messages.filter((message) => message.role !== "system");
-  const trimmedConversation = conversation.slice(-MAX_CONTEXT_MESSAGES);
-  const prompt = buildSystemPrompt(trimmedConversation);
-
-  return [{ role: "system", content: prompt }, ...trimmedConversation];
-};
-
-const toProviderMessages = (messages: ModelMessage[]): ProviderMessage[] => {
-  return messages
-    .map((message) => {
-      const text = clampText(
-        extractTextFromContent(message.content),
-        MAX_MODEL_INPUT_TEXT_CHARS
-      );
-      if (!text) return null;
-      return {
-        role: message.role,
-        content: text,
-      };
-    })
-    .filter((message): message is ProviderMessage => message !== null);
-};
-
-const getRemainingBudgetMs = (routeStartedAt: number): number => {
-  return Math.max(0, TOTAL_BUDGET_MS - (Date.now() - routeStartedAt));
-};
-
-const toLogText = (value: string): string => {
-  return clampText(value, ERROR_LOG_TEXT_MAX_CHARS);
-};
-
-const isAsyncIterable = (value: unknown): value is AsyncIterable<unknown> => {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    Symbol.asyncIterator in value &&
-    typeof (value as AsyncIterable<unknown>)[Symbol.asyncIterator] === "function"
-  );
-};
-
-const extractTextFromUnknown = (value: unknown): string => {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => extractTextFromUnknown(item)).join("");
-  }
-
-  if (value && typeof value === "object") {
-    const candidate = value as { type?: unknown; text?: unknown };
-
-    if (candidate.type === "text" && typeof candidate.text === "string") {
-      return candidate.text;
-    }
-
-    if (typeof candidate.text === "string") {
-      return candidate.text;
-    }
-  }
-
-  return "";
-};
-
-const extractTextFromProviderChunk = (chunk: unknown): string => {
-  if (!chunk || typeof chunk !== "object") {
-    return "";
-  }
-
-  const asChunk = chunk as {
-    choices?: Array<{
-      delta?: { content?: unknown };
-      message?: { content?: unknown };
-      text?: unknown;
-    }>;
-    output_text?: unknown;
-    content?: unknown;
-  };
-
-  if (Array.isArray(asChunk.choices) && asChunk.choices.length > 0) {
-    return asChunk.choices
-      .map((choice) => {
-        if (choice.delta) {
-          const deltaText = extractTextFromUnknown(choice.delta.content);
-          if (deltaText.length > 0) return deltaText;
-        }
-
-        if (choice.message) {
-          const messageText = extractTextFromUnknown(choice.message.content);
-          if (messageText.length > 0) return messageText;
-        }
-
-        return extractTextFromUnknown(choice.text);
-      })
-      .join("");
-  }
-
-  const outputText = extractTextFromUnknown(asChunk.output_text);
-  if (outputText.length > 0) {
-    return outputText;
-  }
-
-  return extractTextFromUnknown(asChunk.content);
-};
+import { getCertificateData } from "@/services/certificate";
+import { getGalleryData } from "@/services/gallery";
+import { getMusicData } from "@/services/music";
+import { getHomePageData } from "@/services/hero";
+import { type ChatStreamEvent } from "@/types/chatbot";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+const AUTO_MODEL_ID = "auto";
+const DEFAULT_MODEL = "gpt-oss-120b";
+const MAX_REQUEST_MESSAGES = 40;
+const MAX_REQUEST_CHARACTERS = 30_000;
+const MAX_CONTEXT_GALLERY_ITEMS = 12;
+const MAX_CONTEXT_TRACKS = 14;
+
+const messageContentPartSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("text"),
+    text: z.string(),
+  }),
+  z.object({
+    type: z.literal("image_url"),
+    image_url: z.object({
+      url: z.string(),
+    }),
+  }),
+]);
+
+const messageSchema = z.object({
+  role: z.enum(["system", "user", "assistant"]),
+  content: z.union([z.string(), z.array(messageContentPartSchema)]),
+  timestamp: z.string().optional(),
+  model: z.string().optional(),
+  images: z.array(z.string()).optional(),
+});
+
+const requestSchema = z.object({
+  messages: z.array(messageSchema).min(1).max(MAX_REQUEST_MESSAGES),
+  selectedModelId: z.string().optional(),
+  hasImages: z.boolean().optional().default(false),
+  userText: z.string().optional().default(""),
+});
+
+type ParsedRequest = z.infer<typeof requestSchema>;
 
 const getErrorMessage = (error: unknown): string => {
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-
-  if (typeof error === "string") {
-    return error;
-  }
-
+  if (error instanceof Error && error.message) return error.message;
   return "Unknown error";
 };
 
-const getErrorStatusCode = (error: unknown): number | null => {
-  if (!error || typeof error !== "object") {
-    return null;
-  }
+const extractTextFromContent = (
+  content: string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>
+): string => {
+  if (typeof content === "string") return content.trim();
 
-  const candidate = error as {
-    status?: unknown;
-    statusCode?: unknown;
-    response?: { status?: unknown };
-    error?: { status?: unknown; statusCode?: unknown };
-  };
-
-  const possibleStatus = [
-    candidate.status,
-    candidate.statusCode,
-    candidate.response?.status,
-    candidate.error?.status,
-    candidate.error?.statusCode,
-  ];
-
-  for (const value of possibleStatus) {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-  }
-
-  return null;
+  return content
+    .filter((item) => item.type === "text")
+    .map((item) => item.text)
+    .join("\n")
+    .trim();
 };
 
-const isQuotaExceededError = (errorText: string): boolean => {
-  const normalized = errorText.toLowerCase();
-  return QUOTA_EXCEEDED_MARKERS.some((marker) => normalized.includes(marker));
-};
+const parseFallbackModels = (): string[] => {
+  const fromEnv = process.env.CEREBRAS_MODEL_FALLBACKS ?? "";
+  if (!fromEnv.trim()) return [];
 
-const isAuthErrorText = (errorText: string): boolean => {
-  const normalized = errorText.toLowerCase();
-  return AUTH_ERROR_MARKERS.some((marker) => normalized.includes(marker));
-};
-
-const createAbortError = (): DOMException => {
-  return new DOMException("Client aborted request", "AbortError");
-};
-
-const parseModelList = (value?: string): string[] => {
-  if (!value) return [];
-  return value
+  return fromEnv
     .split(",")
     .map((model) => model.trim())
-    .filter((model) => model.length > 0);
+    .filter(Boolean);
 };
 
-const unique = (list: string[]): string[] => {
-  return Array.from(new Set(list));
+const buildModelChain = (selectedModelId?: string): string[] => {
+  const primary = process.env.CEREBRAS_MODEL?.trim() || DEFAULT_MODEL;
+  const fallbacks = parseFallbackModels();
+
+  const preferred =
+    selectedModelId && selectedModelId !== AUTO_MODEL_ID
+      ? selectedModelId.trim()
+      : "";
+
+  const chain = [preferred, primary, ...fallbacks].filter(Boolean);
+  return [...new Set(chain)];
 };
 
-const resolveModelOrder = (): string[] => {
-  const envPrimary = process.env.CEREBRAS_MODEL?.trim();
-  const envFallbacks = parseModelList(CEREBRAS_MODEL_FALLBACKS);
+const buildPortfolioContext = (): string => {
+  const siteName = process.env.NEXT_PUBLIC_SITE_NAME || "AndinoFerdi Portfolio";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://andinoferdi.vercel.app";
+  const heroData = getHomePageData();
+  const profileData = getProfileData();
+  const projects = getProjectsData().projects;
+  const experiences = getExperienceData().experiences;
+  const techCategories = getTechStackData().categories;
+  const certificates = getCertificateData().certificates;
+  const gallery = getGalleryData().items.slice(0, MAX_CONTEXT_GALLERY_ITEMS);
+  const tracks = getMusicData(false).tracks.slice(0, MAX_CONTEXT_TRACKS);
 
-  const primary = envPrimary || DEFAULT_CEREBRAS_MODEL;
-  const fallbacks =
-    envFallbacks.length > 0 ? envFallbacks : DEFAULT_CEREBRAS_FALLBACK_MODELS;
+  const profileSummary = profileData.profiles
+    .map(
+      (profile, index) =>
+        `${index + 1}. ${profile.name} (${profile.designation}) - ${profile.quote}`
+    )
+    .join("\n");
 
-  return unique([primary, ...fallbacks]);
+  const projectSummary = projects
+    .map(
+      (project, index) =>
+        `${index + 1}. ${project.title} - ${project.description} | Tech: ${project.technologies.join(
+          ", "
+        )}${project.liveUrl ? ` | Live: ${project.liveUrl}` : ""}`
+    )
+    .join("\n");
+
+  const journeySummary = experiences
+    .map(
+      (experience, index) =>
+        `${index + 1}. ${experience.title} at ${experience.company} (${experience.period.start} - ${experience.period.end}) | ${experience.description}`
+    )
+    .join("\n");
+
+  const techSummary = techCategories
+    .map(
+      (category) =>
+        `- ${category.name}: ${category.technologies
+          .map((tech) => tech.name)
+          .join(", ")}`
+    )
+    .join("\n");
+
+  const certificateSummary = certificates
+    .map((certificate, index) => `${index + 1}. ${certificate.image}`)
+    .join("\n");
+
+  const gallerySummary = gallery
+    .map((item, index) => `${index + 1}. ${item.title}`)
+    .join("\n");
+
+  const musicSummary = tracks
+    .map(
+      (track, index) =>
+        `${index + 1}. ${track.title} - ${track.artist} (${track.album})`
+    )
+    .join("\n");
+
+  return `
+[PUBLIC SITE METADATA]
+- Site name: ${siteName}
+- Site URL: ${siteUrl}
+
+[HERO]
+- Greeting: ${heroData.hero.greeting}
+- Flip words: ${heroData.hero.flipWords.join(", ")}
+
+[PROFILE ROLES]
+${profileSummary}
+
+[PROJECTS]
+${projectSummary}
+
+[JOURNEY]
+${journeySummary}
+
+[TECH STACK]
+${techSummary}
+
+[CERTIFICATES]
+${certificateSummary}
+
+[RECENT GALLERY ITEMS]
+${gallerySummary}
+
+[PLAYLIST SAMPLE]
+${musicSummary}
+
+[CV DOWNLOAD]
+- ${profileData.cvDownload.label}: ${profileData.cvDownload.url}
+`.trim();
 };
 
-const requestCerebrasCompletion = async (
-  model: string,
-  messages: ProviderMessage[],
-  requestSignal: AbortSignal,
-  routeStartedAt: number
-): Promise<unknown> => {
-  if (!cerebrasClient) {
-    throw createRouteError({
-      code: "AUTH_ERROR",
-      message: "AUTH_ERROR: CEREBRAS_API_KEY belum diset di server.",
-      attempts: 1,
-      fallbackIndex: 0,
-      modelUsed: model,
-      statusCode: 500,
-    });
-  }
+const buildSystemPrompt = (portfolioContext: string): string => {
+  return `
+You are AndinoBot, the official assistant for Andino Ferdiansah's portfolio website.
 
-  if (requestSignal.aborted) {
-    throw createAbortError();
-  }
+Primary behavior:
+1. For questions about Andino Ferdiansah and this portfolio, prioritize the provided PORTFOLIO FACTS.
+2. If a portfolio-specific detail is not present in facts, answer honestly that the specific data is not available.
+3. Do not fabricate projects, timelines, links, contact details, certifications, or technical claims.
 
-  const remainingBudgetMs = getRemainingBudgetMs(routeStartedAt);
-  if (remainingBudgetMs <= 0) {
-    throw new Error("TOTAL_BUDGET_TIMEOUT");
-  }
+Secondary behavior:
+4. For general knowledge questions, provide a useful and correct general answer.
+5. Keep responses concise, practical, and in the user's language.
+6. If user asks for secrets, API keys, tokens, or private credentials, refuse and explain briefly.
 
-  const connectTimeoutMs = Math.min(REQUEST_CONNECT_TIMEOUT_MS, remainingBudgetMs);
-
-  return await new Promise<unknown>((resolve, reject) => {
-    let settled = false;
-
-    const cleanup = () => {
-      clearTimeout(timeoutId);
-      requestSignal.removeEventListener("abort", onAbort);
-    };
-
-    const onAbort = () => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(createAbortError());
-    };
-
-    const timeoutId = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(new Error("CONNECT_TIMEOUT"));
-    }, connectTimeoutMs);
-
-    requestSignal.addEventListener("abort", onAbort, { once: true });
-
-    cerebrasClient.chat.completions
-      .create({
-        model,
-        messages,
-        stream: true,
-        max_completion_tokens: 1800,
-        temperature: 0.4,
-        top_p: 1,
-      })
-      .then((completion) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        resolve(completion);
-      })
-      .catch((error: unknown) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        reject(error);
-      });
-  });
+PORTFOLIO FACTS:
+${portfolioContext}
+`.trim();
 };
 
-const readIteratorNextWithTimeout = async (
-  iterator: AsyncIterator<unknown>,
-  timeoutMs: number,
-  signal: AbortSignal,
-  timeoutLabel: string
-): Promise<IteratorResult<unknown>> => {
-  if (signal.aborted) {
-    throw createAbortError();
-  }
-
-  return await new Promise<IteratorResult<unknown>>((resolve, reject) => {
-    let settled = false;
-
-    const cleanup = () => {
-      clearTimeout(timeoutId);
-      signal.removeEventListener("abort", onAbort);
-    };
-
-    const onAbort = () => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(createAbortError());
-    };
-
-    const timeoutId = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(new Error(timeoutLabel));
-    }, timeoutMs);
-
-    signal.addEventListener("abort", onAbort, { once: true });
-
-    iterator
-      .next()
-      .then((result) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        resolve(result);
-      })
-      .catch((error) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        reject(error);
-      });
-  });
+const createSseEvent = (event: ChatStreamEvent): string => {
+  return `data: ${JSON.stringify(event)}\n\n`;
 };
 
-const probeFirstVisibleContent = async (
-  completion: unknown,
-  requestSignal: AbortSignal,
-  routeStartedAt: number
-): Promise<ProviderProbeResult> => {
-  if (isAsyncIterable(completion)) {
-    const iterator = completion[Symbol.asyncIterator]();
-
-    while (true) {
-      if (requestSignal.aborted) {
-        throw createAbortError();
-      }
-
-      const remainingBudgetMs = getRemainingBudgetMs(routeStartedAt);
-      if (remainingBudgetMs <= 0) {
-        throw new Error("TOTAL_BUDGET_TIMEOUT");
-      }
-
-      const readTimeoutMs = Math.min(FIRST_TOKEN_TIMEOUT_MS, remainingBudgetMs);
-      const result = await readIteratorNextWithTimeout(
-        iterator,
-        readTimeoutMs,
-        requestSignal,
-        "FIRST_TOKEN_TIMEOUT"
-      );
-
-      if (result.done) {
-        throw new Error("EMPTY_STREAM");
-      }
-
-      const content = extractTextFromProviderChunk(result.value);
-      if (content.length > 0) {
-        return {
-          prefetchedContent: content,
-          iterator,
-        };
-      }
-    }
-  }
-
-  const content = extractTextFromProviderChunk(completion);
-  if (content.length === 0) {
-    throw new Error("EMPTY_STREAM");
-  }
-
-  return {
-    prefetchedContent: content,
-    iterator: null,
-  };
+const isReasoningModel = (modelId: string): boolean => {
+  return modelId.trim().toLowerCase() === "gpt-oss-120b";
 };
 
-const createPlainTextStream = (
-  probeResult: ProviderProbeResult,
-  options: {
-    clientSignal: AbortSignal;
-    routeStartedAt: number;
-  }
-): ReadableStream<Uint8Array> => {
-  return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const encoder = new TextEncoder();
-      let emittedChars = 0;
-
-      const emitChunk = (content: string) => {
-        if (!content) return;
-
-        const remainingChars = MAX_STREAM_OUTPUT_CHARS - emittedChars;
-        if (remainingChars <= 0) return;
-
-        const safeContent = content.slice(0, Math.max(0, remainingChars));
-        if (safeContent.length <= 0) return;
-
-        controller.enqueue(encoder.encode(safeContent));
-        emittedChars += safeContent.length;
-      };
-
-      const closeIterator = async () => {
-        if (!probeResult.iterator?.return) {
-          return;
-        }
-
-        try {
-          await probeResult.iterator.return();
-        } catch {
-          // Ignore iterator close errors.
-        }
-      };
-
-      try {
-        emitChunk(probeResult.prefetchedContent);
-
-        if (!probeResult.iterator || emittedChars >= MAX_STREAM_OUTPUT_CHARS) {
-          controller.close();
-          return;
-        }
-
-        while (true) {
-          if (options.clientSignal.aborted) {
-            throw createAbortError();
-          }
-
-          const remainingBudgetMs = getRemainingBudgetMs(options.routeStartedAt);
-          if (remainingBudgetMs <= 0) {
-            throw new Error("TOTAL_BUDGET_TIMEOUT");
-          }
-
-          const readTimeoutMs = Math.min(STREAM_STALL_TIMEOUT_MS, remainingBudgetMs);
-          const result = await readIteratorNextWithTimeout(
-            probeResult.iterator,
-            readTimeoutMs,
-            options.clientSignal,
-            "STREAM_STALL_TIMEOUT"
-          );
-
-          if (result.done) {
-            break;
-          }
-
-          const content = extractTextFromProviderChunk(result.value);
-          emitChunk(content);
-
-          if (emittedChars >= MAX_STREAM_OUTPUT_CHARS) {
-            break;
-          }
-        }
-
-        controller.close();
-      } catch {
-        await closeIterator();
-        controller.close();
-      }
-    },
-  });
+const toModelMessages = (requestBody: ParsedRequest) => {
+  return requestBody.messages
+    .filter((message) => message.role === "user" || message.role === "assistant")
+    .map((message) => ({
+      role: message.role,
+      content: extractTextFromContent(message.content),
+    }))
+    .filter((message) => message.content.length > 0)
+    .slice(-MAX_REQUEST_MESSAGES);
 };
 
-const mapProviderErrorToRouteError = (
-  error: unknown,
-  model: string,
-  attempts: number,
-  fallbackIndex: number
-): RouteError => {
-  if (isRouteError(error)) {
-    return error;
+const getLatestUserText = (requestBody: ParsedRequest): string => {
+  const explicit = requestBody.userText.trim();
+  if (explicit) return explicit;
+
+  for (let index = requestBody.messages.length - 1; index >= 0; index -= 1) {
+    const message = requestBody.messages[index];
+    if (message.role !== "user") continue;
+    const extracted = extractTextFromContent(message.content);
+    if (extracted) return extracted;
   }
 
-  const message = getErrorMessage(error);
-  const statusCode = getErrorStatusCode(error);
-  const normalizedMessage = message.toLowerCase();
-
-  const timeoutLikeError =
-    message === "CONNECT_TIMEOUT" ||
-    message === "FIRST_TOKEN_TIMEOUT" ||
-    message === "STREAM_STALL_TIMEOUT" ||
-    message === "TOTAL_BUDGET_TIMEOUT" ||
-    message === "EMPTY_STREAM";
-
-  if (timeoutLikeError) {
-    return createRouteError({
-      code: "TIMEOUT",
-      message: `TIMEOUT (${model}): ${message}`,
-      attempts,
-      fallbackIndex,
-      modelUsed: model,
-      statusCode: 500,
-    });
-  }
-
-  if (statusCode === 401 || statusCode === 403 || isAuthErrorText(normalizedMessage)) {
-    return createRouteError({
-      code: "AUTH_ERROR",
-      message: `AUTH_ERROR: ${message}`,
-      attempts,
-      fallbackIndex,
-      modelUsed: model,
-      statusCode: 401,
-    });
-  }
-
-  if (statusCode === 429 && isQuotaExceededError(normalizedMessage)) {
-    return createRouteError({
-      code: "QUOTA_EXCEEDED",
-      message: `QUOTA_EXCEEDED: ${message}`,
-      attempts,
-      fallbackIndex,
-      modelUsed: model,
-      statusCode: 429,
-    });
-  }
-
-  if (statusCode === 429) {
-    return createRouteError({
-      code: "RATE_LIMITED",
-      message: `RATE_LIMITED (${model}): ${message}`,
-      attempts,
-      fallbackIndex,
-      modelUsed: model,
-      statusCode: 429,
-    });
-  }
-
-  if (statusCode === 400) {
-    return createRouteError({
-      code: "BAD_REQUEST",
-      message: `BAD_REQUEST (${model}): ${message}`,
-      attempts,
-      fallbackIndex,
-      modelUsed: model,
-      statusCode: 400,
-    });
-  }
-
-  if (statusCode === 503 || statusCode === 502 || statusCode === 504) {
-    return createRouteError({
-      code: "PROVIDER_UNAVAILABLE",
-      message: `PROVIDER_UNAVAILABLE (${model}): ${message}`,
-      attempts,
-      fallbackIndex,
-      modelUsed: model,
-      statusCode: 503,
-    });
-  }
-
-  return createRouteError({
-    code: "UPSTREAM_ERROR",
-    message: `UPSTREAM_ERROR (${model}): ${message}`,
-    attempts,
-    fallbackIndex,
-    modelUsed: model,
-    statusCode: statusCode && statusCode >= 400 && statusCode < 600 ? statusCode : 500,
-  });
+  return "";
 };
 
 export async function POST(request: NextRequest) {
-  const routeStartedAt = Date.now();
+  const parsedBody = requestSchema.safeParse(await request.json().catch(() => ({})));
 
-  if (!CEREBRAS_API_KEY || !cerebrasClient) {
-    return new Response("CEREBRAS_API_KEY belum diset di server.", {
-      status: 500,
-    });
+  if (!parsedBody.success) {
+    return NextResponse.json(
+      {
+        error: "Invalid chatbot request payload.",
+        issues: parsedBody.error.issues,
+      },
+      { status: 400 }
+    );
   }
 
-  let body: { messages?: IncomingMessage[] } = {};
-
-  try {
-    body = (await request.json()) as { messages?: IncomingMessage[] };
-  } catch {
-    return new Response("Payload JSON tidak valid.", { status: 400 });
+  const body = parsedBody.data;
+  if (body.hasImages) {
+    return NextResponse.json(
+      { error: "Image chat is temporarily disabled for this chatbot." },
+      { status: 400 }
+    );
   }
 
-  const incomingMessages = Array.isArray(body.messages) ? body.messages : [];
-  const sanitizedMessages = sanitizeIncomingMessages(incomingMessages);
-
-  if (sanitizedMessages.length === 0) {
-    return new Response("messages wajib berisi minimal satu item valid.", {
-      status: 400,
-    });
+  const latestUserText = getLatestUserText(body);
+  if (!latestUserText) {
+    return NextResponse.json(
+      { error: "User message is required." },
+      { status: 400 }
+    );
   }
 
-  const modelMessages = buildModelMessages(sanitizedMessages);
-  const providerMessages = toProviderMessages(modelMessages);
+  const serializedChars = body.messages.reduce((sum, message) => {
+    return sum + extractTextFromContent(message.content).length;
+  }, 0);
 
-  if (providerMessages.length === 0) {
-    return new Response("messages tidak memiliki konten teks valid.", {
-      status: 400,
-    });
+  if (serializedChars > MAX_REQUEST_CHARACTERS) {
+    return NextResponse.json(
+      { error: "Message history is too large. Please clear chat and try again." },
+      { status: 413 }
+    );
   }
 
-  try {
-    const modelOrder = resolveModelOrder();
-    let lastError: RouteError | null = null;
+  const cerebrasApiKey = process.env.CEREBRAS_API_KEY?.trim();
+  if (!cerebrasApiKey) {
+    return NextResponse.json(
+      { error: "CEREBRAS_API_KEY is not configured on the server." },
+      { status: 500 }
+    );
+  }
 
-    for (let index = 0; index < modelOrder.length; index += 1) {
-      const model = modelOrder[index];
-      const attempts = index + 1;
+  const modelChain = buildModelChain(body.selectedModelId);
+  if (modelChain.length === 0) {
+    return NextResponse.json(
+      { error: "No Cerebras model configured for chatbot." },
+      { status: 500 }
+    );
+  }
+
+  const modelMessages = toModelMessages(body);
+  if (modelMessages.length === 0) {
+    return NextResponse.json(
+      { error: "No valid conversation messages were provided." },
+      { status: 400 }
+    );
+  }
+
+  const portfolioContext = buildPortfolioContext();
+  const systemPrompt = buildSystemPrompt(portfolioContext);
+  const cerebras = createCerebras({ apiKey: cerebrasApiKey });
+
+  const attemptErrors: Array<{ attempt: number; model: string; reason: string }> = [];
+
+  let selectedAttempt:
+    | {
+        model: string;
+        result: ReturnType<typeof streamText>;
+        iterator: AsyncIterator<string>;
+        firstChunk: string;
+      }
+    | null = null;
+
+  for (let index = 0; index < modelChain.length; index += 1) {
+    const modelId = modelChain[index];
+
+    try {
+      const result = streamText({
+        model: cerebras(modelId),
+        system: systemPrompt,
+        messages: modelMessages,
+        temperature: 0.4,
+        maxRetries: 0,
+        abortSignal: request.signal,
+        providerOptions: isReasoningModel(modelId)
+          ? {
+              cerebras: {
+                reasoningEffort: "medium",
+              },
+            }
+          : undefined,
+      });
+
+      const iterator = result.textStream[Symbol.asyncIterator]();
+      const first = await iterator.next();
+
+      selectedAttempt = {
+        model: modelId,
+        result,
+        iterator,
+        firstChunk: first.done ? "" : first.value,
+      };
+      break;
+    } catch (error) {
+      const reason = getErrorMessage(error);
+      console.error("[chatbot][attempt_failed_before_stream]", {
+        attempt: index + 1,
+        model: modelId,
+        reason,
+      });
+      attemptErrors.push({ attempt: index + 1, model: modelId, reason });
+    }
+  }
+
+  if (!selectedAttempt) {
+    return NextResponse.json(
+      {
+        error: "All configured Cerebras models failed before streaming.",
+        attempts: attemptErrors,
+      },
+      { status: 503 }
+    );
+  }
+
+  const encoder = new TextEncoder();
+  const { model, iterator, result, firstChunk } = selectedAttempt;
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let aggregatedText = "";
+      let closed = false;
+
+      const enqueue = (event: ChatStreamEvent) => {
+        if (closed) return;
+        controller.enqueue(encoder.encode(createSseEvent(event)));
+      };
 
       try {
-        const completion = await requestCerebrasCompletion(
+        enqueue({ type: "meta", model });
+
+        if (firstChunk) {
+          aggregatedText += firstChunk;
+          enqueue({ type: "token", text: firstChunk });
+        }
+
+        while (true) {
+          const { done, value } = await iterator.next();
+          if (done) break;
+          if (!value) continue;
+          aggregatedText += value;
+          enqueue({ type: "token", text: value });
+        }
+
+        if (!aggregatedText.trim()) {
+          try {
+            const finalText = await result.text;
+            aggregatedText = finalText || aggregatedText;
+          } catch {
+            // Ignore: final fallback text is optional when stream already completed.
+          }
+        }
+
+        enqueue({
+          type: "done",
           model,
-          providerMessages,
-          request.signal,
-          routeStartedAt
-        );
-
-        const probeResult = await probeFirstVisibleContent(
-          completion,
-          request.signal,
-          routeStartedAt
-        );
-
-        const stream = createPlainTextStream(probeResult, {
-          clientSignal: request.signal,
-          routeStartedAt,
-        });
-
-        return new Response(stream, {
-          headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-            "Cache-Control": "no-cache, no-transform",
-            Connection: "keep-alive",
-            "x-chatbot-model-used": model,
-            "x-chatbot-attempts": String(attempts),
-            "x-chatbot-fallback-index": String(index),
-            "x-chatbot-route-time-ms": String(Date.now() - routeStartedAt),
-          },
+          text: aggregatedText,
         });
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          throw error;
-        }
-
-        const mappedError = mapProviderErrorToRouteError(
-          error,
+        const reason = getErrorMessage(error);
+        console.error("[chatbot][stream_failed_after_selecting_model]", {
           model,
-          attempts,
-          index
-        );
-
-        console.error("[chatbot][model-attempt-fail]", {
-          model,
-          attempts,
-          fallbackIndex: index,
-          code: mappedError.code,
-          message: toLogText(mappedError.message),
+          reason,
         });
-
-        // Error yang tidak akan terselesaikan dengan fallback model.
-        if (mappedError.code === "AUTH_ERROR" || mappedError.code === "BAD_REQUEST") {
-          throw mappedError;
+        enqueue({
+          type: "error",
+          model,
+          error: reason,
+        });
+      } finally {
+        if (!closed) {
+          closed = true;
+          controller.close();
         }
-
-        lastError = mappedError;
       }
-    }
+    },
+    async cancel() {
+      try {
+        await iterator.return?.();
+      } catch (error) {
+        console.error("[chatbot][stream_cancel_cleanup_failed]", {
+          model,
+          reason: getErrorMessage(error),
+        });
+      }
+    },
+  });
 
-    throw (
-      lastError ||
-      createRouteError({
-        code: "UPSTREAM_ERROR",
-        message: "UPSTREAM_ERROR: Semua model fallback gagal merespons.",
-        attempts: 1,
-        fallbackIndex: 0,
-        modelUsed: modelOrder[0] || CEREBRAS_MODEL,
-        statusCode: 500,
-      })
-    );
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      return new Response(null, { status: 499 });
-    }
-
-    const routeError = isRouteError(error)
-      ? error
-      : mapProviderErrorToRouteError(error, CEREBRAS_MODEL, 1, 0);
-    const attempts = routeError.attempts;
-    const fallbackIndex = routeError.fallbackIndex;
-    const modelUsed = routeError.modelUsed;
-    const statusCode = routeError.statusCode;
-    const retryAfterMs = routeError.retryAfterMs;
-    const message = error instanceof Error ? error.message : String(error);
-    const elapsedMs = String(Date.now() - routeStartedAt);
-
-    const diagnosticHeaders: Record<string, string> = {
-      ...(modelUsed ? { "x-chatbot-model-used": modelUsed } : {}),
-      "x-chatbot-attempts": String(attempts),
-      "x-chatbot-fallback-index": String(fallbackIndex),
-      "x-chatbot-route-time-ms": elapsedMs,
-    };
-    if (retryAfterMs && retryAfterMs > 0) {
-      diagnosticHeaders["retry-after"] = String(Math.ceil(retryAfterMs / 1000));
-    }
-
-    const respond = (status: number, failureReason: string, bodyText: string) => {
-      console.error("[chatbot][route-fail]", {
-        status,
-        failureReason,
-        attempts,
-        fallbackIndex,
-        modelUsed,
-        elapsedMs: Number(elapsedMs),
-        message: toLogText(message),
-      });
-
-      return new Response(bodyText, {
-        status,
-        headers: {
-          ...diagnosticHeaders,
-          "x-chatbot-failure-reason": failureReason,
-        },
-      });
-    };
-
-    if (routeError.code === "AUTH_ERROR") {
-      return respond(401, "auth_error", "Autentikasi model gagal di server.");
-    }
-
-    if (routeError.code === "QUOTA_EXCEEDED") {
-      return respond(
-        429,
-        "quota_exceeded",
-        "Kuota gratis Cerebras habis. Tunggu reset kuota atau gunakan model lain yang tersedia."
-      );
-    }
-
-    if (routeError.code === "RATE_LIMITED") {
-      return respond(
-        429,
-        "rate_limited",
-        "Rate limit Cerebras tercapai. Tunggu sebentar lalu coba lagi."
-      );
-    }
-
-    if (routeError.code === "PROVIDER_UNAVAILABLE") {
-      return respond(
-        503,
-        "provider_unavailable",
-        "Provider model sedang tidak tersedia untuk request ini. Silakan coba lagi beberapa saat."
-      );
-    }
-
-    if (routeError.code === "BAD_REQUEST") {
-      return respond(400, "bad_request", "Payload chatbot tidak valid.");
-    }
-
-    if (routeError.code === "TIMEOUT") {
-      return respond(
-        500,
-        "timeout",
-        "Permintaan chatbot timeout di server. Silakan coba lagi."
-      );
-    }
-
-    return respond(
-      statusCode >= 400 && statusCode < 600 ? statusCode : 500,
-      "upstream_error",
-      "Server chatbot sementara bermasalah. Silakan coba lagi."
-    );
-  }
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }

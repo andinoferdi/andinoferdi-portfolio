@@ -54,10 +54,12 @@ Chat dengan AI yang mengetahui tentang:
 - Pengalaman kerja dan pendidikan
 - Skills dan kemampuan
 - Informasi CV dan kontak
+- Data music playlist, gallery, certificates, serta metadata publik website
 
 Chatbot sekarang memakai route internal `POST /api/chatbot` agar request model tidak langsung dari browser.
-Provider model sekarang menggunakan Cerebras dengan strategi single-provider execution.
-Eksekusi model memakai fallback chain otomatis jika model aktif gagal merespons.
+Provider model sekarang menggunakan Cerebras dengan eksekusi fallback chain otomatis jika model aktif gagal merespons.
+Chatbot sekarang memakai hybrid retrieval dari seluruh data statis portfolio (projects, journey, profile, techstack, music, gallery, certificates, dan metadata publik website).
+Perilaku jawaban memakai strict data-only: model diarahkan untuk menjawab hanya dari fakta portfolio yang dikirim server.
 Model default yang dipakai adalah `gpt-oss-120b`, dan bisa dioverride lewat environment server.
 Fitur gambar di chatbot saat ini dinonaktifkan sementara.
 

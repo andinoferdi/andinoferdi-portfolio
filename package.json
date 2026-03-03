@@ -10,12 +10,14 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@ai-sdk/cerebras": "^2.0.37",
     "@cerebras/cerebras_cloud_sdk": "^1.64.1",
     "@radix-ui/react-dropdown-menu": "latest",
     "@react-three/fiber": "latest",
     "@supabase/supabase-js": "latest",
     "@tabler/icons-react": "latest",
     "@types/aos": "latest",
+    "ai": "^6.0.108",
     "aos": "latest",
     "class-variance-authority": "latest",
     "clsx": "latest",

@@ -1,14 +1,22 @@
-export interface MessageContent {
-  type: "text" | "image_url";
-  text?: string;
-  image_url?: {
+export type ChatRole = "system" | "user" | "assistant";
+
+export interface MessageContentText {
+  type: "text";
+  text: string;
+}
+
+export interface MessageContentImage {
+  type: "image_url";
+  image_url: {
     url: string;
   };
 }
 
+export type MessageContent = MessageContentText | MessageContentImage;
+
 export interface Message {
   id: string;
-  role: "user" | "assistant" | "system";
+  role: ChatRole;
   content: string | MessageContent[];
   timestamp: Date;
   model?: string;
@@ -16,18 +24,7 @@ export interface Message {
   images?: string[];
 }
 
-export type ChatModelMode = "auto" | "manual";
-
-export type ModelFamily = "text" | "vision";
-
-export interface AIModel {
-  id: string;
-  name: string;
-  family: ModelFamily;
-  supportsVision: boolean;
-  free: boolean;
-  priority: number;
-}
+export type ChatModelMode = "auto";
 
 export interface ChatbotState {
   messages: Message[];
@@ -40,108 +37,6 @@ export interface ChatbotState {
   isEditing: boolean;
 }
 
-export interface OpenRouterResponse {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
-  choices: {
-    index: number;
-    message: {
-      role: string;
-      content: string;
-    };
-    finish_reason: string;
-  }[];
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}
-
-export interface StreamChunk {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
-  choices: {
-    index: number;
-    delta: {
-      role?: string;
-      content?: string;
-    };
-    finish_reason?: string;
-  }[];
-}
-
-export interface ModelConfig {
-  id: string;
-  name: string;
-  displayName: string;
-  isFree: boolean;
-}
-
-export interface PortfolioContext {
-  projects: Array<{
-    id: string;
-    title: string;
-    description: string;
-    technologies: string[];
-    liveUrl?: string;
-    githubUrl?: string;
-  }>;
-  experiences: Array<{
-    id: string;
-    title: string;
-    company: string;
-    period: {
-      start: string;
-      end: string;
-    };
-    description: string;
-    technologies: string[];
-    current?: boolean;
-  }>;
-  profiles: Array<{
-    quote: string;
-    name: string;
-    designation: string;
-  }>;
-  cvDownload: {
-    url: string;
-    label: string;
-  };
-  music?: Array<{
-    title: string;
-    artist: string;
-    album: string;
-    genre?: string;
-  }>;
-  gallery?: Array<{
-    title: string;
-    location: string;
-    date: string;
-  }>;
-  techStack?: {
-    totalCategories: number;
-    categories: Array<{
-      name: string;
-      description: string;
-      technologiesCount: number;
-      technologies: string[];
-    }>;
-  };
-  certificates?: {
-    totalCertificates: number;
-  };
-}
-
-export interface ChatHistory {
-  messages: Message[];
-  lastUpdated: number;
-}
-
 export interface SendMessageParams {
   content: string;
   images?: string[];
@@ -149,3 +44,57 @@ export interface SendMessageParams {
   onComplete?: () => void;
   onError?: (error: string) => void;
 }
+
+export interface HandleModelFallbackOptions {
+  selectedModelId: string;
+  hasImages: boolean;
+  userText: string;
+}
+
+export interface HandleModelFallbackResult {
+  content: string;
+  model: string;
+}
+
+export interface ChatApiMessage {
+  role: ChatRole;
+  content: string | MessageContent[];
+  timestamp?: string;
+  model?: string;
+  images?: string[];
+}
+
+export interface ChatApiRequest {
+  messages: ChatApiMessage[];
+  selectedModelId: string;
+  hasImages: boolean;
+  userText: string;
+}
+
+export interface ChatStreamMetaEvent {
+  type: "meta";
+  model: string;
+}
+
+export interface ChatStreamTokenEvent {
+  type: "token";
+  text: string;
+}
+
+export interface ChatStreamDoneEvent {
+  type: "done";
+  model: string;
+  text: string;
+}
+
+export interface ChatStreamErrorEvent {
+  type: "error";
+  error: string;
+  model?: string;
+}
+
+export type ChatStreamEvent =
+  | ChatStreamMetaEvent
+  | ChatStreamTokenEvent
+  | ChatStreamDoneEvent
+  | ChatStreamErrorEvent;
