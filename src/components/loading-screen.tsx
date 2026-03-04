@@ -618,7 +618,6 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
   const [loadedAssets, setLoadedAssets] = useState(0);
   const [failedAssets, setFailedAssets] = useState<PreloadResult[]>([]);
   const [manifestError, setManifestError] = useState<string | null>(null);
-  const [deferredMusicCount, setDeferredMusicCount] = useState(0);
   const [retryToken, setRetryToken] = useState(0);
   const [isExiting, setIsExiting] = useState(false);
   const exitTimerRef = useRef<number | null>(null);
@@ -643,20 +642,12 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
     let cancelled = false;
     const preloadController = new AbortController();
 
-    const getSuccessStatusText = (deferredCount: number): string => {
-      if (deferredCount > 0) {
-        return "Essential assets loaded. Music will load when you press play.";
-      }
-      return "All assets loaded successfully.";
-    };
-
     const preloadAssets = async () => {
       clearInitialPreloadComplete();
       setIsLoading(true);
       setShowStartButton(false);
       setManifestError(null);
       setFailedAssets([]);
-      setDeferredMusicCount(0);
       setProgress(0);
       setTotalAssets(0);
       setLoadedAssets(0);
@@ -666,10 +657,8 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
         if (cancelled) return;
 
         const manifestAssets = manifest.assets ?? [];
-        const deferredMusicAssets = manifestAssets.filter(isDeferredMusicAsset);
         const initialAssets = manifestAssets.filter((asset) => !isDeferredMusicAsset(asset));
 
-        setDeferredMusicCount(deferredMusicAssets.length);
         setTotalAssets(initialAssets.length);
         setStatusText("Downloading essential assets...");
 
@@ -678,7 +667,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           setLoadedAssets(0);
           setIsLoading(false);
           setShowStartButton(true);
-          setStatusText(getSuccessStatusText(deferredMusicAssets.length));
+          setStatusText("All assets loaded successfully.");
           markInitialPreloadComplete();
           return;
         }
@@ -710,7 +699,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           setLoadedAssets(initialAssets.length);
           setIsLoading(false);
           setShowStartButton(true);
-          setStatusText(getSuccessStatusText(deferredMusicAssets.length));
+          setStatusText("All assets loaded successfully.");
           markInitialPreloadComplete();
           return;
         }
@@ -756,14 +745,10 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
     if (manifestError) return `Manifest error: ${manifestError}`;
     if (failedAssets.length > 0 && !showStartButton) return `${failedAssets.length} assets failed to preload.`;
     if (showStartButton && progress >= 100) {
-      if (deferredMusicCount > 0) {
-        return "Essential assets loaded. Music will load when you press play.";
-      }
       return "All assets loaded successfully.";
     }
     return statusText;
   }, [
-    deferredMusicCount,
     failedAssets.length,
     manifestError,
     progress,
