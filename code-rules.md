@@ -5,7 +5,7 @@ Peran
 Anda adalah Frontend Developer untuk project portfolio berbasis Next.js App Router.
 
 1. Stack
-Project ini memakai Next.js App Router, React, TypeScript strict, Tailwind CSS v4, Framer Motion, AOS, Sonner, next-themes, Supabase, OpenRouter, Zod, Lucide React, Tabler Icons, serta utilitas `clsx`, `tailwind-merge`, dan `class-variance-authority` (cva).
+Project ini memakai Next.js App Router, React, TypeScript strict, Tailwind CSS v4, Framer Motion, AOS, Sonner, next-themes, Supabase, Cerebras (via AI SDK), Zod, Lucide React, Tabler Icons, serta utilitas `clsx`, `tailwind-merge`, dan `class-variance-authority` (cva).
 
 2. Struktur folder
 
@@ -27,6 +27,7 @@ Pola arsitektur utama project ini adalah `blocks/services/types`.
 
 3. Routing dan konvensi App Router
 - File route di `src/app/**/page.tsx` dibuat tipis dan fokus merender block dari `src/blocks/**`.
+- Pengecualian terkontrol boleh dipertahankan bila route sudah memuat komposisi UI spesifik dan belum menjadi sumber masalah.
 - API route wajib di `src/app/api/**/route.ts`.
 - Pertahankan slug route yang sudah ada, termasuk `techstack-&-certificate`.
 - File `error.tsx`, `global-error.tsx`, dan `not-found.tsx` dipakai sesuai konvensi route yang sudah berjalan di repo.
@@ -42,7 +43,7 @@ Pola arsitektur utama project ini adalah `blocks/services/types`.
 5. View layer dan komponen
 - Mayoritas komponen interaktif di repo ini adalah Client Component dengan `"use client"`.
 - `default export` dipakai untuk file route di `src/app/**`.
-- Komponen reusable di `components`, `blocks`, dan `hooks` diutamakan memakai named export.
+- Komponen reusable di `components`, `blocks`, dan `hooks` diutamakan memakai named export, kecuali entry file yang memang sudah menggunakan default export dan tidak menimbulkan masalah.
 - Gunakan `.tsx` untuk file berisi JSX dan `.ts` untuk non-JSX.
 - Pertahankan pola komposisi halaman berbasis `blocks`.
 
@@ -56,7 +57,7 @@ Pola arsitektur utama project ini adalah `blocks/services/types`.
 - Gunakan `fetch` langsung di service atau route handler.
 - Di komponen client, data async dikelola dengan `useState` dan `useEffect` bila dibutuhkan.
 - Pertahankan pola service sebagai lapisan akses data, misalnya service chatbot, contact, dan preload asset.
-- Streaming chatbot mengikuti parser stream yang sudah ada di service OpenRouter.
+- Streaming chatbot mengikuti parser SSE yang sudah ada di service chatbot client (`src/services/chatbot.ts`) dan route server (`POST /api/chatbot`).
 
 8. Error handling
 - Pakai `try/catch` pada proses async dan akses jaringan.
@@ -109,33 +110,36 @@ Pola arsitektur utama project ini adalah `blocks/services/types`.
 - Validasi input request sebelum proses tulis data.
 
 16. Integrasi eksternal
-- OpenRouter dipakai untuk chatbot streaming.
+- Cerebras dipakai untuk chatbot streaming melalui route internal `POST /api/chatbot` dengan fallback model di server.
 - Supabase dipakai untuk data komentar dan operasi backend terkait visit.
 - Brevo dipakai untuk notifikasi email visit.
 - FormSubmit dipakai untuk pengiriman form kontak.
 - Rahasia akses layanan eksternal harus tetap di environment variable server-side yang sesuai.
 
 17. Data backend
-- Supabase adalah backend utama untuk komentar dan dedupe visit harian.
+- Supabase adalah backend utama untuk komentar.
+- Utilitas dedupe visit harian berbasis Supabase tersedia di repo, tetapi tidak dianggap perilaku aktif wajib sampai benar-benar diintegrasikan ke alur route visit.
 - Akses key service role hanya boleh dijalankan dari sisi server.
 - Jangan expose secret backend ke client component.
 - Tetap pisahkan data publik dan data sensitif secara tegas.
 
 18. Testing dan quality gate
-- Repo ini belum menyediakan script test dan typecheck terpisah.
+- Repo ini belum menyediakan script `test` dan `typecheck` terpisah di `package.json`.
 - Quality gate utama saat ini adalah `npm run lint`.
 - Jalankan `npm run build` untuk perubahan yang berdampak ke route, config, atau integrasi build.
-- Jangan menambah perintah verifikasi baru di rules tanpa dukungan script nyata di project.
+- Jangan mewajibkan perintah verifikasi yang tidak tersedia sebagai script nyata di project.
 
 19. Fitur real time
-- Real-time pada project ini berjalan lewat streaming respons chat dari OpenRouter.
-- Pertahankan pola stream parser dan cancellation handling yang sudah dipakai di service chatbot.
+- Real-time pada project ini berjalan lewat streaming respons chat dari Cerebras melalui route internal `POST /api/chatbot`.
+- Pertahankan pola parser SSE, fallback model, dan cancellation handling yang sudah dipakai di service chatbot dan route server.
 - Hindari menambah arsitektur real-time lain jika tidak diminta task.
 
 20. Deployment
 Set environment variable berikut di platform deploy. Jangan hardcode nilai rahasia di repo.
 
-- `NEXT_PUBLIC_OPENROUTER_API_KEY`
+- `CEREBRAS_API_KEY`
+- `CEREBRAS_MODEL`
+- `CEREBRAS_MODEL_FALLBACKS`
 - `NEXT_PUBLIC_SITE_URL`
 - `NEXT_PUBLIC_SITE_NAME`
 - `NEXT_PUBLIC_SUPABASE_URL`
@@ -154,6 +158,12 @@ Set environment variable berikut di platform deploy. Jangan hardcode nilai rahas
 
 22. Sebelum coding
 Baca repo dulu dan ikuti pola yang sudah ada. Ubah pola buruk dengan perubahan minimal.
-Jalankan typecheck, lint, dan test yang relevan sebelum selesai.
+Jalankan `npm run lint` dan jalankan `npm run build` bila perubahan menyentuh route, config, atau integrasi build.
 Tulis ringkasan singkat, bagian yang sudah benar dan bagian yang Anda ubah.
+
+23. Sumber kebenaran dan konflik aturan
+- Aturan ini harus konsisten dengan implementasi aktif di repo.
+- Jika aturan tertulis bertentangan dengan implementasi, evaluasi dengan praktik terbaik dan pilih pendekatan yang paling menyelesaikan masalah.
+- Jangan mempertahankan aturan lama jika fakta implementasi dan kebutuhan teknis sudah berubah.
+- Saat mengubah aturan atau kode, utamakan konsistensi lintas `code-rules.md`, README, dan perilaku runtime yang nyata.
 ````

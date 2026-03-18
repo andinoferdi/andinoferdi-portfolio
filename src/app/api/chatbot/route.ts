@@ -17,11 +17,17 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const AUTO_MODEL_ID = "auto";
-const DEFAULT_MODEL = "gpt-oss-120b";
+const DEFAULT_MODEL = "llama3.1-8b";
+const DEFAULT_FALLBACK_MODELS = [
+  "zai-glm-4.7",
+  "qwen-3-235b-a22b-instruct-2507",
+  "gpt-oss-120b",
+] as const;
 const MAX_REQUEST_MESSAGES = 40;
 const MAX_REQUEST_CHARACTERS = 30_000;
 const MAX_CONTEXT_GALLERY_ITEMS = 12;
 const MAX_CONTEXT_TRACKS = 14;
+const STREAM_COMMIT_CHARACTER_THRESHOLD = 120;
 
 const messageContentPartSchema = z.discriminatedUnion("type", [
   z.object({
@@ -53,13 +59,118 @@ const requestSchema = z.object({
 
 type ParsedRequest = z.infer<typeof requestSchema>;
 
+type AttemptClassification =
+  | "model_unavailable"
+  | "model_access_denied"
+  | "stream_failed";
+
+type AttemptStage = "before_stream" | "during_stream";
+
+interface AttemptErrorEntry {
+  attempt: number;
+  model: string;
+  reason: string;
+  classification: AttemptClassification;
+  stage: AttemptStage;
+}
+
+const formatAttemptErrors = (attempts: AttemptErrorEntry[]): string => {
+  if (!attempts.length) {
+    return "No model attempts were recorded.";
+  }
+
+  return attempts
+    .map(
+      (attempt) =>
+        `${attempt.attempt}. ${attempt.model} [${attempt.classification}/${attempt.stage}] - ${attempt.reason}`
+    )
+    .join(" | ");
+};
+
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error && error.message) return error.message;
   return "Unknown error";
 };
 
+const getErrorCode = (error: unknown): string | null => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "data" in error &&
+    typeof (error as { data?: { code?: unknown } }).data?.code === "string"
+  ) {
+    return (error as { data: { code: string } }).data.code;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof (error as { code?: unknown }).code === "string"
+  ) {
+    return (error as { code: string }).code;
+  }
+
+  return null;
+};
+
+const getStatusCode = (error: unknown): number | null => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "statusCode" in error &&
+    typeof (error as { statusCode?: unknown }).statusCode === "number"
+  ) {
+    return (error as { statusCode: number }).statusCode;
+  }
+
+  return null;
+};
+
+const classifyModelError = (error: unknown): AttemptClassification => {
+  const message = getErrorMessage(error).toLowerCase();
+  const code = (getErrorCode(error) ?? "").toLowerCase();
+  const statusCode = getStatusCode(error);
+
+  if (
+    statusCode === 404 ||
+    code.includes("not_found") ||
+    message.includes("does not exist")
+  ) {
+    return "model_unavailable";
+  }
+
+  if (
+    statusCode === 401 ||
+    statusCode === 403 ||
+    code.includes("permission") ||
+    code.includes("access") ||
+    message.includes("access") ||
+    message.includes("permission") ||
+    message.includes("unauthorized") ||
+    message.includes("forbidden")
+  ) {
+    return "model_access_denied";
+  }
+
+  return "stream_failed";
+};
+
+const canFallbackAfterError = (error: unknown): boolean => {
+  const classification = classifyModelError(error);
+  return (
+    classification === "model_unavailable" ||
+    classification === "model_access_denied"
+  );
+};
+
 const extractTextFromContent = (
-  content: string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>
+  content:
+    | string
+    | Array<
+        | { type: "text"; text: string }
+        | { type: "image_url"; image_url: { url: string } }
+      >
 ): string => {
   if (typeof content === "string") return content.trim();
 
@@ -72,7 +183,7 @@ const extractTextFromContent = (
 
 const parseFallbackModels = (): string[] => {
   const fromEnv = process.env.CEREBRAS_MODEL_FALLBACKS ?? "";
-  if (!fromEnv.trim()) return [];
+  if (!fromEnv.trim()) return [...DEFAULT_FALLBACK_MODELS];
 
   return fromEnv
     .split(",")
@@ -94,8 +205,10 @@ const buildModelChain = (selectedModelId?: string): string[] => {
 };
 
 const buildPortfolioContext = (): string => {
-  const siteName = process.env.NEXT_PUBLIC_SITE_NAME || "AndinoFerdi Portfolio";
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://andinoferdi.vercel.app";
+  const siteName =
+    process.env.NEXT_PUBLIC_SITE_NAME || "AndinoFerdi Portfolio";
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://andinoferdi.vercel.app";
   const heroData = getHomePageData();
   const profileData = getProfileData();
   const projects = getProjectsData().projects;
@@ -216,7 +329,9 @@ const isReasoningModel = (modelId: string): boolean => {
 
 const toModelMessages = (requestBody: ParsedRequest) => {
   return requestBody.messages
-    .filter((message) => message.role === "user" || message.role === "assistant")
+    .filter(
+      (message) => message.role === "user" || message.role === "assistant"
+    )
     .map((message) => ({
       role: message.role,
       content: extractTextFromContent(message.content),
@@ -240,7 +355,9 @@ const getLatestUserText = (requestBody: ParsedRequest): string => {
 };
 
 export async function POST(request: NextRequest) {
-  const parsedBody = requestSchema.safeParse(await request.json().catch(() => ({})));
+  const parsedBody = requestSchema.safeParse(
+    await request.json().catch(() => ({}))
+  );
 
   if (!parsedBody.success) {
     return NextResponse.json(
@@ -306,121 +423,179 @@ export async function POST(request: NextRequest) {
   const portfolioContext = buildPortfolioContext();
   const systemPrompt = buildSystemPrompt(portfolioContext);
   const cerebras = createCerebras({ apiKey: cerebrasApiKey });
-
-  const attemptErrors: Array<{ attempt: number; model: string; reason: string }> = [];
-
-  let selectedAttempt:
-    | {
-        model: string;
-        result: ReturnType<typeof streamText>;
-        iterator: AsyncIterator<string>;
-        firstChunk: string;
-      }
-    | null = null;
-
-  for (let index = 0; index < modelChain.length; index += 1) {
-    const modelId = modelChain[index];
-
-    try {
-      const result = streamText({
-        model: cerebras(modelId),
-        system: systemPrompt,
-        messages: modelMessages,
-        temperature: 0.4,
-        maxRetries: 0,
-        abortSignal: request.signal,
-        providerOptions: isReasoningModel(modelId)
-          ? {
-              cerebras: {
-                reasoningEffort: "medium",
-              },
-            }
-          : undefined,
-      });
-
-      const iterator = result.textStream[Symbol.asyncIterator]();
-      const first = await iterator.next();
-
-      selectedAttempt = {
-        model: modelId,
-        result,
-        iterator,
-        firstChunk: first.done ? "" : first.value,
-      };
-      break;
-    } catch (error) {
-      const reason = getErrorMessage(error);
-      console.error("[chatbot][attempt_failed_before_stream]", {
-        attempt: index + 1,
-        model: modelId,
-        reason,
-      });
-      attemptErrors.push({ attempt: index + 1, model: modelId, reason });
-    }
-  }
-
-  if (!selectedAttempt) {
-    return NextResponse.json(
-      {
-        error: "All configured Cerebras models failed before streaming.",
-        attempts: attemptErrors,
-      },
-      { status: 503 }
-    );
-  }
-
+  const attemptErrors: AttemptErrorEntry[] = [];
   const encoder = new TextEncoder();
-  const { model, iterator, result, firstChunk } = selectedAttempt;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      let aggregatedText = "";
       let closed = false;
+      let committedModel: string | null = null;
 
       const enqueue = (event: ChatStreamEvent) => {
         if (closed) return;
         controller.enqueue(encoder.encode(createSseEvent(event)));
       };
 
-      try {
-        enqueue({ type: "meta", model });
+      const recordAttemptError = (
+        model: string,
+        stage: AttemptStage,
+        error: unknown,
+        attempt: number
+      ) => {
+        const reason = getErrorMessage(error);
+        const classification = classifyModelError(error);
 
-        if (firstChunk) {
-          aggregatedText += firstChunk;
-          enqueue({ type: "token", text: firstChunk });
-        }
+        console.error(`[chatbot][${stage}]`, {
+          attempt,
+          model,
+          classification,
+          statusCode: getStatusCode(error),
+          code: getErrorCode(error),
+          reason,
+        });
 
-        while (true) {
-          const { done, value } = await iterator.next();
-          if (done) break;
-          if (!value) continue;
-          aggregatedText += value;
-          enqueue({ type: "token", text: value });
-        }
+        attemptErrors.push({
+          attempt,
+          model,
+          reason,
+          classification,
+          stage,
+        });
+      };
 
-        if (!aggregatedText.trim()) {
+      const streamAttempt = async (
+        model: string,
+        attempt: number
+      ): Promise<boolean> => {
+        const result = streamText({
+          model: cerebras(model),
+          system: systemPrompt,
+          messages: modelMessages,
+          temperature: 0.4,
+          maxRetries: 0,
+          abortSignal: request.signal,
+          providerOptions: isReasoningModel(model)
+            ? {
+                cerebras: {
+                  reasoningEffort: "medium",
+                },
+              }
+            : undefined,
+        });
+
+        const iterator = result.textStream[Symbol.asyncIterator]();
+        const bufferedChunks: string[] = [];
+        let aggregatedText = "";
+        let hasCommitted = false;
+
+        const commitBufferedChunks = () => {
+          if (hasCommitted) return;
+          hasCommitted = true;
+          committedModel = model;
+          enqueue({ type: "meta", model });
+
+          for (const chunk of bufferedChunks) {
+            enqueue({ type: "token", text: chunk });
+          }
+        };
+
+        try {
+          while (true) {
+            const { done, value } = await iterator.next();
+            if (done) break;
+            if (!value) continue;
+
+            aggregatedText += value;
+            bufferedChunks.push(value);
+
+            if (
+              !hasCommitted &&
+              aggregatedText.trim().length >= STREAM_COMMIT_CHARACTER_THRESHOLD
+            ) {
+              commitBufferedChunks();
+              continue;
+            }
+
+            if (hasCommitted) {
+              enqueue({ type: "token", text: value });
+            }
+          }
+
+          if (!aggregatedText.trim()) {
+            try {
+              const finalText = await result.text;
+              if (finalText) {
+                aggregatedText = finalText;
+                bufferedChunks.length = 0;
+                bufferedChunks.push(finalText);
+              }
+            } catch {
+              // Best-effort fallback only.
+            }
+          }
+
+          commitBufferedChunks();
+          enqueue({
+            type: "done",
+            model,
+            text: aggregatedText,
+          });
+
+          return true;
+        } catch (error) {
+          const stage: AttemptStage = hasCommitted
+            ? "during_stream"
+            : "before_stream";
+          recordAttemptError(model, stage, error, attempt);
+
+          if (!hasCommitted && canFallbackAfterError(error)) {
+            return false;
+          }
+
+          throw error;
+        } finally {
           try {
-            const finalText = await result.text;
-            aggregatedText = finalText || aggregatedText;
-          } catch {
-            // Ignore: final fallback text is optional when stream already completed.
+            await iterator.return?.();
+          } catch (cleanupError) {
+            console.error("[chatbot][stream_cleanup_failed]", {
+              attempt,
+              model,
+              reason: getErrorMessage(cleanupError),
+            });
+          }
+        }
+      };
+
+      try {
+        let streamedSuccessfully = false;
+
+        for (let index = 0; index < modelChain.length; index += 1) {
+          const model = modelChain[index];
+          const completed = await streamAttempt(model, index + 1);
+
+          if (completed) {
+            streamedSuccessfully = true;
+            break;
           }
         }
 
-        enqueue({
-          type: "done",
-          model,
-          text: aggregatedText,
-        });
+        if (!streamedSuccessfully) {
+          throw new Error("All configured Cerebras models failed before streaming.");
+        }
       } catch (error) {
-        const reason = getErrorMessage(error);
-        console.error("[chatbot][stream_failed_after_selecting_model]", {
-          model,
+        const baseReason = getErrorMessage(error);
+        const reason =
+          !committedModel && attemptErrors.length > 0
+            ? `${baseReason} Attempts: ${formatAttemptErrors(attemptErrors)}`
+            : baseReason;
+        console.error("[chatbot][stream_aborted]", {
+          model: committedModel,
           reason,
+          attempts: attemptErrors,
         });
         enqueue({
           type: "error",
-          model,
+          model: committedModel ?? undefined,
           error: reason,
         });
       } finally {
@@ -430,16 +605,7 @@ export async function POST(request: NextRequest) {
         }
       }
     },
-    async cancel() {
-      try {
-        await iterator.return?.();
-      } catch (error) {
-        console.error("[chatbot][stream_cancel_cleanup_failed]", {
-          model,
-          reason: getErrorMessage(error),
-        });
-      }
-    },
+    async cancel() {},
   });
 
   return new Response(stream, {

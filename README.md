@@ -60,13 +60,13 @@ Chatbot sekarang memakai route internal `POST /api/chatbot` agar request model t
 Provider model sekarang menggunakan Cerebras dengan eksekusi fallback chain otomatis jika model aktif gagal merespons.
 Chatbot sekarang memakai hybrid retrieval dari seluruh data statis portfolio (projects, journey, profile, techstack, music, gallery, certificates, dan metadata publik website).
 Perilaku jawaban memakai strict data-only: model diarahkan untuk menjawab hanya dari fakta portfolio yang dikirim server.
-Model default yang dipakai adalah `gpt-oss-120b`, dan bisa dioverride lewat environment server.
+Model default yang dipakai adalah `llama3.1-8b`, dan bisa dioverride lewat environment server.
 Fitur gambar di chatbot saat ini dinonaktifkan sementara.
 
 Troubleshooting chatbot:
 - Pastikan `CEREBRAS_API_KEY` terisi dan valid di server
-- Opsional atur `CEREBRAS_MODEL` (default: `gpt-oss-120b`)
-- Opsional atur `CEREBRAS_MODEL_FALLBACKS` (comma-separated). Default fallback: `llama3.1-8b,zai-glm-4.7,qwen-3-235b-a22b-instruct-2507`
+- Opsional atur `CEREBRAS_MODEL` (default: `llama3.1-8b`)
+- Opsional atur `CEREBRAS_MODEL_FALLBACKS` (comma-separated). Default fallback: `zai-glm-4.7,qwen-3-235b-a22b-instruct-2507,gpt-oss-120b`
 - Jika terjadi rate limit, tunggu sebentar lalu coba lagi
 
 ## Visit Notification (Brevo)

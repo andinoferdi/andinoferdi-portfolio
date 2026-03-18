@@ -13,7 +13,7 @@ export const CHAT_HISTORY_KEY = "andino_chat_history_v1";
 const MAX_MESSAGE_HISTORY = 24;
 
 const MODEL_DISPLAY_NAME_MAP: Record<string, string> = {
-  [AUTO_MODEL_ID]: "Auto (Cerebras)",
+  [AUTO_MODEL_ID]: "Auto (Cerebras Fallback)",
   "gpt-oss-120b": "GPT-OSS 120B",
   "llama3.1-8b": "Llama 3.1 8B",
   "zai-glm-4.7": "ZAI GLM 4.7",

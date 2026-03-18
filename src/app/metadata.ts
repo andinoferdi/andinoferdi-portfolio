@@ -120,6 +120,6 @@ export const preloadLinks = [
   },
   {
     rel: 'dns-prefetch',
-    href: 'https://openrouter.ai',
+    href: 'https://api.cerebras.ai',
   },
 ];
