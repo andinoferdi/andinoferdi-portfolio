@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { startTransition, useEffect, useRef, useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { type ReactNode } from "react";
 
@@ -30,11 +30,20 @@ interface TabContentProps {
   className?: string;
 }
 
-export const Tab = ({ items, defaultValue, onValueChange, className }: TabProps) => {
-  const [activeTab, setActiveTab] = useState(defaultValue || items[0]?.id || "");
+export const Tab = ({
+  items,
+  defaultValue,
+  onValueChange,
+  className,
+}: TabProps) => {
+  const [activeTab, setActiveTab] = useState(
+    defaultValue || items[0]?.id || "",
+  );
 
   const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
+    startTransition(() => {
+      setActiveTab(tabId);
+    });
     onValueChange?.(tabId);
   };
 
@@ -45,15 +54,17 @@ export const Tab = ({ items, defaultValue, onValueChange, className }: TabProps)
         activeTab={activeTab}
         onTabChange={handleTabChange}
       />
-      <TabContent
-        items={items}
-        activeTab={activeTab}
-      />
+      <TabContent items={items} activeTab={activeTab} />
     </div>
   );
 };
 
-export const TabList = ({ items, activeTab, onTabChange, className }: TabListProps) => {
+export const TabList = ({
+  items,
+  activeTab,
+  onTabChange,
+  className,
+}: TabListProps) => {
   return (
     <div className={cn("flex justify-center mb-8", className)}>
       <div className="flex rounded-lg border border-border bg-muted p-1">
@@ -65,7 +76,7 @@ export const TabList = ({ items, activeTab, onTabChange, className }: TabListPro
               "px-6 py-3 rounded-md text-sm font-medium transition-all duration-200 cursor-pointer",
               activeTab === item.id
                 ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {item.label}
@@ -76,13 +87,56 @@ export const TabList = ({ items, activeTab, onTabChange, className }: TabListPro
   );
 };
 
-export const TabContent = ({ items, activeTab, className }: TabContentProps) => {
-  const activeItem = items.find(item => item.id === activeTab);
+export const TabContent = ({
+  items,
+  activeTab,
+  className,
+}: TabContentProps) => {
+  const outerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const activeItem = useMemo(
+    () => items.find((item) => item.id === activeTab),
+    [activeTab, items],
+  );
+
+  // Animate the outer wrapper to match the inner panel height
+  useEffect(() => {
+    const outer = outerRef.current;
+    const panel = panelRef.current;
+    if (!outer || !panel) return;
+
+    // Measure once on mount / tab change
+    const applyHeight = () => {
+      const h = panel.getBoundingClientRect().height;
+      if (h > 0) outer.style.height = `${h}px`;
+    };
+
+    applyHeight();
+
+    // Keep tracking in case inner content shifts (e.g. images load)
+    const ro = new ResizeObserver(() => applyHeight());
+    ro.observe(panel);
+    return () => ro.disconnect();
+  }, [activeItem]);
 
   return (
-    <div className={cn("w-full", className)}>
+    <div
+      ref={outerRef}
+      className={cn(
+        "w-full overflow-hidden transition-[height] duration-300 ease-in-out",
+        className,
+      )}
+      // no explicit height style here — it's driven by the effect above
+    >
       {activeItem && (
-        <div className="animate-in fade-in-0 duration-200">
+        <div
+          ref={panelRef}
+          key={activeItem.id}
+          role="tabpanel"
+          aria-hidden={false}
+          className="w-full animate-in fade-in-0 duration-200"
+        >
           {activeItem.content}
         </div>
       )}

@@ -5,11 +5,18 @@ export const getCertificateData = (): CertificateData => {
     certificates: [
       {
         id: "cert-1",
-        image: "/images/certificates/1.jpg",
+        images: ["/images/certificates/1.jpg"],
       },
       {
         id: "cert-2",
-        image: "/images/certificates/2.jpg",
+        images: ["/images/certificates/2.jpg"],
+      },
+      {
+        id: "cert-3",
+        images: [
+          "/images/certificates/3.jpg",
+          "/images/certificates/4.jpg",
+        ],
       },
     ],
   };

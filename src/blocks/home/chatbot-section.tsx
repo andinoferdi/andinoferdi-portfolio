@@ -282,7 +282,7 @@ export const ChatbotSection = () => {
                         value={editingContent}
                         onChange={(e) => setEditingContent(e.target.value)}
                         onKeyDown={handleKeyDownEdit}
-                        className="w-full min-h-[80px]! max-h-[200px] resize-none bg-transparent border-none p-2 text-xs md:text-sm focus:ring-0 focus:outline-none leading-relaxed py-2!"
+                        className="w-full min-h-20! max-h-50 resize-none bg-transparent border-none p-2 text-xs md:text-sm focus:ring-0 focus:outline-none leading-relaxed py-2!"
                         placeholder="Edit your message..."
                         autoResize={true}
                         maxHeight={200}
@@ -519,7 +519,7 @@ export const ChatbotSection = () => {
           </p>
         </header>
         <Card
-          className="h-[500px] md:h-[600px] flex flex-col"
+          className="h-125 md:h-150 flex flex-col"
           data-aos="fade-up"
         >
           <CardHeader className="shrink-0">

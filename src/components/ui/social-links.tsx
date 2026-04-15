@@ -1,6 +1,6 @@
 "use client";
 
-import { Github, Linkedin } from "lucide-react";
+import { IconBrandGithub, IconBrandLinkedin } from "@tabler/icons-react";
 
 interface SocialLink {
   name: string;
@@ -20,12 +20,12 @@ const SOCIAL_LINKS: SocialLink[] = [
   {
     name: "GitHub",
     href: "",
-    icon: Github,
+    icon: IconBrandGithub,
   },
   {
     name: "LinkedIn",
     href: "",
-    icon: Linkedin,
+    icon: IconBrandLinkedin,
   },
 ];
 

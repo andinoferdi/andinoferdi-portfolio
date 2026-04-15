@@ -2,7 +2,8 @@
 
 import { TechnologyIcon } from "@/components/ui/technology-icon";
 import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
-import { ExternalLink, Github } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { IconBrandGithub } from "@tabler/icons-react";
 import Image from "next/image";
 import { type Project } from "@/types/projects";
 
@@ -111,7 +112,7 @@ export const ProjectCard = ({
                       project.githubUrl && handleKeyDown(e, project.githubUrl)
                     }
                   >
-                    <Github className="h-4 w-4" aria-hidden="true" />
+                    <IconBrandGithub className="h-4 w-4" aria-hidden="true" />
                     Code
                   </a>
                 </CardItem>

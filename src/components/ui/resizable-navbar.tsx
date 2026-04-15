@@ -10,7 +10,7 @@ import {
   useMotionValueEvent,
 } from "framer-motion";
 
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 
 
 interface NavbarProps {
@@ -55,11 +55,7 @@ interface MobileNavMenuProps {
 }
 
 export const Navbar = ({ children, className }: NavbarProps) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollY } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"],
-  });
+  const { scrollY } = useScroll();
   const [visible, setVisible] = useState<boolean>(false);
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
@@ -67,7 +63,7 @@ export const Navbar = ({ children, className }: NavbarProps) => {
     setIsMobile(window.innerWidth < 768);
   }, []);
 
-  useMotionValueEvent(scrollY, "change", (latest) => {
+  useMotionValueEvent(scrollY, "change", (latest: number) => {
     if (latest > 100) {
       setVisible(true);
     } else {
@@ -77,7 +73,6 @@ export const Navbar = ({ children, className }: NavbarProps) => {
 
   return (
     <motion.div
-      ref={ref}
       // IMPORTANT: Change this to class of `fixed` if you want the navbar to be fixed
       className={cn("sticky inset-x-0 top-0 z-50 w-full", className)}
       suppressHydrationWarning

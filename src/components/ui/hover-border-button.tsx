@@ -50,7 +50,9 @@ export const HoverBorderGradient = <T extends React.ElementType = "button">({
 } & Omit<
   React.ComponentPropsWithoutRef<T>,
   "as" | "children" | "className"
->) => {
+> & {
+  onClick?: React.MouseEventHandler<HTMLElement>;
+}) => {
   const Tag = as || "button";
   const [hovered, setHovered] = useState<boolean>(false);
   const [direction, setDirection] = useState<Direction>("TOP");
@@ -160,7 +162,7 @@ export const HoverBorderGradient = <T extends React.ElementType = "button">({
     />,
     <div
       key="bg-overlay"
-      className="bg-black dark:bg-white absolute z-1 flex-none inset-[2px] rounded-[100px]"
+      className="bg-black dark:bg-white absolute z-1 flex-none inset-0.5 rounded-[100px]"
     />
   );
 };

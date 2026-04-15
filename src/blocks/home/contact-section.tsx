@@ -241,7 +241,7 @@ export const ContactSection = () => {
                         message: e.target.value,
                       }))
                     }
-                    className="pl-10 min-h-[120px]"
+                    className="pl-10 min-h-30"
                     disabled={isSubmittingContact}
                   />
                 </div>
@@ -298,7 +298,7 @@ export const ContactSection = () => {
                       content: e.target.value,
                     }))
                   }
-                  className="min-h-[80px]"
+                  className="min-h-20"
                   disabled={isSubmittingComment}
                 />
 

@@ -14,9 +14,7 @@ import { MusicPlayerErrorBoundary } from "@/components/error-boundary";
 import { LoadingScreen } from "@/components/loading-screen";
 import { RoutePrefetch } from "@/components/route-prefetch";
 import { VisitTracker } from "@/components/visit-tracker";
-import ThemeScript from "@/components/ui/theme-script";
 import { Spotlight } from "@/components/ui/spotlight-new";
-import Head from "next/head";
 import { preloadLinks } from "./metadata";
 
 const poppins = Poppins({
@@ -34,12 +32,11 @@ export default function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
-      <Head>
-        <ThemeScript />
+      <head>
         {preloadLinks.map((link, index) => (
           <link key={index} {...link} />
         ))}
-      </Head>
+      </head>
       <body
         className={`${poppins.variable} font-sans antialiased`}
         suppressHydrationWarning

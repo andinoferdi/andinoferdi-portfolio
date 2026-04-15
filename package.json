@@ -48,16 +48,16 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@types/react-syntax-highlighter": "latest",
-    "@types/three": "latest",
+    "@types/three": "^0.183.1",
     "eslint": "latest",
     "eslint-config-next": "latest",
     "patch-package": "^8.0.1",
     "tailwindcss": "latest",
     "tw-animate-css": "latest",
-    "typescript": "latest"
+    "typescript": "^5.9.3"
   },
   "overrides": {
-    "minimatch": "10.2.1",
+    "minimatch": "10.2.5",
     "ajv": "8.18.0",
     "eslint": {
       "ajv": "8.18.0"

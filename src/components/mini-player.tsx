@@ -242,7 +242,7 @@ const MiniPlayerCollapsed: React.FC<MiniPlayerCollapsedProps> = ({
     role="button"
     tabIndex={0}
     aria-label={`Now playing: ${currentTrack.title} by ${currentTrack.artist}`}
-    onKeyDown={(e) => {
+    onKeyDown={(e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         onExpand();
@@ -300,7 +300,7 @@ const MiniPlayerCollapsed: React.FC<MiniPlayerCollapsedProps> = ({
             e.stopPropagation();
             onPlayPause();
           }}
-          onKeyDown={(e) => {
+          onKeyDown={(e: React.KeyboardEvent<HTMLButtonElement>) => {
             e.stopPropagation();
           }}
           disabled={isEngineTransitioning}

@@ -1,6 +1,6 @@
 export interface Certificate {
   id: string;
-  image: string;
+  images: string[];
 }
 
 export interface CertificateData {

@@ -12,9 +12,6 @@ export const MainFooter = () => {
           <p className="text-sm text-muted-foreground">
             {footerConfig.copyright}
           </p>
-          <p className="max-w-3xl text-xs text-muted-foreground/90">
-            {footerConfig.privacyNotice}
-          </p>
         </div>
       </div>
     </footer>

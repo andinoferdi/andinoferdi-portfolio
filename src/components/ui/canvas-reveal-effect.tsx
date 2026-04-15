@@ -215,7 +215,12 @@ const ShaderMaterial = ({
 
   useFrame(({ clock }) => {
     if (!ref.current) return;
-    const timestamp = clock.getElapsedTime();
+    const timer = clock as THREE.Clock | THREE.Timer;
+    const timestamp =
+      timer instanceof THREE.Clock
+        ? timer.getElapsedTime()
+        : timer.getElapsed();
+
     if (timestamp - lastFrameTimeRef.current < 1 / maxFps) {
       return;
     }

@@ -251,7 +251,10 @@ const buildPortfolioContext = (): string => {
     .join("\n");
 
   const certificateSummary = certificates
-    .map((certificate, index) => `${index + 1}. ${certificate.image}`)
+    .map((certificate, index) => {
+      const imageList = certificate.images.join(", ");
+      return `${index + 1}. ${imageList}`;
+    })
     .join("\n");
 
   const gallerySummary = gallery
