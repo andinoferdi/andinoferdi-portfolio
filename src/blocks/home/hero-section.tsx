@@ -16,8 +16,8 @@ export const HeroSection = ({ data }: HeroSectionProps) => {
   const profileData = getProfileData();
 
   return (
-    <section className="min-h-screen flex items-start justify-center text-foreground px-4 pt-26">
-      <div className="text-center space-y-8 max-w-4xl mx-auto">
+    <section className="min-h-screen flex items-start justify-center text-foreground px-4 pt-20 md:pt-26">
+      <div className="text-center space-y-6 md:space-y-8 max-w-4xl mx-auto">
         <div className="space-y-4">
           <h1 
             className="mb-4 text-4xl font-bold text-foreground md:text-6xl"

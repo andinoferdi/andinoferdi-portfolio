@@ -15,12 +15,12 @@ const VIDEO_URL = "https://youtu.be/D2q5GgfHXi8?si=RIlpM2RdI5aE1Jt1";
 
 export const IntroductionSection = () => {
   return (
-    <section className="py-20 px-4" aria-label="Introduction video">
+    <section className="py-12 px-4 md:py-20" aria-label="Introduction video">
       <div className="max-w-7xl mx-auto">
         <div className="mx-auto max-w-4xl" data-aos="fade-up">
           <Card
             variant="glass"
-            className="border-border/60 shadow-lg md:backdrop-blur-md"
+            className="border-border/60 shadow-lg"
           >
             <CardHeader className="text-center" padding="default">
               <CardTitle size="lg" className="text-3xl md:text-4xl text-foreground">

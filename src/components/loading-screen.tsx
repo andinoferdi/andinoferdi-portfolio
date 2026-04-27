@@ -60,7 +60,6 @@ const G = {
   spawnDist: 280,
   groundH: 80,
   birdR: 14,
-  step: 1 / 240,
   maxDt: 1 / 20,
 };
 
@@ -88,9 +87,31 @@ const rr = (a: number, b: number) => a + Math.random() * (b - a);
 const isDeferredMusicAsset = (asset: PreloadAsset): boolean => {
   return (
     asset.kind === "audio" &&
-    asset.url.startsWith("/music/") &&
+    (asset.url.startsWith("/music/") || asset.url.startsWith("/flappy-bird/")) &&
     asset.url.toLowerCase().endsWith(".mp3")
   );
+};
+
+const CRITICAL_INITIAL_ASSET_URLS = new Set([
+  "/images/Logo.png",
+  "/images/self/1.jpg",
+  "/images/self/2.jpg",
+  "/images/self/3.jpg",
+  "/images/self/4.jpg",
+  "/images/projects/sikas-noyu.png",
+  "/images/projects/gokandara.png",
+  "/images/projects/mylisttrip.png",
+  "/images/journey/logo-unair.png",
+  "/images/journey/smkn2sby.png",
+  "/images/journey/mti.png",
+]);
+
+const isCriticalInitialAsset = (asset: PreloadAsset): boolean => {
+  return CRITICAL_INITIAL_ASSET_URLS.has(asset.url);
+};
+
+const getSimulationStep = (width: number): number => {
+  return width < 768 ? 1 / 120 : 1 / 240;
 };
 
 const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
@@ -563,7 +584,7 @@ const useFlappy = () => {
   useEffect(() => {
     const cv = canvasRef.current; if (!cv) return;
     const resize = () => {
-      const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+      const r = cv.getBoundingClientRect(), dpr = Math.min(r.width < 768 ? 1.5 : 2, window.devicePixelRatio || 1), w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
       cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
       const ctx = cv.getContext("2d"); if (!ctx) return; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       sim.current.W = w; sim.current.H = h; sim.current.groundH = clamp(h * 0.16, 62, G.groundH);
@@ -575,7 +596,8 @@ const useFlappy = () => {
     const simState = sim.current;
     const tick = (ts: number) => {
       const s = simState, prev = s.lastTs || ts; s.lastTs = ts; s.acc += Math.min(G.maxDt, Math.max(0, (ts - prev) / 1000));
-      while (s.acc >= G.step) { step(G.step); s.acc -= G.step; }
+      const simulationStep = getSimulationStep(s.W);
+      while (s.acc >= simulationStep) { step(simulationStep); s.acc -= simulationStep; }
       draw(); s.raf = requestAnimationFrame(tick);
     };
     simState.raf = requestAnimationFrame(tick);
@@ -657,18 +679,32 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
         if (cancelled) return;
 
         const manifestAssets = manifest.assets ?? [];
-        const initialAssets = manifestAssets.filter((asset) => !isDeferredMusicAsset(asset));
+        const preloadableAssets = manifestAssets.filter(
+          (asset) => !isDeferredMusicAsset(asset)
+        );
+        const isMobile = window.innerWidth < 768;
+        const initialAssets = isMobile
+          ? preloadableAssets.filter(isCriticalInitialAsset)
+          : preloadableAssets;
+        const loadsEveryPreloadableAsset =
+          initialAssets.length === preloadableAssets.length;
 
         setTotalAssets(initialAssets.length);
-        setStatusText("Downloading essential assets...");
+        setStatusText(
+          isMobile
+            ? "Downloading critical mobile assets..."
+            : "Downloading essential assets..."
+        );
 
         if (!initialAssets.length) {
           setProgress(100);
           setLoadedAssets(0);
           setIsLoading(false);
           setShowStartButton(true);
-          setStatusText("All assets loaded successfully.");
-          markInitialPreloadComplete();
+          setStatusText("Ready to start.");
+          if (loadsEveryPreloadableAsset) {
+            markInitialPreloadComplete();
+          }
           return;
         }
 
@@ -684,7 +720,9 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
             setProgress(Math.min(100, Math.max(0, p)));
             setStatusText(
               s.retrying
-                ? "Retrying failed essential assets..."
+                ? "Retrying failed critical assets..."
+                : isMobile
+                ? "Downloading critical mobile assets..."
                 : "Downloading essential assets..."
             );
           },
@@ -699,8 +737,14 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
           setLoadedAssets(initialAssets.length);
           setIsLoading(false);
           setShowStartButton(true);
-          setStatusText("All assets loaded successfully.");
-          markInitialPreloadComplete();
+          setStatusText(
+            loadsEveryPreloadableAsset
+              ? "All assets loaded successfully."
+              : "Critical assets loaded. Remaining assets will load in the background."
+          );
+          if (loadsEveryPreloadableAsset) {
+            markInitialPreloadComplete();
+          }
           return;
         }
 

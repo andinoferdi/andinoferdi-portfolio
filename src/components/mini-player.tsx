@@ -121,12 +121,19 @@ export const MiniPlayer: React.FC = () => {
     checkMobile();
     checkReducedMotion();
 
-    window.addEventListener("resize", checkMobile);
+    let resizeTimer: ReturnType<typeof setTimeout>;
+    const debouncedCheckMobile = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(checkMobile, 150);
+    };
+
+    window.addEventListener("resize", debouncedCheckMobile);
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     mediaQuery.addEventListener("change", checkReducedMotion);
 
     return () => {
-      window.removeEventListener("resize", checkMobile);
+      clearTimeout(resizeTimer);
+      window.removeEventListener("resize", debouncedCheckMobile);
       mediaQuery.removeEventListener("change", checkReducedMotion);
     };
   }, []);

@@ -172,9 +172,9 @@ export const ContactSection = () => {
   };
 
   return (
-    <section className="py-20 px-4">
+    <section className="py-12 px-4 md:py-20">
       <div className="max-w-7xl mx-auto">
-        <header className="text-center mb-16" data-aos="fade-up">
+        <header className="text-center mb-10 md:mb-16" data-aos="fade-up">
           <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
             Get In Touch
           </h2>
@@ -185,12 +185,12 @@ export const ContactSection = () => {
         </header>
 
         <div
-          className="grid grid-cols-1 lg:grid-cols-2 gap-12"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12"
           data-aos="fade-up"
         >
           {/* Contact Form */}
           <div className="space-y-6">
-            <div className="bg-background/90 border border-border/60 rounded-xl p-6 backdrop-blur-md">
+            <div className="bg-background/90 border border-border/60 rounded-xl p-6">
               <h3 className="text-2xl font-bold text-foreground mb-6">
                 Send Message
               </h3>
@@ -266,7 +266,7 @@ export const ContactSection = () => {
 
           {/* Comments Section */}
           <div className="space-y-6">
-            <div className="bg-background/90 border border-border/60 rounded-xl p-6 backdrop-blur-md">
+            <div className="bg-background/90 border border-border/60 rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-bold text-foreground">Comments</h3>
                 <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded-full">

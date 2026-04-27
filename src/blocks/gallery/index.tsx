@@ -21,10 +21,10 @@ export const GalleryPage = () => {
   return (
     <>
       <PageTitle title="Gallery - AndinoFerdi" />
-      <section className="py-20 px-4">
+      <section className="py-12 px-4 md:py-20">
         <div className="max-w-7xl mx-auto">
           <div 
-            className="text-center mb-16"
+            className="text-center mb-10 md:mb-16"
             data-aos="fade-up"
           >
             <h1 className="text-4xl md:text-6xl font-bold text-foreground mb-4">

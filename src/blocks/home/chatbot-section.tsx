@@ -260,7 +260,7 @@ export const ChatbotSection = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{
                 duration: 0.3,
-                delay: index * 0.1,
+                delay: Math.min(index * 0.05, 0.15),
               }}
               className="flex gap-3 justify-end"
             >
@@ -370,7 +370,7 @@ export const ChatbotSection = () => {
         key={message.id}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: index * 0.1 }}
+        transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.15) }}
         className="flex gap-3 justify-start"
       >
         <div className="flex gap-2 md:gap-3 max-w-[90%] md:max-w-[80%] flex-row">
@@ -507,9 +507,9 @@ export const ChatbotSection = () => {
   };
 
   return (
-    <section className="py-10 md:py-20 px-2 md:px-4" id="chatbot-section">
+    <section className="py-10 px-2 md:py-20 md:px-4" id="chatbot-section">
       <div className="max-w-4xl mx-auto">
-        <header className="text-center mb-16" data-aos="fade-up">
+        <header className="text-center mb-10 md:mb-16" data-aos="fade-up">
           <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
             Chat with AI
           </h2>

@@ -5,24 +5,51 @@ import { isInitialPreloadComplete, preloadImage } from "@/services/preload";
 import { getGalleryData } from "@/services/gallery";
 import { getProjectsData } from "@/services/projects";
 
+const scheduleIdle = (callback: () => void, timeout: number) => {
+  if ("requestIdleCallback" in window) {
+    return window.requestIdleCallback(callback, { timeout });
+  }
+
+  return window.setTimeout(callback, Math.min(timeout, 1000));
+};
+
+const cancelIdle = (handle: number) => {
+  if ("cancelIdleCallback" in window) {
+    window.cancelIdleCallback(handle);
+    return;
+  }
+
+  window.clearTimeout(handle);
+};
+
 /**
  * Component untuk prefetch images dari route lain saat idle
  * Digunakan untuk smooth navigation antar halaman
  */
 export const RoutePrefetch = () => {
   useEffect(() => {
+    const idleHandles: number[] = [];
+
     // Skip route prefetch when strict preload has already loaded all assets.
     if (isInitialPreloadComplete()) {
       return;
     }
 
+    // Skip on very slow connections
+    const conn = (navigator as Navigator & { connection?: { effectiveType?: string } }).connection;
+    if (conn?.effectiveType === "slow-2g" || conn?.effectiveType === "2g") {
+      return;
+    }
+
+    const isMobile = window.innerWidth < 768;
+
     const prefetchImages = () => {
       const galleryData = getGalleryData();
       const projectsData = getProjectsData();
 
-      // Prefetch gallery images (first 10 untuk performance)
+      // Prefetch fewer gallery images on mobile
       const galleryImages = galleryData.items
-        .slice(0, 10)
+        .slice(0, isMobile ? 4 : 10)
         .map((item) => item.src);
 
       // Prefetch remaining project images
@@ -35,7 +62,7 @@ export const RoutePrefetch = () => {
 
       // Prefetch in batches saat idle
       const prefetchBatch = (images: string[], startIndex: number = 0) => {
-        const batchSize = 3;
+        const batchSize = isMobile ? 2 : 3;
         const batch = images.slice(startIndex, startIndex + batchSize);
 
         if (batch.length === 0) return;
@@ -43,30 +70,33 @@ export const RoutePrefetch = () => {
         Promise.all(batch.map((img) => preloadImage(img))).then(() => {
           // Schedule next batch
           if (startIndex + batchSize < images.length) {
-            requestIdleCallback(
+            const idleHandle = scheduleIdle(
               () => {
                 prefetchBatch(images, startIndex + batchSize);
               },
-              { timeout: 5000 }
+              5000
             );
+            idleHandles.push(idleHandle);
           }
         });
       };
 
       // Start prefetching saat idle
-      requestIdleCallback(
+      const idleHandle = scheduleIdle(
         () => {
           prefetchBatch(imagesToPrefetch);
         },
-        { timeout: 10000 }
+        10000
       );
+      idleHandles.push(idleHandle);
     };
 
-    // Start prefetching setelah 2 detik (setelah critical content loaded)
-    const timeoutId = setTimeout(prefetchImages, 2000);
+    // Longer delay on mobile to let critical content settle
+    const timeoutId = setTimeout(prefetchImages, isMobile ? 5000 : 2000);
 
     return () => {
       clearTimeout(timeoutId);
+      idleHandles.forEach(cancelIdle);
     };
   }, []);
 

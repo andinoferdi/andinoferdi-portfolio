@@ -63,9 +63,9 @@ export default function TechStackCertificatePage() {
           </div>
         }
       >
-        <section className="px-4 py-20">
+        <section className="px-4 py-12 md:py-20">
           <div className="mx-auto max-w-7xl">
-            <header className="mb-16 text-center" data-aos="fade-up">
+            <header className="mb-10 text-center md:mb-16" data-aos="fade-up">
               <h1 className="mb-4 text-4xl font-bold text-foreground md:text-6xl">
                 Tech Stack & Certificates
               </h1>

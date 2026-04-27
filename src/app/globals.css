@@ -299,7 +299,7 @@ html {
     scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
-  /* AOS GPU acceleration and optimization */
+  /* AOS GPU acceleration — will-change only while animating */
   [data-aos] {
     pointer-events: auto;
     will-change: transform, opacity;
@@ -307,25 +307,18 @@ html {
     -webkit-transform: translate3d(0, 0, 0);
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    perspective: 1000px;
-    -webkit-perspective: 1000px;
   }
   
   [data-aos].aos-animate {
     pointer-events: auto;
     will-change: auto;
+    backface-visibility: visible;
+    -webkit-backface-visibility: visible;
   }
   
   /* Prevent AOS reset on hover */
   [data-aos]:hover {
     transform: inherit !important;
-  }
-  
-  /* Mobile-specific AOS optimization */
-  @media (max-width: 768px) {
-    [data-aos] {
-      animation-duration: 400ms !important;
-    }
   }
   
   /* Reduce motion for accessibility and low-end devices */
@@ -383,17 +376,12 @@ html {
     
     [data-aos] {
       animation-duration: 400ms !important;
+      transition-duration: 400ms !important;
     }
     
     .gpu-accelerated {
       transform: translateZ(0);
       will-change: auto;
-    }
-    
-    .backdrop-blur-md,
-    .backdrop-blur-sm {
-      backdrop-filter: none !important;
-      -webkit-backdrop-filter: none !important;
     }
   }
 } 

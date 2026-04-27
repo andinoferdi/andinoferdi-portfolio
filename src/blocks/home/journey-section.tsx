@@ -27,7 +27,7 @@ const ExperienceCard = React.memo(({ experience }: ExperienceCardProps) => {
       onMouseLeave={() => !isMobile && setIsHovered(false)}
       className={cn(
         "space-y-4 rounded-xl p-6 border transition-all duration-300 cursor-pointer",
-        "bg-background/90 border-border/60 shadow-lg md:backdrop-blur-md",
+        "bg-background/90 border-border/60 shadow-lg",
         isHovered &&
           !isMobile &&
           "scale-[1.02] shadow-2xl shadow-black/10 ring-2 ring-black/15 dark:shadow-primary/30 dark:ring-primary/30"
@@ -87,7 +87,7 @@ interface CompanyLogoProps {
 }
 
 const CompanyLogo = React.memo(({ logo, company }: CompanyLogoProps) => (
-  <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-background/90 border border-border/60 flex items-center justify-center shrink-0 md:backdrop-blur-md">
+  <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-background/90 border border-border/60 flex items-center justify-center shrink-0">
     {logo ? (
       <Image
         src={logo}
@@ -195,7 +195,7 @@ const ExperienceTechnologies = React.memo(
           <span
             key={tech}
             role="listitem"
-            className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background/60 px-2 py-1 text-xs font-medium text-foreground hover:bg-background/80 transition-colors md:backdrop-blur-sm"
+            className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-background/60 px-2 py-1 text-xs font-medium text-foreground hover:bg-background/80 transition-colors"
             aria-label={`Technology: ${tech}`}
           >
             <TechnologyIcon
@@ -230,11 +230,11 @@ export const ExperienceSection = () => {
 
   return (
     <section
-      className="py-20 px-4"
+      className="py-12 px-4 md:py-20"
       aria-label="Professional experience timeline"
     >
       <div className="max-w-7xl mx-auto">
-        <header className="text-center mb-16" data-aos="fade-up">
+        <header className="text-center mb-10 md:mb-16" data-aos="fade-up">
           <h2 className="text-4xl md:text-6xl font-bold text-foreground mb-4">
             My Journey
           </h2>
