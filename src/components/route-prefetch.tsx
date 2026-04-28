@@ -5,21 +5,33 @@ import { isInitialPreloadComplete, preloadImage } from "@/services/preload";
 import { getGalleryData } from "@/services/gallery";
 import { getProjectsData } from "@/services/projects";
 
+type IdleWindow = Omit<Window, "requestIdleCallback" | "cancelIdleCallback"> & {
+  requestIdleCallback?: (
+    callback: () => void,
+    options?: { timeout?: number }
+  ) => number;
+  cancelIdleCallback?: (handle: number) => void;
+};
+
 const scheduleIdle = (callback: () => void, timeout: number) => {
-  if ("requestIdleCallback" in window) {
-    return window.requestIdleCallback(callback, { timeout });
+  const idleWindow = window as IdleWindow;
+
+  if (idleWindow.requestIdleCallback) {
+    return idleWindow.requestIdleCallback(callback, { timeout });
   }
 
-  return window.setTimeout(callback, Math.min(timeout, 1000));
+  return idleWindow.setTimeout(callback, Math.min(timeout, 1000));
 };
 
 const cancelIdle = (handle: number) => {
-  if ("cancelIdleCallback" in window) {
-    window.cancelIdleCallback(handle);
+  const idleWindow = window as IdleWindow;
+
+  if (idleWindow.cancelIdleCallback) {
+    idleWindow.cancelIdleCallback(handle);
     return;
   }
 
-  window.clearTimeout(handle);
+  idleWindow.clearTimeout(handle);
 };
 
 /**

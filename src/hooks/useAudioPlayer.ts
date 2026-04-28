@@ -260,6 +260,27 @@ export const useAudioPlayer = () => {
     void ensurePreloadedAudioObjectUrl(normalizedTrackUrl);
   }, []);
 
+  const handleNext = useCallback(() => {
+    if (transitioningRef.current) return;
+    const snapshot = playerStateRef.current;
+    if (!snapshot.playlist.length) return;
+
+    const wasPlaying = isPlayingRef.current;
+    const nextIndex = (snapshot.currentTrackIndex + 1) % snapshot.playlist.length;
+    const nextTrack = snapshot.playlist[nextIndex];
+    if (!nextTrack) return;
+
+    setPlayerState((prev) => ({
+      ...prev,
+      currentTrackIndex: nextIndex,
+      currentTrack: nextTrack,
+      currentTime: 0,
+      duration: 0,
+    }));
+
+    void changeTrack(nextTrack, wasPlaying);
+  }, [changeTrack]);
+
   useEffect(() => {
     const audio = new Audio();
     audio.preload = "none";
@@ -377,27 +398,6 @@ export const useAudioPlayer = () => {
     } catch {
       setPlayerState((prev) => ({ ...prev, isPlaying: false }));
     }
-  }, [changeTrack]);
-
-  const handleNext = useCallback(() => {
-    if (transitioningRef.current) return;
-    const snapshot = playerStateRef.current;
-    if (!snapshot.playlist.length) return;
-
-    const wasPlaying = isPlayingRef.current;
-    const nextIndex = (snapshot.currentTrackIndex + 1) % snapshot.playlist.length;
-    const nextTrack = snapshot.playlist[nextIndex];
-    if (!nextTrack) return;
-
-    setPlayerState((prev) => ({
-      ...prev,
-      currentTrackIndex: nextIndex,
-      currentTrack: nextTrack,
-      currentTime: 0,
-      duration: 0,
-    }));
-
-    void changeTrack(nextTrack, wasPlaying);
   }, [changeTrack]);
 
   const PREV_RESTART_THRESHOLD = 3;
