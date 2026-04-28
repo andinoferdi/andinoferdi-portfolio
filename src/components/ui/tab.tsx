@@ -1,6 +1,7 @@
 "use client";
 
-import { startTransition, useEffect, useRef, useState, useMemo } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
+import AOS from "aos";
 import { cn } from "@/lib/utils";
 import { type ReactNode } from "react";
 
@@ -92,46 +93,23 @@ export const TabContent = ({
   activeTab,
   className,
 }: TabContentProps) => {
-  const outerRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-
   const activeItem = useMemo(
     () => items.find((item) => item.id === activeTab),
     [activeTab, items],
   );
 
-  // Animate the outer wrapper to match the inner panel height
   useEffect(() => {
-    const outer = outerRef.current;
-    const panel = panelRef.current;
-    if (!outer || !panel) return;
+    const frame = window.requestAnimationFrame(() => {
+      AOS.refreshHard();
+    });
 
-    // Measure once on mount / tab change
-    const applyHeight = () => {
-      const h = panel.getBoundingClientRect().height;
-      if (h > 0) outer.style.height = `${h}px`;
-    };
-
-    applyHeight();
-
-    // Keep tracking in case inner content shifts (e.g. images load)
-    const ro = new ResizeObserver(() => applyHeight());
-    ro.observe(panel);
-    return () => ro.disconnect();
+    return () => window.cancelAnimationFrame(frame);
   }, [activeItem]);
 
   return (
-    <div
-      ref={outerRef}
-      className={cn(
-        "w-full overflow-hidden transition-[height] duration-300 ease-in-out",
-        className,
-      )}
-      // no explicit height style here — it's driven by the effect above
-    >
+    <div className={cn("w-full", className)}>
       {activeItem && (
         <div
-          ref={panelRef}
           key={activeItem.id}
           role="tabpanel"
           aria-hidden={false}
